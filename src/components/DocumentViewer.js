@@ -18,7 +18,10 @@ export default function DocumentViewer() {
   
   // Function to apply highlighting to the document
   const applyHighlighting = () => {
-    if (!viewerRef.current || !documentHtml || !issues || !showIssues) return;
+    if (!viewerRef.current || !documentHtml || !issues || !showIssues) {
+      console.log('Cannot apply highlighting, missing prerequisites');
+      return;
+    }
     
     console.log('Applying highlighting to document with', issues.length, 'issues');
     
@@ -26,11 +29,11 @@ export default function DocumentViewer() {
     const existingMarks = viewerRef.current.querySelectorAll('mark[data-issue-id]');
     existingMarks.forEach(mark => {
       // Clone the mark without event listeners to prevent memory leaks
-      const newMark = mark.cloneNode(true);
-      const parent = mark.parentNode;
-      const textContent = mark.textContent;
-      const textNode = document.createTextNode(textContent);
-      parent.replaceChild(textNode, mark);
+      if (mark.parentNode) {
+        const textContent = mark.textContent;
+        const textNode = document.createTextNode(textContent);
+        mark.parentNode.replaceChild(textNode, mark);
+      }
     });
     
     // Track created marks so we can efficiently handle cleanups later
@@ -167,69 +170,68 @@ export default function DocumentViewer() {
   };
   
   useEffect(() => {
+    // Declare variables at the function scope level, so they're accessible in the cleanup function
+    let mainTimeoutId;
+    let highlightTimeoutId;
+    
     console.log('DocumentViewer effect running with documentHtml:', !!documentHtml);
     
-    if (documentHtml && viewerRef.current) {
+    if (documentHtml) {
       setIsLoading(true);
       
-      // Set the HTML content directly
-      viewerRef.current.innerHTML = documentHtml;
-      console.log('Document HTML set successfully');
+      // Use a ref to track the current render cycle
+      const renderCycleId = Date.now();
+      if (viewerRef.current) {
+        viewerRef.current.setAttribute('data-render-cycle', renderCycleId.toString());
       
-      // Small delay to ensure the DOM is ready for highlighting
-      const timeoutId = setTimeout(() => {
-        setIsLoading(false);
-        console.log('Document HTML rendered, ready for highlighting');
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
+        mainTimeoutId = setTimeout(() => {
+          // Check if this is still the current render cycle
+          if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
+            // Set the HTML content
+            viewerRef.current.innerHTML = documentHtml;
+            console.log('Document HTML set successfully');
+            
+            // Apply highlighting after a short delay to ensure DOM is ready
+            highlightTimeoutId = setTimeout(() => {
+              // Double-check that we're still on the same render cycle before highlighting
+              if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
+                applyHighlighting();
+              }
+            }, 100);
+          }
+          
+          // Finish loading regardless of success
+          setIsLoading(false);
+        }, 500);
+      }
     }
+    
+    // Cleanup function
+    return () => {
+      if (mainTimeoutId) clearTimeout(mainTimeoutId);
+      if (highlightTimeoutId) clearTimeout(highlightTimeoutId);
+    };
   }, [documentHtml]);
   
   // Function to apply highlighting (memoized to prevent unnecessary recreations)
   const highlightIssues = useCallback(() => {
-    if (documentHtml && !isLoading && viewerRef.current && issues) {
-      console.log('highlightIssues called with:', issues.length, 'issues, showIssues:', showIssues);
+    if (documentHtml && !isLoading && viewerRef.current) {
       return applyHighlighting();
     }
   }, [documentHtml, isLoading, issues, showIssues]);
 
   // Apply highlighting when issues change or active issue changes
   useEffect(() => {
-    console.log('Highlighting useEffect triggered');
     // Only apply if document is loaded and not in loading state
-    if (documentHtml && !isLoading && viewerRef.current) {
-      // Small delay to ensure DOM is ready
-      const timeoutId = setTimeout(() => {
-        const cleanup = highlightIssues();
-        
-        // Store cleanup function for component unmount
-        return () => {
-          if (typeof cleanup === 'function') {
-            cleanup();
-          }
-        };
-      }, 50);
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [issues, activeIssueId, showIssues, documentHtml, isLoading, highlightIssues]);
-  
-  // Helper function to get text nodes
-  const getTextNodes = (node) => {
-    let textNodes = [];
-    if (node.nodeType === Node.TEXT_NODE) {
-      textNodes.push(node);
-    } else {
-      const children = node.childNodes;
-      for (let i = 0; i < children.length; i++) {
-        textNodes = textNodes.concat(getTextNodes(children[i]));
+    const cleanup = highlightIssues();
+    
+    // Return cleanup function to remove event listeners when component unmounts
+    return () => {
+      if (typeof cleanup === 'function') {
+        cleanup();
       }
-    }
-    return textNodes;
-  };
+    };
+  }, [issues, activeIssueId, showIssues, highlightIssues]);
   
   // Helper function to get issue class based on severity
   const getIssueClass = (severity) => {
@@ -300,18 +302,16 @@ export default function DocumentViewer() {
                   color: '#1f2937'
                 }}
               >
-                {/* Document content will be inserted here dynamically */}
-                {!documentHtml && (
+                {/* THIS IS THE CRITICAL CHANGE: Use dangerouslySetInnerHTML as a backup rendering method */}
+                {documentHtml ? (
+                  <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
+                ) : (
                   <div>
-                    <p>No document content to display.</p>
-                    {documentText && (
-                      <>
-                        <p className="text-gray-500 mt-2">Raw text content:</p>
-                        <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-                          {documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '')}
-                        </div>
-                      </>
-                    )}
+                    <p>Document loaded but HTML content could not be displayed.</p>
+                    <p className="text-gray-500 mt-2">Raw text content:</p>
+                    <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                      {documentText ? documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '') : 'No text content available'}
+                    </div>
                   </div>
                 )}
               </div>

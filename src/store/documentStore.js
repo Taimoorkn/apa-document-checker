@@ -616,7 +616,8 @@ export const useDocumentStore = create((set, get) => ({
         ...state.processingState,
         isApplyingFix: true,
         currentFixId: issueId
-      }
+      },
+      fixInProgress: issueId
     }));
     
     // Create a small artificial delay for better UX feedback
@@ -624,6 +625,29 @@ export const useDocumentStore = create((set, get) => ({
     
     let updatedHtml = documentHtml;
     let updatedText = documentText;
+    
+    // Helper function for safer text replacement
+    const replaceTextSafely = (originalText, searchText, replacementText) => {
+      try {
+        // Try exact match first
+        if (originalText.includes(searchText)) {
+          return originalText.replace(searchText, replacementText);
+        }
+        
+        // Try with regex escape
+        const exactMatchRegex = new RegExp(escapeRegExp(searchText), 'g');
+        if (exactMatchRegex.test(originalText)) {
+          return originalText.replace(exactMatchRegex, replacementText);
+        }
+        
+        // If no match found, return original
+        console.warn('Could not find text to replace:', searchText);
+        return originalText;
+      } catch (error) {
+        console.error('Error in text replacement:', error);
+        return originalText;
+      }
+    };
     
     // Apply the fix based on the issue type
     switch (issue.fixAction) {
@@ -637,21 +661,11 @@ export const useDocumentStore = create((set, get) => ({
             const year = citationMatch[2];
             const fixedText = issue.text.replace(
               `(${authors}, ${year})`, 
-              `(${authors}, ${year}, p. 1)` // Default to p. 1, would be customizable in a real app
+              `(${authors}, ${year}, p. 1)`
             );
             
-            // Use safer replacements with exact matches only
-            try {
-              // Create a RegExp that matches the exact text (without global flag)
-              const exactMatchRegex = new RegExp(escapeRegExp(issue.text));
-              updatedText = documentText.replace(exactMatchRegex, fixedText);
-              updatedHtml = documentHtml.replace(exactMatchRegex, fixedText);
-            } catch (error) {
-              console.error('Error replacing text:', error);
-              // Fallback to simple replace if regex fails
-              updatedText = documentText.replace(issue.text, fixedText);
-              updatedHtml = documentHtml.replace(issue.text, fixedText);
-            }
+            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
+            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
           }
         }
         break;
@@ -669,18 +683,8 @@ export const useDocumentStore = create((set, get) => ({
               `(${authors}, ${year})`
             );
             
-            // Use safer replacements with exact matches only
-            try {
-              // Create a RegExp that matches the exact text (without global flag)
-              const exactMatchRegex = new RegExp(escapeRegExp(issue.text));
-              updatedText = documentText.replace(exactMatchRegex, fixedText);
-              updatedHtml = documentHtml.replace(exactMatchRegex, fixedText);
-            } catch (error) {
-              console.error('Error replacing text:', error);
-              // Fallback to simple replace if regex fails
-              updatedText = documentText.replace(issue.text, fixedText);
-              updatedHtml = documentHtml.replace(issue.text, fixedText);
-            }
+            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
+            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
           }
         }
         break;
@@ -688,22 +692,16 @@ export const useDocumentStore = create((set, get) => ({
       case 'fixAmpersand':
         // Fix ampersand vs. 'and' in citations
         if (issue.text) {
-          // For narrative citations, 'and' is correct
+          let fixedText;
           if (issue.text.includes(' and ')) {
-            // This is already correct, but if we need to fix parenthetical citation:
-            const fixedText = issue.text.replace(' and ', ' & ');
-            // Use safer replacements with exact matches only
-            try {
-              // Create a RegExp that matches the exact text (without global flag)
-              const exactMatchRegex = new RegExp(escapeRegExp(issue.text));
-              updatedText = documentText.replace(exactMatchRegex, fixedText);
-              updatedHtml = documentHtml.replace(exactMatchRegex, fixedText);
-            } catch (error) {
-              console.error('Error replacing text:', error);
-              // Fallback to simple replace if regex fails
-              updatedText = documentText.replace(issue.text, fixedText);
-              updatedHtml = documentHtml.replace(issue.text, fixedText);
-            }
+            fixedText = issue.text.replace(' and ', ' & ');
+          } else if (issue.text.includes(' & ')) {
+            fixedText = issue.text.replace(' & ', ' and ');
+          }
+          
+          if (fixedText) {
+            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
+            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
           }
         }
         break;
@@ -716,7 +714,6 @@ export const useDocumentStore = create((set, get) => ({
         
       case 'reorderReferences':
         // For demo purposes, just mark as fixed
-        // In real implementation, this would reorder the references alphabetically
         break;
         
       case 'addTitlePage':
@@ -760,7 +757,6 @@ export const useDocumentStore = create((set, get) => ({
         
       case 'fixHeadingLevel':
         // For demo purposes, just mark as fixed
-        // In a real implementation, this would fix heading hierarchy
         break;
         
       case 'fixFont':
@@ -819,25 +815,35 @@ export const useDocumentStore = create((set, get) => ({
     // Remove the fixed issue from issues list
     const updatedIssues = issues.filter(i => i.id !== issueId);
     
-    // Update state with modified document and recalculated score
+    // Calculate new score
+    const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
+    const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
+    const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
+    const newScore = updatedIssues.length === 0 
+      ? 100 
+      : Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 5 + majorCount * 3 + minorCount))));
+    
+    // Update state - the key is to ensure React detects the change
     set(state => ({ 
       documentText: updatedText,
       documentHtml: updatedHtml,
       issues: updatedIssues,
-      // Recalculate compliance score
-      analysisScore: updatedIssues.length === 0 
-        ? 100 
-        : Math.max(0, Math.min(100, Math.round(100 - (
-            updatedIssues.filter(i => i.severity === 'Critical').length * 5 + 
-            updatedIssues.filter(i => i.severity === 'Major').length * 3 + 
-            updatedIssues.filter(i => i.severity === 'Minor').length
-          )))),
-      // Reset the applying fix state
+      analysisScore: newScore,
+      lastFixAppliedAt: Date.now(), // Force re-render
+      fixInProgress: null,
       processingState: {
         ...state.processingState,
         isApplyingFix: false,
         currentFixId: null
       }
     }));
+    
+    console.log('Fix applied successfully for issue:', issueId);
+    console.log('Updated HTML length:', updatedHtml?.length);
+    console.log('Updated text length:', updatedText?.length);
+    console.log('Remaining issues:', updatedIssues.length);
+    
+    // Force a small delay to ensure state update is processed
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
 }));

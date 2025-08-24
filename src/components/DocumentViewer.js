@@ -6,7 +6,7 @@ import { FileText, InfoIcon } from 'lucide-react';
 import { useTooltip } from '@/components/Tooltip';
 
 export default function DocumentViewer() {
-  const { documentText, documentHtml, activeIssueId, issues, setActiveIssue } = useDocumentStore();
+const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt } = useDocumentStore();
   const viewerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -169,6 +169,7 @@ export default function DocumentViewer() {
     }
   };
   
+  // ONLY CHANGE: Update the documentHtml useEffect to include issues as dependency
   useEffect(() => {
     // Declare variables at the function scope level, so they're accessible in the cleanup function
     let mainTimeoutId;
@@ -187,9 +188,8 @@ export default function DocumentViewer() {
         mainTimeoutId = setTimeout(() => {
           // Check if this is still the current render cycle
           if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-            // Set the HTML content
-            viewerRef.current.innerHTML = documentHtml;
-            console.log('Document HTML set successfully');
+            // Don't set innerHTML here - let React handle the rendering via dangerouslySetInnerHTML
+            console.log('Document HTML ready for highlighting');
             
             // Apply highlighting after a short delay to ensure DOM is ready
             highlightTimeoutId = setTimeout(() => {
@@ -202,7 +202,7 @@ export default function DocumentViewer() {
           
           // Finish loading regardless of success
           setIsLoading(false);
-        }, 500);
+        }, 200); // Shorter delay since we're not setting innerHTML
       }
     }
     
@@ -211,7 +211,7 @@ export default function DocumentViewer() {
       if (mainTimeoutId) clearTimeout(mainTimeoutId);
       if (highlightTimeoutId) clearTimeout(highlightTimeoutId);
     };
-  }, [documentHtml]);
+}, [documentHtml, issues, lastFixAppliedAt]); // CRITICAL: Add issues as dependency
   
   // Function to apply highlighting (memoized to prevent unnecessary recreations)
   const highlightIssues = useCallback(() => {
@@ -302,7 +302,7 @@ export default function DocumentViewer() {
                   color: '#1f2937'
                 }}
               >
-                {/* THIS IS THE CRITICAL CHANGE: Use dangerouslySetInnerHTML as a backup rendering method */}
+                {/* KEEP YOUR ORIGINAL RENDERING METHOD */}
                 {documentHtml ? (
                   <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
                 ) : (

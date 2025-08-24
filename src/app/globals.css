@@ -1,0 +1,190 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #3b82f6;
+  --secondary: #10b981;
+  --accent: #8b5cf6;
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --background: #ffffff;
+  --text: #1f2937;
+}
+
+/* Base styling */
+body {
+  color: var(--text);
+  background-color: var(--background);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5 {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+/* APA styling for document viewer */
+.prose {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 12pt;
+  line-height: 2;
+  max-width: none;
+}
+
+/* Issue highlighting styles */
+mark[data-issue-id] {
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0 1px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+mark[data-issue-id]:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+mark[data-issue-id]::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.3s ease;
+}
+
+mark[data-issue-id]:hover::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
+.bg-red-200 {
+  background-color: rgba(254, 202, 202, 0.7);
+  border-bottom: 2px solid var(--error);
+}
+
+.bg-red-200:hover {
+  background-color: rgba(254, 202, 202, 0.9);
+}
+
+.bg-red-200::after {
+  background-color: var(--error);
+}
+
+.bg-orange-200 {
+  background-color: rgba(254, 215, 170, 0.7);
+  border-bottom: 2px solid var(--warning);
+}
+
+.bg-orange-200:hover {
+  background-color: rgba(254, 215, 170, 0.9);
+}
+
+.bg-orange-200::after {
+  background-color: var(--warning);
+}
+
+.bg-blue-200 {
+  background-color: rgba(191, 219, 254, 0.7);
+  border-bottom: 2px solid var(--primary);
+}
+
+.bg-blue-200:hover {
+  background-color: rgba(191, 219, 254, 0.9);
+}
+
+.bg-blue-200::after {
+  background-color: var(--primary);
+}
+
+/* Active issue highlighting */
+.active-issue {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  animation: pulse 2s infinite;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Animation utilities (fallback for older Tailwind versions) */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-pulse-blue {
+  animation: pulse 2s infinite;
+}
+
+/* Apply animations to components */
+.issue-category {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.issue-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Staggered animations for issue items */
+.issue-item:nth-child(1) { animation-delay: 0.05s; }
+.issue-item:nth-child(2) { animation-delay: 0.1s; }
+.issue-item:nth-child(3) { animation-delay: 0.15s; }
+.issue-item:nth-child(4) { animation-delay: 0.2s; }
+.issue-item:nth-child(5) { animation-delay: 0.25s; }
+
+/* Custom utility classes */
+.hover-shadow:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.hover-grow:hover {
+  transform: scale(1.02);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 3px solid rgba(59, 130, 246, 0.1);
+  border-radius: 50%;
+  border-top: 3px solid var(--primary);
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}

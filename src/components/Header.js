@@ -1,14 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/documentStore';
-import { BookOpen, Upload, Download, File, AlertTriangle } from 'lucide-react';
+import { BookOpen, Upload, Download, File, AlertTriangle, ChevronDown } from 'lucide-react';
+import AnalysisSettings from '@/components/AnalysisSettings';
 
 export default function Header() {
-  const { uploadDocument, documentName, analyzeDocument, analysisScore, exportDocument, processingState } = useDocumentStore();
+  const { 
+    uploadDocument, 
+    documentName, 
+    analyzeDocument, 
+    analyzeDocumentDebounced, 
+    analysisScore, 
+    exportDocument, 
+    processingState,
+    analysisSettings 
+  } = useDocumentStore();
   
   // Local state for UI-only errors (now using store for processing state)
   const [uploadError, setUploadError] = useState(null);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target)) {
+        setShowExportDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   const handleFileUpload = async (e) => {
     // Reset error state
@@ -36,7 +63,8 @@ export default function Header() {
       
       if (success) {
         // Only analyze if upload was successful
-        const analysisResult = await analyzeDocument();
+        // Use debounced analysis for better performance with large documents
+        const analysisResult = await analyzeDocumentDebounced();
         
         // If analysis failed, display error
         if (!analysisResult?.success && analysisResult?.error) {
@@ -56,6 +84,20 @@ export default function Header() {
       e.target.value = '';
     }
   };
+
+  const handleExport = async (format) => {
+    setIsExporting(true);
+    setShowExportDropdown(false);
+    
+    try {
+      await exportDocument(format);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Failed to export ${format.toUpperCase()} document. Please try again.`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
   
   return (
     <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-md">
@@ -72,13 +114,18 @@ export default function Header() {
               <div className="flex flex-col">
                 <label className={`${processingState.isUploading ? 'opacity-75 cursor-wait' : 'hover:bg-gray-50'} bg-white text-blue-700 border border-transparent hover:border-blue-100 px-4 py-2 rounded-md cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center group`}>
                   <Upload className={`h-5 w-5 mr-2 ${processingState.isUploading ? 'animate-pulse' : ''} text-blue-500 group-hover:text-blue-600`} />
-                  {processingState.isUploading ? 'Uploading...' : processingState.isAnalyzing ? 'Analyzing...' : 'Upload Document'}
+                  {
+                    processingState.isUploading ? 'Uploading...' : 
+                    processingState.isSchedulingAnalysis ? 'Scheduling Analysis...' :
+                    processingState.isAnalyzing ? 'Analyzing...' : 
+                    'Upload Document'
+                  }
                   <input
                     type="file"
                     accept=".docx"
                     className="hidden"
                     onChange={handleFileUpload}
-                    disabled={processingState.isUploading || processingState.isAnalyzing}
+                    disabled={processingState.isUploading || processingState.isAnalyzing || processingState.isSchedulingAnalysis}
                   />
                 </label>
                 
@@ -91,14 +138,45 @@ export default function Header() {
               </div>
               
               {documentName && (
-                <button 
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors shadow-md hover:shadow-lg flex items-center"
-                  onClick={exportDocument}
-                >
-                  <Download className="h-5 w-5 mr-2" />
-                  Export Fixed Document
-                </button>
+                <div className="relative" ref={exportDropdownRef}>
+                  <button 
+                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors shadow-md hover:shadow-lg flex items-center"
+                    onClick={() => setShowExportDropdown(!showExportDropdown)}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-5 w-5 mr-2" />
+                    {isExporting ? 'Exporting...' : 'Export Document'}
+                    <ChevronDown className="h-4 w-4 ml-1" />
+                  </button>
+
+                  {showExportDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                      <div className="py-1">
+                        <button
+                          onClick={() => handleExport('html')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          disabled={isExporting}
+                        >
+                          <File className="h-4 w-4 mr-2 text-orange-500" />
+                          Export as HTML
+                          <span className="ml-auto text-xs text-gray-500">Viewable in browser</span>
+                        </button>
+                        <button
+                          onClick={() => handleExport('docx')}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          disabled={isExporting}
+                        >
+                          <File className="h-4 w-4 mr-2 text-blue-500" />
+                          Export as DOCX
+                          <span className="ml-auto text-xs text-gray-500">Editable in Word</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
+              
+              <AnalysisSettings />
             </div>
           </div>
           

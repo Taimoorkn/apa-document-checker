@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useDocumentStore } from '@/store/documentStore';
 import { FileText, InfoIcon } from 'lucide-react';
+import { useTooltip } from '@/components/Tooltip';
 
 export default function DocumentViewer() {
   const { documentText, documentHtml, activeIssueId, issues, setActiveIssue } = useDocumentStore();
@@ -11,6 +12,9 @@ export default function DocumentViewer() {
   
   // Add a state for showing/hiding issues
   const [showIssues, setShowIssues] = useState(true);
+  
+  // Initialize tooltip functionality
+  const { showTooltip, hideTooltip, TooltipComponent } = useTooltip();
   
   // Function to apply highlighting to the document
   const applyHighlighting = () => {
@@ -66,6 +70,8 @@ export default function DocumentViewer() {
           // Create a mark element
           const mark = document.createElement('mark');
           mark.setAttribute('data-issue-id', issue.id);
+          mark.setAttribute('data-issue-title', issue.title);
+          mark.setAttribute('data-issue-explanation', issue.explanation || issue.description || 'APA formatting issue detected');
           mark.className = getIssueClass(issue.severity);
           
           // Wrap the text in the mark
@@ -88,13 +94,18 @@ export default function DocumentViewer() {
       }
     }
     
-    // Add a single delegated event listener at the container level for better performance
+    // Add delegated event listeners at the container level for better performance
     // and to avoid memory leaks from multiple individual listeners
     if (viewerRef.current) {
-      // First remove any existing click handler
+      // Remove existing event handlers
       viewerRef.current.removeEventListener('click', handleMarkClick);
-      // Then add the new one
+      viewerRef.current.removeEventListener('mouseenter', handleMarkHover, true);
+      viewerRef.current.removeEventListener('mouseleave', handleMarkLeave, true);
+      
+      // Add new event handlers
       viewerRef.current.addEventListener('click', handleMarkClick);
+      viewerRef.current.addEventListener('mouseenter', handleMarkHover, true);
+      viewerRef.current.addEventListener('mouseleave', handleMarkLeave, true);
     }
     
     // Highlight the active issue with a special class
@@ -106,9 +117,11 @@ export default function DocumentViewer() {
     }
     
     return () => {
-      // Clean up event listener when component unmounts or before re-applying
+      // Clean up event listeners when component unmounts or before re-applying
       if (viewerRef.current) {
         viewerRef.current.removeEventListener('click', handleMarkClick);
+        viewerRef.current.removeEventListener('mouseenter', handleMarkHover, true);
+        viewerRef.current.removeEventListener('mouseleave', handleMarkLeave, true);
       }
     };
   };
@@ -125,67 +138,84 @@ export default function DocumentViewer() {
     }
   };
   
+  // Event handler for mark hover using event delegation
+  const handleMarkHover = (event) => {
+    const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
+    if (mark) {
+      const title = mark.getAttribute('data-issue-title');
+      const explanation = mark.getAttribute('data-issue-explanation');
+      
+      if (explanation) {
+        const rect = mark.getBoundingClientRect();
+        const content = (
+          <div className="text-left">
+            <div className="font-semibold mb-1 text-white">{title}</div>
+            <div className="text-gray-200 text-xs leading-relaxed">{explanation}</div>
+          </div>
+        );
+        showTooltip(content, rect.left + rect.width / 2, rect.bottom);
+      }
+    }
+  };
+  
+  // Event handler for mark leave using event delegation
+  const handleMarkLeave = (event) => {
+    const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
+    if (mark) {
+      hideTooltip();
+    }
+  };
+  
   useEffect(() => {
-    // Declare variables at the function scope level, so they're accessible in the cleanup function
-    let mainTimeoutId;
-    let highlightTimeoutId;
-    
     console.log('DocumentViewer effect running with documentHtml:', !!documentHtml);
     
-    if (documentHtml) {
+    if (documentHtml && viewerRef.current) {
       setIsLoading(true);
       
-      // Use a ref to track the current render cycle
-      const renderCycleId = Date.now();
-      viewerRef.current.setAttribute('data-render-cycle', renderCycleId.toString());
+      // Set the HTML content directly
+      viewerRef.current.innerHTML = documentHtml;
+      console.log('Document HTML set successfully');
       
-      mainTimeoutId = setTimeout(() => {
-        // Check if this is still the current render cycle
-        if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-          // Set the HTML content
-          viewerRef.current.innerHTML = documentHtml;
-          console.log('Document HTML set successfully');
-          
-          // Apply highlighting after a short delay to ensure DOM is ready
-          highlightTimeoutId = setTimeout(() => {
-            // Double-check that we're still on the same render cycle before highlighting
-            if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-              applyHighlighting();
-            }
-          }, 100);
-        }
-        
-        // Finish loading regardless of success
+      // Small delay to ensure the DOM is ready for highlighting
+      const timeoutId = setTimeout(() => {
         setIsLoading(false);
-      }, 500);
+        console.log('Document HTML rendered, ready for highlighting');
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
-    
-    // Cleanup function
-    return () => {
-      if (mainTimeoutId) clearTimeout(mainTimeoutId);
-      if (highlightTimeoutId) clearTimeout(highlightTimeoutId);
-    };
   }, [documentHtml]);
   
   // Function to apply highlighting (memoized to prevent unnecessary recreations)
   const highlightIssues = useCallback(() => {
-    if (documentHtml && !isLoading && viewerRef.current) {
+    if (documentHtml && !isLoading && viewerRef.current && issues) {
+      console.log('highlightIssues called with:', issues.length, 'issues, showIssues:', showIssues);
       return applyHighlighting();
     }
-  }, [documentHtml, isLoading]);
+  }, [documentHtml, isLoading, issues, showIssues]);
 
   // Apply highlighting when issues change or active issue changes
   useEffect(() => {
+    console.log('Highlighting useEffect triggered');
     // Only apply if document is loaded and not in loading state
-    const cleanup = highlightIssues();
-    
-    // Return cleanup function to remove event listeners when component unmounts
-    return () => {
-      if (typeof cleanup === 'function') {
-        cleanup();
-      }
-    };
-  }, [issues, activeIssueId, showIssues, highlightIssues]);
+    if (documentHtml && !isLoading && viewerRef.current) {
+      // Small delay to ensure DOM is ready
+      const timeoutId = setTimeout(() => {
+        const cleanup = highlightIssues();
+        
+        // Store cleanup function for component unmount
+        return () => {
+          if (typeof cleanup === 'function') {
+            cleanup();
+          }
+        };
+      }, 50);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [issues, activeIssueId, showIssues, documentHtml, isLoading, highlightIssues]);
   
   // Helper function to get text nodes
   const getTextNodes = (node) => {
@@ -220,6 +250,7 @@ export default function DocumentViewer() {
 
   return (
     <div className="p-8 h-full">
+      <TooltipComponent />
       {documentText ? (
         <>
           {isLoading ? (
@@ -269,16 +300,18 @@ export default function DocumentViewer() {
                   color: '#1f2937'
                 }}
               >
-                {/* Document content will be inserted here by useEffect, but we'll also render it directly if innerHTML doesn't work */}
-                {documentHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
-                ) : (
+                {/* Document content will be inserted here dynamically */}
+                {!documentHtml && (
                   <div>
-                    <p>Document loaded but HTML content could not be displayed.</p>
-                    <p className="text-gray-500 mt-2">Raw text content:</p>
-                    <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-                      {documentText ? documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '') : 'No text content available'}
-                    </div>
+                    <p>No document content to display.</p>
+                    {documentText && (
+                      <>
+                        <p className="text-gray-500 mt-2">Raw text content:</p>
+                        <div className="mt-2 p-4 bg-gray-50 rounded-lg">
+                          {documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '')}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

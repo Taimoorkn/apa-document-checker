@@ -12,6 +12,40 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Debounce utility function
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Create a debounced analysis function outside the store to maintain the timeout reference
+let debouncedAnalysisTimeout;
+const createDebouncedAnalysis = (analyzeFunction, delay = 1000) => {
+  return () => {
+    return new Promise((resolve, reject) => {
+      if (debouncedAnalysisTimeout) {
+        clearTimeout(debouncedAnalysisTimeout);
+      }
+      
+      debouncedAnalysisTimeout = setTimeout(async () => {
+        try {
+          const result = await analyzeFunction();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      }, delay);
+    });
+  };
+};
+
 export const useDocumentStore = create((set, get) => ({
   // Document state
   documentText: null,
@@ -27,14 +61,37 @@ export const useDocumentStore = create((set, get) => ({
   activeIssueId: null,
   analysisScore: null,
   
+  // Analysis settings
+  analysisSettings: {
+    debounceDelay: 1500, // milliseconds
+    autoAnalyze: true,   // whether to auto-analyze on document changes
+  },
+  
   // Export functionality
-  exportDocument: () => {
+  exportDocument: async (format = 'html') => {
     const { documentHtml, documentName } = get();
     
     if (!documentHtml) {
       alert('No document to export');
-      return;
+      return false;
     }
+    
+    try {
+      if (format === 'docx') {
+        return await get().exportDocx();
+      } else {
+        return await get().exportHtml();
+      }
+    } catch (error) {
+      console.error('Error exporting document:', error);
+      alert('Failed to export document. Please try again.');
+      return false;
+    }
+  },
+
+  // Export as HTML
+  exportHtml: () => {
+    const { documentHtml, documentName } = get();
     
     try {
       // Create a full HTML document with proper styling
@@ -112,9 +169,145 @@ export const useDocumentStore = create((set, get) => ({
       
       return true;
     } catch (error) {
-      console.error('Error exporting document:', error);
-      alert('Failed to export document. Please try again.');
-      return false;
+      console.error('Error exporting HTML document:', error);
+      throw error;
+    }
+  },
+
+  // Export as DOCX
+  exportDocx: async () => {
+    const { documentHtml, documentName } = get();
+    
+    try {
+      // Dynamically import html-to-docx
+      const { default: HTMLtoDOCX } = await import('html-to-docx');
+      
+      // Clean up the HTML and prepare for DOCX conversion
+      const cleanHtml = documentHtml
+        // Remove any existing mark elements (issue highlights)
+        .replace(/<mark[^>]*>(.*?)<\/mark>/gi, '$1')
+        // Clean up any data attributes
+        .replace(/\s*data-[a-z-]+="[^"]*"/gi, '')
+        // Remove any onclick or other event handlers
+        .replace(/\s*on[a-z]+="[^"]*"/gi, '');
+      
+      // Create the full document with APA styling
+      const styledHtml = `
+        <html>
+        <head>
+          <style>
+            body {
+              font-family: 'Times New Roman', Times, serif;
+              font-size: 12pt;
+              line-height: 2.0;
+              margin: 1in;
+            }
+            p {
+              text-indent: 0.5in;
+              margin-top: 0;
+              margin-bottom: 0;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              font-weight: bold;
+              margin-top: 12pt;
+              margin-bottom: 12pt;
+              text-align: left;
+            }
+            h1 {
+              text-align: center;
+              font-size: 12pt;
+            }
+            h2 {
+              text-align: center;
+              font-size: 12pt;
+            }
+            .title-page {
+              text-align: center;
+              margin-bottom: 24pt;
+            }
+            .abstract {
+              margin-bottom: 24pt;
+            }
+            .abstract h2 {
+              text-align: center;
+            }
+            .references h2 {
+              text-align: center;
+            }
+            .references p {
+              text-indent: -0.5in;
+              padding-left: 0.5in;
+              margin-bottom: 12pt;
+            }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 12pt 0;
+            }
+            td, th {
+              border: 1pt solid black;
+              padding: 6pt;
+              text-align: left;
+            }
+            th {
+              font-weight: bold;
+              background-color: #f0f0f0;
+            }
+            .page-break {
+              page-break-before: always;
+            }
+          </style>
+        </head>
+        <body>
+          ${cleanHtml}
+        </body>
+        </html>
+      `;
+      
+      // Configure conversion options
+      const options = {
+        orientation: 'portrait',
+        margins: {
+          top: 1440, // 1 inch in twips (1440 twips = 1 inch)
+          right: 1440,
+          bottom: 1440,
+          left: 1440
+        },
+        title: documentName ? documentName.replace('.docx', '') : 'APA Formatted Document',
+        creator: 'APA 7th Edition Document Checker',
+        description: 'Document formatted according to APA 7th edition guidelines'
+      };
+      
+      // Convert HTML to DOCX
+      const docxBuffer = await HTMLtoDOCX(styledHtml, null, options);
+      
+      // Create a blob from the buffer
+      const blob = new Blob([docxBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(blob);
+      
+      // Create a download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = documentName ? 
+        documentName.replace('.docx', '_APA_formatted.docx') : 
+        'apa_formatted_document.docx';
+      
+      // Append to the body, click and remove
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Release the URL
+      URL.revokeObjectURL(url);
+      
+      return true;
+    } catch (error) {
+      console.error('Error exporting DOCX document:', error);
+      throw error;
     }
   },
   
@@ -125,7 +318,9 @@ export const useDocumentStore = create((set, get) => ({
     isApplyingFix: false,
     lastError: null,
     progress: 0,
-    currentFixId: null
+    currentFixId: null,
+    isSchedulingAnalysis: false, // for debounced analysis feedback
+    analysisScheduledAt: null    // timestamp when analysis was scheduled
   },
   
   // Upload a document and convert it to HTML
@@ -274,7 +469,8 @@ export const useDocumentStore = create((set, get) => ({
         severity: issue.severity,
         location: issue.location,
         hasFix: issue.hasFix,
-        fixAction: issue.fixAction
+        fixAction: issue.fixAction,
+        explanation: issue.explanation || issue.description // Include explanation for tooltips
       }));
       
       // Calculate compliance score (weighted by severity)
@@ -311,6 +507,80 @@ export const useDocumentStore = create((set, get) => ({
       
       return { success: false, error: error.message };
     }
+  },
+  
+  // Debounced version of analyzeDocument for better performance
+  analyzeDocumentDebounced: () => {
+    const { analysisSettings } = get();
+    
+    // Clear any existing scheduled analysis
+    if (debouncedAnalysisTimeout) {
+      clearTimeout(debouncedAnalysisTimeout);
+    }
+    
+    // Update state to show that analysis is scheduled
+    set(state => ({
+      processingState: {
+        ...state.processingState,
+        isSchedulingAnalysis: true,
+        analysisScheduledAt: Date.now()
+      }
+    }));
+    
+    return new Promise((resolve, reject) => {
+      debouncedAnalysisTimeout = setTimeout(async () => {
+        try {
+          // Clear scheduling state
+          set(state => ({
+            processingState: {
+              ...state.processingState,
+              isSchedulingAnalysis: false,
+              analysisScheduledAt: null
+            }
+          }));
+          
+          // Run the actual analysis
+          const result = await get().analyzeDocument();
+          resolve(result);
+        } catch (error) {
+          // Clear scheduling state on error
+          set(state => ({
+            processingState: {
+              ...state.processingState,
+              isSchedulingAnalysis: false,
+              analysisScheduledAt: null
+            }
+          }));
+          reject(error);
+        }
+      }, analysisSettings.debounceDelay);
+    });
+  },
+  
+  // Cancel any pending debounced analysis
+  cancelDebouncedAnalysis: () => {
+    if (debouncedAnalysisTimeout) {
+      clearTimeout(debouncedAnalysisTimeout);
+      debouncedAnalysisTimeout = null;
+    }
+    
+    set(state => ({
+      processingState: {
+        ...state.processingState,
+        isSchedulingAnalysis: false,
+        analysisScheduledAt: null
+      }
+    }));
+  },
+  
+  // Update analysis settings
+  updateAnalysisSettings: (newSettings) => {
+    set(state => ({
+      analysisSettings: {
+        ...state.analysisSettings,
+        ...newSettings
+      }
+    }));
   },
   
   // Set active issue (for navigation and highlighting)

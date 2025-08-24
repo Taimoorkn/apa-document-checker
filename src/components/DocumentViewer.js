@@ -9,6 +9,7 @@ export default function DocumentViewer() {
 const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt } = useDocumentStore();
   const viewerRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastContentUpdate, setLastContentUpdate] = useState(null);
   
   // Add a state for showing/hiding issues
   const [showIssues, setShowIssues] = useState(true);
@@ -17,7 +18,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   const { showTooltip, hideTooltip, TooltipComponent } = useTooltip();
   
   // Function to apply highlighting to the document
-  const applyHighlighting = () => {
+  const applyHighlighting = useCallback(() => {
     if (!viewerRef.current || !documentHtml || !issues || !showIssues) {
       console.log('Cannot apply highlighting, missing prerequisites');
       return;
@@ -116,6 +117,8 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       const activeMark = viewerRef.current.querySelector(`mark[data-issue-id="${activeIssueId}"]`);
       if (activeMark) {
         activeMark.classList.add('active-issue');
+        // Scroll to active issue
+        activeMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
     
@@ -127,10 +130,10 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         viewerRef.current.removeEventListener('mouseleave', handleMarkLeave, true);
       }
     };
-  };
+  }, [documentHtml, issues, showIssues, activeIssueId]);
   
   // Event handler for mark clicks using event delegation
-  const handleMarkClick = (event) => {
+  const handleMarkClick = useCallback((event) => {
     // Find the closest mark element from the click target
     const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
     if (mark) {
@@ -139,10 +142,10 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         setActiveIssue(issueId);
       }
     }
-  };
+  }, [setActiveIssue]);
   
   // Event handler for mark hover using event delegation
-  const handleMarkHover = (event) => {
+  const handleMarkHover = useCallback((event) => {
     const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
     if (mark) {
       const title = mark.getAttribute('data-issue-title');
@@ -159,23 +162,26 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         showTooltip(content, rect.left + rect.width / 2, rect.bottom);
       }
     }
-  };
+  }, [showTooltip]);
   
   // Event handler for mark leave using event delegation
-  const handleMarkLeave = (event) => {
+  const handleMarkLeave = useCallback((event) => {
     const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
     if (mark) {
       hideTooltip();
     }
-  };
+  }, [hideTooltip]);
   
-  // ONLY CHANGE: Update the documentHtml useEffect to include issues as dependency
+  // Main useEffect for handling document HTML changes and initial load
   useEffect(() => {
-    // Declare variables at the function scope level, so they're accessible in the cleanup function
     let mainTimeoutId;
     let highlightTimeoutId;
     
-    console.log('DocumentViewer effect running with documentHtml:', !!documentHtml);
+    console.log('DocumentViewer main effect running:', {
+      hasDocumentHtml: !!documentHtml,
+      htmlLength: documentHtml?.length,
+      issuesCount: issues?.length
+    });
     
     if (documentHtml) {
       setIsLoading(true);
@@ -188,21 +194,24 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         mainTimeoutId = setTimeout(() => {
           // Check if this is still the current render cycle
           if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-            // Don't set innerHTML here - let React handle the rendering via dangerouslySetInnerHTML
             console.log('Document HTML ready for highlighting');
             
             // Apply highlighting after a short delay to ensure DOM is ready
             highlightTimeoutId = setTimeout(() => {
               // Double-check that we're still on the same render cycle before highlighting
               if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-                applyHighlighting();
+                const cleanup = applyHighlighting();
+                // Store cleanup function for later use if needed
+                if (cleanup && typeof cleanup === 'function') {
+                  viewerRef.current.setAttribute('data-cleanup', 'available');
+                }
               }
             }, 100);
           }
           
           // Finish loading regardless of success
           setIsLoading(false);
-        }, 200); // Shorter delay since we're not setting innerHTML
+        }, 200);
       }
     }
     
@@ -211,27 +220,67 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       if (mainTimeoutId) clearTimeout(mainTimeoutId);
       if (highlightTimeoutId) clearTimeout(highlightTimeoutId);
     };
-}, [documentHtml, issues, lastFixAppliedAt]); // CRITICAL: Add issues as dependency
+  }, [documentHtml, applyHighlighting]);
   
-  // Function to apply highlighting (memoized to prevent unnecessary recreations)
-  const highlightIssues = useCallback(() => {
-    if (documentHtml && !isLoading && viewerRef.current) {
-      return applyHighlighting();
-    }
-  }, [documentHtml, isLoading, issues, showIssues]);
-
-  // Apply highlighting when issues change or active issue changes
+  // Separate effect for handling issue changes (highlighting updates)
   useEffect(() => {
-    // Only apply if document is loaded and not in loading state
-    const cleanup = highlightIssues();
-    
-    // Return cleanup function to remove event listeners when component unmounts
-    return () => {
-      if (typeof cleanup === 'function') {
-        cleanup();
+    if (documentHtml && !isLoading && viewerRef.current) {
+      console.log('Issues or showIssues changed, updating highlighting');
+      const highlightTimeout = setTimeout(() => {
+        const cleanup = applyHighlighting();
+        if (cleanup && typeof cleanup === 'function') {
+          viewerRef.current.setAttribute('data-cleanup', 'available');
+        }
+      }, 50);
+      
+      return () => clearTimeout(highlightTimeout);
+    }
+  }, [issues, showIssues, applyHighlighting, isLoading, documentHtml]);
+  
+  // Separate effect for handling active issue changes (scrolling)
+  useEffect(() => {
+    if (activeIssueId && viewerRef.current && !isLoading) {
+      console.log('Active issue changed to:', activeIssueId);
+      
+      // Small delay to ensure highlighting is applied first
+      const scrollTimeout = setTimeout(() => {
+        if (viewerRef.current) {
+          // Remove previous active highlights
+          const previousActive = viewerRef.current.querySelectorAll('.active-issue');
+          previousActive.forEach(el => el.classList.remove('active-issue'));
+          
+          // Add active highlight and scroll to the new active issue
+          const activeMark = viewerRef.current.querySelector(`mark[data-issue-id="${activeIssueId}"]`);
+          if (activeMark) {
+            activeMark.classList.add('active-issue');
+            activeMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      }, 100);
+      
+      return () => clearTimeout(scrollTimeout);
+    }
+  }, [activeIssueId, isLoading]);
+  
+  // Effect for handling fixes applied (content updates)
+  useEffect(() => {
+    if (lastFixAppliedAt && lastFixAppliedAt !== lastContentUpdate) {
+      console.log('Fix was applied at:', lastFixAppliedAt, '- updating content');
+      setLastContentUpdate(lastFixAppliedAt);
+      
+      // Ensure highlighting is reapplied after content changes
+      if (viewerRef.current && !isLoading) {
+        const updateTimeout = setTimeout(() => {
+          const cleanup = applyHighlighting();
+          if (cleanup && typeof cleanup === 'function') {
+            viewerRef.current.setAttribute('data-cleanup', 'available');
+          }
+        }, 150);
+        
+        return () => clearTimeout(updateTimeout);
       }
-    };
-  }, [issues, activeIssueId, showIssues, highlightIssues]);
+    }
+  }, [lastFixAppliedAt, lastContentUpdate, applyHighlighting, isLoading]);
   
   // Helper function to get issue class based on severity
   const getIssueClass = (severity) => {
@@ -265,32 +314,39 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
             <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-blue-700">Document Content</h3>
-                <button 
-                  onClick={() => setShowIssues(!showIssues)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium flex items-center ${
-                    showIssues 
-                      ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {showIssues ? (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                      </svg>
-                      Hide Issues
-                    </>
-                  ) : (
-                    <>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                        <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                      </svg>
-                      Show Issues
-                    </>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setShowIssues(!showIssues)}
+                    className={`px-3 py-1 rounded-md text-sm font-medium flex items-center transition-colors ${
+                      showIssues 
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {showIssues ? (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        </svg>
+                        Hide Issues
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                          <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                        </svg>
+                        Show Issues
+                      </>
+                    )}
+                  </button>
+                  {lastFixAppliedAt && (
+                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      Updated
+                    </span>
                   )}
-                </button>
+                </div>
               </div>
               <div 
                 ref={viewerRef}
@@ -302,7 +358,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
                   color: '#1f2937'
                 }}
               >
-                {/* KEEP YOUR ORIGINAL RENDERING METHOD */}
+                {/* Use dangerouslySetInnerHTML without a key prop to avoid unnecessary re-renders */}
                 {documentHtml ? (
                   <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
                 ) : (

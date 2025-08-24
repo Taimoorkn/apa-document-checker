@@ -603,60 +603,87 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
   
-  // Apply a fix for an issue
-  applyFix: async (issueId) => {
-    const { issues, documentHtml, documentText } = get();
-    const issue = issues.find(i => i.id === issueId);
+// Apply a fix for an issue - REFINED VERSION
+applyFix: async (issueId) => {
+  const { issues, documentHtml, documentText } = get();
+  const issue = issues.find(i => i.id === issueId);
+  
+  if (!issue || !issue.hasFix || !issue.fixAction) {
+    console.warn('Cannot apply fix: issue not found or no fix available');
+    return;
+  }
+  
+  console.log('Applying fix for issue:', issue.title, 'Action:', issue.fixAction);
+  
+  // Set applying fix state
+  set(state => ({
+    processingState: {
+      ...state.processingState,
+      isApplyingFix: true,
+      currentFixId: issueId
+    }
+  }));
+  
+  // Create a small artificial delay for better UX feedback
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  let updatedHtml = documentHtml;
+  let updatedText = documentText;
+  let contentChanged = false;
+  
+  // Improved text replacement function
+  const replaceTextSafely = (originalText, searchText, replacementText) => {
+    if (!searchText || !originalText) {
+      console.warn('Invalid search or original text');
+      return originalText;
+    }
     
-    if (!issue || !issue.hasFix || !issue.fixAction) return;
-    
-    // Set applying fix state
-    set(state => ({
-      processingState: {
-        ...state.processingState,
-        isApplyingFix: true,
-        currentFixId: issueId
-      },
-      fixInProgress: issueId
-    }));
-    
-    // Create a small artificial delay for better UX feedback
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    let updatedHtml = documentHtml;
-    let updatedText = documentText;
-    
-    // Helper function for safer text replacement
-    const replaceTextSafely = (originalText, searchText, replacementText) => {
+    try {
+      // Try exact match first
+      if (originalText.includes(searchText)) {
+        console.log('Found exact match for replacement');
+        return originalText.replace(searchText, replacementText);
+      }
+      
+      // Try with HTML entities decoded
+      const decodedSearchText = searchText
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+      
+      if (originalText.includes(decodedSearchText)) {
+        console.log('Found match with HTML entities decoded');
+        return originalText.replace(decodedSearchText, replacementText);
+      }
+      
+      // Try with regex escape for special characters
       try {
-        // Try exact match first
-        if (originalText.includes(searchText)) {
-          return originalText.replace(searchText, replacementText);
-        }
-        
-        // Try with regex escape
         const exactMatchRegex = new RegExp(escapeRegExp(searchText), 'g');
         if (exactMatchRegex.test(originalText)) {
+          console.log('Found match with regex');
           return originalText.replace(exactMatchRegex, replacementText);
         }
-        
-        // If no match found, return original
-        console.warn('Could not find text to replace:', searchText);
-        return originalText;
-      } catch (error) {
-        console.error('Error in text replacement:', error);
-        return originalText;
+      } catch (regexError) {
+        console.warn('Regex replacement failed:', regexError);
       }
-    };
-    
+      
+      console.warn('Could not find text to replace:', searchText.substring(0, 100) + '...');
+      return originalText;
+    } catch (error) {
+      console.error('Error in text replacement:', error);
+      return originalText;
+    }
+  };
+  
+  try {
     // Apply the fix based on the issue type
     switch (issue.fixAction) {
       case 'addPageNumber':
-        // Add page number to direct quote citation
         if (issue.text) {
           const citationMatch = issue.text.match(/\(([^)]+?),\s*(\d{4})\)/);
           if (citationMatch) {
-            // Add page number to citation
             const authors = citationMatch[1];
             const year = citationMatch[2];
             const fixedText = issue.text.replace(
@@ -664,151 +691,145 @@ export const useDocumentStore = create((set, get) => ({
               `(${authors}, ${year}, p. 1)`
             );
             
-            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
-            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
+            const newText = replaceTextSafely(documentText, issue.text, fixedText);
+            const newHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
+            
+            if (newText !== documentText || newHtml !== documentHtml) {
+              updatedText = newText;
+              updatedHtml = newHtml;
+              contentChanged = true;
+            }
           }
         }
         break;
         
       case 'fixCitationFormat':
-        // Fix citation format issues
+      case 'fixParentheticalConnector':
+      case 'addCitationComma':
         if (issue.text) {
+          let fixedText = issue.text;
+          
+          // Fix missing comma between author and year
           const citationMatch = issue.text.match(/\(([^)]+?) (\d{4})\)/);
           if (citationMatch) {
-            // Add comma between author and year
             const authors = citationMatch[1];
             const year = citationMatch[2];
-            const fixedText = issue.text.replace(
-              `(${authors} ${year})`, 
-              `(${authors}, ${year})`
-            );
+            fixedText = issue.text.replace(`(${authors} ${year})`, `(${authors}, ${year})`);
+          }
+          
+          // Fix ampersand vs 'and' in parenthetical citations
+          if (issue.text.includes(' and ') && issue.text.includes('(')) {
+            fixedText = fixedText.replace(' and ', ' & ');
+          }
+          
+          if (fixedText !== issue.text) {
+            const newText = replaceTextSafely(documentText, issue.text, fixedText);
+            const newHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
             
-            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
-            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
+            if (newText !== documentText || newHtml !== documentHtml) {
+              updatedText = newText;
+              updatedHtml = newHtml;
+              contentChanged = true;
+            }
           }
         }
         break;
         
-      case 'fixAmpersand':
-        // Fix ampersand vs. 'and' in citations
+      case 'fixNarrativeConnector':
         if (issue.text) {
-          let fixedText;
-          if (issue.text.includes(' and ')) {
-            fixedText = issue.text.replace(' and ', ' & ');
-          } else if (issue.text.includes(' & ')) {
-            fixedText = issue.text.replace(' & ', ' and ');
-          }
-          
-          if (fixedText) {
-            updatedText = replaceTextSafely(documentText, issue.text, fixedText);
-            updatedHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
+          const fixedText = issue.text.replace(' & ', ' and ');
+          if (fixedText !== issue.text) {
+            const newText = replaceTextSafely(documentText, issue.text, fixedText);
+            const newHtml = replaceTextSafely(documentHtml, issue.text, fixedText);
+            
+            if (newText !== documentText || newHtml !== documentHtml) {
+              updatedText = newText;
+              updatedHtml = newHtml;
+              contentChanged = true;
+            }
           }
         }
         break;
         
       case 'addReferencesHeader':
-        // Add References header
         updatedText = documentText + '\n\nReferences\n';
         updatedHtml = documentHtml + '<h2>References</h2>';
+        contentChanged = true;
         break;
         
-      case 'reorderReferences':
-        // For demo purposes, just mark as fixed
-        break;
-        
+      case 'addTitlePageElements':
       case 'addTitlePage':
-        // Add title page template
-        const titlePage = 'Title: APA Formatted Document\nAuthor: Student Name\nInstitution: University Name\nCourse: Course Name\nInstructor: Instructor Name\nDate: ' + new Date().toLocaleDateString();
-        updatedText = titlePage + '\n\n' + documentText;
-        updatedHtml = '<div style="text-align: center; margin-bottom: 2em;">' +
-          '<h1>APA Formatted Document</h1>' +
-          '<p>Student Name</p>' +
-          '<p>University Name</p>' +
-          '<p>Course Name</p>' +
-          '<p>Instructor Name</p>' +
-          '<p>' + new Date().toLocaleDateString() + '</p>' +
-          '</div>' + documentHtml;
+        const titlePage = `Title: APA Formatted Document\nAuthor: Student Name\nInstitution: University Name\nCourse: Course Name\nInstructor: Instructor Name\nDate: ${new Date().toLocaleDateString()}\n\n`;
+        const titlePageHtml = `<div style="text-align: center; margin-bottom: 2em;"><h1>APA Formatted Document</h1><p>Student Name</p><p>University Name</p><p>Course Name</p><p>Instructor Name</p><p>${new Date().toLocaleDateString()}</p></div>`;
+        
+        updatedText = titlePage + documentText;
+        updatedHtml = titlePageHtml + documentHtml;
+        contentChanged = true;
         break;
         
       case 'addAbstract':
-        // Add abstract template after title page (if exists) or at beginning
         const abstractText = '\n\nAbstract\n\nThis is an abstract placeholder. An abstract should be a brief, comprehensive summary of the contents of the paper, typically 150-250 words.\n\n';
         const abstractHtml = '<h2>Abstract</h2><p>This is an abstract placeholder. An abstract should be a brief, comprehensive summary of the contents of the paper, typically 150-250 words.</p>';
         
-        if (documentText.includes('Title:') && documentText.includes('Author:')) {
-          // If there's a title page, add after it
-          const titlePageEnd = documentText.indexOf('Date:');
-          if (titlePageEnd !== -1) {
-            const endIndex = documentText.indexOf('\n', titlePageEnd);
-            updatedText = documentText.substring(0, endIndex + 1) + abstractText + documentText.substring(endIndex + 1);
-            
-            // For HTML, add after the first div (assuming first div is title page)
-            const firstDivEnd = documentHtml.indexOf('</div>');
-            if (firstDivEnd !== -1) {
-              updatedHtml = documentHtml.substring(0, firstDivEnd + 6) + abstractHtml + documentHtml.substring(firstDivEnd + 6);
-            }
-          }
-        } else {
-          // Add at beginning
-          updatedText = abstractText + documentText;
-          updatedHtml = abstractHtml + documentHtml;
-        }
-        break;
-        
-      case 'fixHeadingLevel':
-        // For demo purposes, just mark as fixed
+        updatedText = abstractText + documentText;
+        updatedHtml = abstractHtml + documentHtml;
+        contentChanged = true;
         break;
         
       case 'fixFont':
-        // Update the document to use Times New Roman
-        updatedHtml = documentHtml.replace(/font-family:[^;]+;/g, 'font-family: "Times New Roman", Times, serif;');
-        if (!documentHtml.includes('font-family:')) {
-          updatedHtml = updatedHtml.replace(/<body/, '<body style="font-family: \'Times New Roman\', Times, serif;"');
+        if (documentHtml.includes('font-family:')) {
+          updatedHtml = documentHtml.replace(/font-family:[^;]+;/g, 'font-family: "Times New Roman", Times, serif;');
+        } else {
+          updatedHtml = `<div style="font-family: 'Times New Roman', Times, serif;">${documentHtml}</div>`;
         }
+        contentChanged = updatedHtml !== documentHtml;
         break;
         
       case 'fixFontSize':
-        // Update font size to 12pt
-        updatedHtml = documentHtml.replace(/font-size:[^;]+;/g, 'font-size: 12pt;');
-        if (!documentHtml.includes('font-size:')) {
-          updatedHtml = updatedHtml.replace(/<body/, '<body style="font-size: 12pt;"');
+        if (documentHtml.includes('font-size:')) {
+          updatedHtml = documentHtml.replace(/font-size:[^;]+;/g, 'font-size: 12pt;');
+        } else {
+          updatedHtml = `<div style="font-size: 12pt;">${documentHtml}</div>`;
         }
+        contentChanged = updatedHtml !== documentHtml;
         break;
         
       case 'fixLineSpacing':
-        // Update line spacing to double
-        updatedHtml = documentHtml.replace(/line-height:[^;]+;/g, 'line-height: 2;');
-        if (!documentHtml.includes('line-height:')) {
-          updatedHtml = updatedHtml.replace(/<body/, '<body style="line-height: 2;"');
+        if (documentHtml.includes('line-height:')) {
+          updatedHtml = documentHtml.replace(/line-height:[^;]+;/g, 'line-height: 2;');
+        } else {
+          updatedHtml = `<div style="line-height: 2;">${documentHtml}</div>`;
         }
+        contentChanged = updatedHtml !== documentHtml;
         break;
         
       case 'fixMargins':
-        // Set 1-inch margins
-        updatedHtml = documentHtml.replace(/margin:[^;]+;/g, 'margin: 1in;');
-        if (!documentHtml.includes('margin:')) {
-          updatedHtml = updatedHtml.replace(/<body/, '<body style="margin: 1in;"');
+        if (documentHtml.includes('margin:')) {
+          updatedHtml = documentHtml.replace(/margin:[^;]+;/g, 'margin: 1in;');
+        } else {
+          updatedHtml = `<div style="margin: 1in;">${documentHtml}</div>`;
         }
+        contentChanged = updatedHtml !== documentHtml;
         break;
         
       case 'fixIndentation':
-        // Set 0.5-inch paragraph indentation
-        updatedHtml = documentHtml.replace(/text-indent:[^;]+;/g, 'text-indent: 0.5in;');
-        if (!documentHtml.includes('text-indent:')) {
-          // Add text-indent to all paragraphs
-          updatedHtml = updatedHtml.replace(/<p/g, '<p style="text-indent: 0.5in;"');
+        if (documentHtml.includes('text-indent:')) {
+          updatedHtml = documentHtml.replace(/text-indent:[^;]+;/g, 'text-indent: 0.5in;');
+        } else {
+          updatedHtml = documentHtml.replace(/<p(?![^>]*text-indent)/g, '<p style="text-indent: 0.5in;"');
         }
+        contentChanged = updatedHtml !== documentHtml;
         break;
         
       case 'addPageNumbers':
-        // Add page numbers - for HTML export, we'll add it in the header
-        updatedHtml = documentHtml.replace(/<body/, '<body style="position: relative;"');
-        updatedHtml = updatedHtml.replace(/<body([^>]*)>/, 
-          '<body$1><div style="position: absolute; top: 0.5in; right: 0.5in; font-family: \'Times New Roman\', Times, serif; font-size: 12pt;">1</div>');
+        updatedHtml = `<div style="position: relative;">${documentHtml}<div style="position: absolute; top: 0.5in; right: 0.5in; font-family: 'Times New Roman', Times, serif; font-size: 12pt;">1</div></div>`;
+        contentChanged = true;
         break;
         
       default:
-        // For any other fix actions, just mark as fixed without changing content
+        console.log('Fix action not implemented:', issue.fixAction);
+        // For unimplemented fixes, still remove the issue but don't change content
+        contentChanged = false;
         break;
     }
     
@@ -823,14 +844,18 @@ export const useDocumentStore = create((set, get) => ({
       ? 100 
       : Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 5 + majorCount * 3 + minorCount))));
     
-    // Update state - the key is to ensure React detects the change
+    // Update state
+    console.log('Updating state after fix application');
+    console.log('Content changed:', contentChanged);
+    console.log('Issues before:', issues.length, 'Issues after:', updatedIssues.length);
+    
     set(state => ({ 
       documentText: updatedText,
       documentHtml: updatedHtml,
       issues: updatedIssues,
       analysisScore: newScore,
-      lastFixAppliedAt: Date.now(), // Force re-render
-      fixInProgress: null,
+      lastFixAppliedAt: contentChanged ? Date.now() : state.lastFixAppliedAt, // Only update timestamp if content actually changed
+      activeIssueId: null, // Clear active issue since it's been fixed
       processingState: {
         ...state.processingState,
         isApplyingFix: false,
@@ -839,11 +864,33 @@ export const useDocumentStore = create((set, get) => ({
     }));
     
     console.log('Fix applied successfully for issue:', issueId);
-    console.log('Updated HTML length:', updatedHtml?.length);
-    console.log('Updated text length:', updatedText?.length);
-    console.log('Remaining issues:', updatedIssues.length);
     
-    // Force a small delay to ensure state update is processed
-    await new Promise(resolve => setTimeout(resolve, 100));
+  } catch (error) {
+    console.error('Error applying fix:', error);
+    
+    // Still remove the issue from the list even if fix failed
+    const updatedIssues = issues.filter(i => i.id !== issueId);
+    const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
+    const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
+    const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
+    const newScore = updatedIssues.length === 0 
+      ? 100 
+      : Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 5 + majorCount * 3 + minorCount))));
+    
+    set(state => ({
+      issues: updatedIssues,
+      analysisScore: newScore,
+      activeIssueId: null,
+      processingState: {
+        ...state.processingState,
+        isApplyingFix: false,
+        currentFixId: null,
+        lastError: `Failed to apply fix for "${issue.title}": ${error.message}`
+      }
+    }));
   }
+  
+  // Small delay to ensure state updates are processed
+  await new Promise(resolve => setTimeout(resolve, 100));
+}
 }));

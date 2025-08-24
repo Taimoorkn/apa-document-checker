@@ -1,4 +1,4 @@
-// server/processors/DocxProcessor.js
+// server/processors/DocxProcessor.js - Fixed bracket notation
 const JSZip = require('jszip');
 const xml2js = require('xml2js');
 const mammoth = require('mammoth');
@@ -115,24 +115,24 @@ class DocxProcessor {
       // Extract page setup and margins from sectPr (Section Properties)
       const sectPr = body['w:sectPr'];
       if (sectPr) {
-        // Page margins
+        // Page margins - FIXED bracket notation
         const pgMar = sectPr['w:pgMar'];
         if (pgMar && pgMar.$) {
           formatting.document.margins = {
-            top: this.twipsToInches(parseInt(pgMar.$.['w:top'] || 0)),
-            bottom: this.twipsToInches(parseInt(pgMar.$.['w:bottom'] || 0)),
-            left: this.twipsToInches(parseInt(pgMar.$.['w:left'] || 0)),
-            right: this.twipsToInches(parseInt(pgMar.$.['w:right'] || 0))
+            top: this.twipsToInches(parseInt(pgMar.$['w:top'] || 0)),
+            bottom: this.twipsToInches(parseInt(pgMar.$['w:bottom'] || 0)),
+            left: this.twipsToInches(parseInt(pgMar.$['w:left'] || 0)),
+            right: this.twipsToInches(parseInt(pgMar.$['w:right'] || 0))
           };
         }
         
-        // Page size
+        // Page size - FIXED bracket notation
         const pgSz = sectPr['w:pgSz'];
         if (pgSz && pgSz.$) {
           formatting.document.pageSetup = {
-            width: this.twipsToInches(parseInt(pgSz.$.['w:w'] || 0)),
-            height: this.twipsToInches(parseInt(pgSz.$.['w:h'] || 0)),
-            orientation: pgSz.$.['w:orient'] || 'portrait'
+            width: this.twipsToInches(parseInt(pgSz.$['w:w'] || 0)),
+            height: this.twipsToInches(parseInt(pgSz.$['w:h'] || 0)),
+            orientation: pgSz.$['w:orient'] || 'portrait'
           };
         }
       }
@@ -159,7 +159,7 @@ class DocxProcessor {
         if (pPr) {
           // Paragraph style
           if (pPr['w:pStyle'] && pPr['w:pStyle'].$) {
-            paraFormatting.style = pPr['w:pStyle'].$.['w:val'];
+            paraFormatting.style = pPr['w:pStyle'].$['w:val'];
           }
           
           // Spacing
@@ -173,7 +173,7 @@ class DocxProcessor {
             };
           }
           
-          // Indentation
+          // Indentation - FIXED bracket notation
           const ind = pPr['w:ind'];
           if (ind && ind.$) {
             const attrs = ind.$;
@@ -188,7 +188,7 @@ class DocxProcessor {
           // Alignment
           const jc = pPr['w:jc'];
           if (jc && jc.$) {
-            paraFormatting.alignment = jc.$.['w:val'];
+            paraFormatting.alignment = jc.$['w:val'];
           }
         }
         
@@ -209,16 +209,16 @@ class DocxProcessor {
           // Extract run properties
           const rPr = run['w:rPr'];
           if (rPr) {
-            // Font family
+            // Font family - FIXED bracket notation
             const rFonts = rPr['w:rFonts'];
             if (rFonts && rFonts.$) {
-              runFormatting.font.family = rFonts.$.['w:ascii'] || rFonts.$.['w:hAnsi'] || null;
+              runFormatting.font.family = rFonts.$['w:ascii'] || rFonts.$['w:hAnsi'] || null;
             }
             
-            // Font size
+            // Font size - FIXED bracket notation
             const sz = rPr['w:sz'];
             if (sz && sz.$) {
-              runFormatting.font.size = parseInt(sz.$.['w:val']) / 2; // Convert half-points to points
+              runFormatting.font.size = parseInt(sz.$['w:val']) / 2; // Convert half-points to points
             }
             
             // Bold
@@ -230,10 +230,10 @@ class DocxProcessor {
             // Underline
             runFormatting.font.underline = !!rPr['w:u'];
             
-            // Color
+            // Color - FIXED bracket notation
             const color = rPr['w:color'];
             if (color && color.$) {
-              runFormatting.color = color.$.['w:val'];
+              runFormatting.color = color.$['w:val'];
             }
           }
           
@@ -335,7 +335,7 @@ class DocxProcessor {
         
         const pPr = para['w:pPr'];
         if (pPr && pPr['w:pStyle'] && pPr['w:pStyle'].$) {
-          const styleName = pPr['w:pStyle'].$.['w:val'];
+          const styleName = pPr['w:pStyle'].$['w:val'];
           
           // Check for heading styles
           const headingMatch = styleName.match(/(?:Heading|Title)(\d+)?/i);
@@ -354,7 +354,7 @@ class DocxProcessor {
           if (firstRun && firstRun['w:rPr']) {
             const rPr = firstRun['w:rPr'];
             const isBold = !!rPr['w:b'];
-            const fontSize = rPr['w:sz'] ? parseInt(rPr['w:sz'].$.['w:val']) / 2 : 12;
+            const fontSize = rPr['w:sz'] ? parseInt(rPr['w:sz'].$['w:val']) / 2 : 12;
             
             // Consider it a heading if it's bold and larger than normal text
             if (isBold && fontSize > 12 && text.length < 100) {
@@ -474,7 +474,7 @@ class DocxProcessor {
           if (style && style.$) {
             const styleInfo = {
               id: style.$.styleId,
-              name: style['w:name'] ? style['w:name'].$.['w:val'] : style.$.styleId,
+              name: style['w:name'] ? style['w:name'].$['w:val'] : style.$.styleId,
               type: style.$.type,
               isDefault: style.$.default === '1',
               formatting: {}
@@ -495,12 +495,12 @@ class DocxProcessor {
             }
             
             if (rPr) {
-              // Character formatting
+              // Character formatting - FIXED bracket notation
               if (rPr['w:rFonts'] && rPr['w:rFonts'].$) {
                 styleInfo.formatting.font = rPr['w:rFonts'].$;
               }
               if (rPr['w:sz'] && rPr['w:sz'].$) {
-                styleInfo.formatting.fontSize = parseInt(rPr['w:sz'].$.['w:val']) / 2;
+                styleInfo.formatting.fontSize = parseInt(rPr['w:sz'].$['w:val']) / 2;
               }
             }
             

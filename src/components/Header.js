@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { BookOpen, Upload, Download, File, AlertTriangle, ChevronDown } from 'lucide-react';
+import { BookOpen, Upload, Download, File, AlertTriangle, ChevronDown, FileCheck, Sparkles } from 'lucide-react';
 
 export default function Header() {
   const { 
@@ -106,23 +106,35 @@ export default function Header() {
   };
   
   return (
-    <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-md">
+    <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-4 flex justify-between items-center">
+          {/* Brand Section */}
           <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-white mr-8 flex items-center">
-              <div className="bg-white/10 p-2 rounded-lg mr-3">
-                <BookOpen className="h-8 w-8 text-white" />
+            <div className="flex items-center mr-8">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-2.5 rounded-xl mr-3 shadow-md">
+                <FileCheck className="h-7 w-7 text-white" />
               </div>
-              APA 7 Checker
-            </h1>
-            <div className="flex space-x-4">
-              <div className="flex flex-col">
-                <label className={`${processingState.isUploading ? 'opacity-75 cursor-wait' : 'hover:bg-gray-50'} bg-white text-blue-700 border border-transparent hover:border-blue-100 px-4 py-2 rounded-md cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center group`}>
-                  <Upload className={`h-5 w-5 mr-2 ${processingState.isUploading ? 'animate-pulse' : ''} text-blue-500 group-hover:text-blue-600`} />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 leading-none">APA Checker</h1>
+                <p className="text-sm text-gray-500 font-medium">7th Edition</p>
+              </div>
+            </div>
+            
+            {/* Upload Section */}
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <label className={`
+                  flex items-center px-6 py-3 rounded-xl font-medium text-sm transition-all duration-200 cursor-pointer
+                  ${processingState.isUploading || processingState.isAnalyzing || processingState.isSchedulingAnalysis
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
+                  }
+                `}>
+                  <Upload className={`h-5 w-5 mr-2.5 ${processingState.isUploading ? 'animate-pulse' : ''}`} />
                   {
                     processingState.isUploading ? 'Uploading...' : 
-                    processingState.isSchedulingAnalysis ? 'Scheduling Analysis...' :
+                    processingState.isSchedulingAnalysis ? 'Processing...' :
                     processingState.isAnalyzing ? 'Analyzing...' : 
                     'Upload Document'
                   }
@@ -136,8 +148,8 @@ export default function Header() {
                 </label>
                 
                 {uploadError && (
-                  <div className="mt-1 text-xs text-red-600 flex items-center bg-red-50 px-2 py-1 rounded border border-red-100">
-                    <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <div className="absolute top-full left-0 mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex items-center text-sm text-red-700 shadow-sm min-w-max z-10">
+                    <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {uploadError}
                   </div>
                 )}
@@ -146,69 +158,93 @@ export default function Header() {
               {documentName && (
                 <div className="relative" ref={exportDropdownRef}>
                   <button 
-                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors shadow-md hover:shadow-lg flex items-center"
+                    className="flex items-center px-5 py-3 bg-white border border-gray-300 rounded-xl text-gray-700 font-medium text-sm hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
                     disabled={isExporting}
                   >
-                    <Download className="h-5 w-5 mr-2" />
-                    {isExporting ? 'Exporting...' : 'Export Document'}
-                    <ChevronDown className="h-4 w-4 ml-1" />
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Exporting...' : 'Export'}
+                    <ChevronDown className="h-4 w-4 ml-2" />
                   </button>
 
                   {showExportDropdown && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-                      <div className="py-1">
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
+                      <div className="py-2">
                         <button
                           onClick={() => handleExport('html')}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           disabled={isExporting}
                         >
-                          <File className="h-4 w-4 mr-2 text-orange-500" />
-                          Export as HTML
-                          <span className="ml-auto text-xs text-gray-500">Viewable in browser</span>
+                          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                            <File className="h-4 w-4 text-orange-600" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="font-medium">Export as HTML</p>
+                            <p className="text-xs text-gray-500">Viewable in browser</p>
+                          </div>
                         </button>
                         <button
                           onClick={() => handleExport('docx')}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                           disabled={isExporting}
                         >
-                          <File className="h-4 w-4 mr-2 text-blue-500" />
-                          Export as DOCX
-                          <span className="ml-auto text-xs text-gray-500">Editable in Word</span>
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                            <File className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="font-medium">Export as DOCX</p>
+                            <p className="text-xs text-gray-500">Editable in Word</p>
+                          </div>
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
               )}
-              
             </div>
           </div>
           
-          <div className="flex items-center space-x-6">
+          {/* Status Section */}
+          <div className="flex items-center space-x-4">
             {analysisScore !== null && (
-              <div className="flex flex-col items-end bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 shadow-inner border border-white/30">
-                <div className="flex items-center mb-1">
-                  <span className="text-white mr-2 text-sm">APA Compliance:</span>
-                  <span className="text-white font-bold">{analysisScore}%</span>
+              <div className="bg-white border border-gray-200 rounded-xl px-5 py-3 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <Sparkles className="h-4 w-4 text-gray-400 mr-2" />
+                  <span className="text-sm font-medium text-gray-600">Compliance Score</span>
                 </div>
-                <div className="bg-gray-200/30 rounded-full h-3 w-40 shadow-inner">
-                  <div 
-                    className={`h-3 rounded-full shadow-sm ${
-                      analysisScore > 80 ? 'bg-gradient-to-r from-green-400 to-green-500' : 
-                      analysisScore > 50 ? 'bg-gradient-to-r from-yellow-400 to-yellow-500' : 
-                      'bg-gradient-to-r from-red-400 to-red-500'
-                    }`}
-                    style={{ width: `${analysisScore}%` }}
-                  ></div>
+                <div className="flex items-center">
+                  <span className={`text-2xl font-bold mr-3 ${
+                    analysisScore > 80 ? 'text-green-600' : 
+                    analysisScore > 60 ? 'text-yellow-600' : 
+                    'text-red-600'
+                  }`}>
+                    {analysisScore}%
+                  </span>
+                  <div className="bg-gray-200 rounded-full h-2 w-24">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ${
+                        analysisScore > 80 ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 
+                        analysisScore > 60 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' : 
+                        'bg-gradient-to-r from-red-500 to-pink-500'
+                      }`}
+                      style={{ width: `${analysisScore}%` }}
+                    ></div>
+                  </div>
                 </div>
               </div>
             )}
             
             {documentName && (
-              <div className="text-white/90 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg flex items-center shadow-inner border border-white/30">
-                <File className="h-5 w-5 mr-2 text-white/80" />
-                <span className="font-medium truncate max-w-[200px]">{documentName}</span>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <File className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">
+                    {documentName.replace('.docx', '')}
+                  </p>
+                  <p className="text-xs text-gray-500">DOCX Document</p>
+                </div>
               </div>
             )}
           </div>

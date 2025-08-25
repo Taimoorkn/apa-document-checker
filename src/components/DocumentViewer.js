@@ -278,90 +278,130 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading, 'processingState:', processingState);
 
   return (
-    <div className="p-8 h-full">
+    <div className="h-full flex flex-col">
       {documentText ? (
         <>
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full bg-white shadow-md p-8 rounded-lg">
-              <div className="loading-spinner mb-4"></div>
-              <p className="text-gray-600 font-medium">Analyzing document...</p>
-              <p className="text-sm text-gray-500 mt-1">Checking for APA 7th edition compliance</p>
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 p-8">
+              <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 flex flex-col items-center">
+                <div className="loading-spinner mb-6"></div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analyzing Document</h3>
+                <p className="text-sm text-gray-500 text-center max-w-sm">
+                  Checking your document against APA 7th edition guidelines...
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="bg-white shadow-lg rounded-lg p-6 border border-gray-200">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-blue-700">Document Content</h3>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setShowIssues(!showIssues)}
-                    className={`px-3 py-1 rounded-md text-sm font-medium flex items-center transition-colors ${
-                      showIssues 
-                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {showIssues ? (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                        </svg>
-                        Hide Issues
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
-                          <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
-                        </svg>
-                        Show Issues
-                      </>
+            <div className="h-full flex flex-col">
+              {/* Document Controls - Fixed Header */}
+              <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Document Review</h3>
+                    {lastFixAppliedAt && (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+                        Recently Updated
+                      </span>
                     )}
-                  </button>
-                  {lastFixAppliedAt && (
-                    <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                      Updated
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div 
-                ref={viewerRef}
-                className="prose max-w-none bg-white p-4 rounded border border-gray-100"
-                style={{
-                  fontFamily: '"Times New Roman", Times, serif',
-                  fontSize: '12pt',
-                  lineHeight: '1.6',
-                  color: '#1f2937'
-                }}
-              >
-                {/* Use dangerouslySetInnerHTML without a key prop to avoid unnecessary re-renders */}
-                {documentHtml ? (
-                  <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
-                ) : (
-                  <div>
-                    <p>Document loaded but HTML content could not be displayed.</p>
-                    <p className="text-gray-500 mt-2">Raw text content:</p>
-                    <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-                      {documentText ? documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '') : 'No text content available'}
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={() => setShowIssues(!showIssues)}
+                      className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        showIssues 
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {showIssues ? (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
+                          Hide Issues
+                        </>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                            <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                          </svg>
+                          Show Issues
+                        </>
+                      )}
+                    </button>
+                    <div className="h-4 w-px bg-gray-300"></div>
+                    <div className="text-xs text-gray-500">
+                      {issues.length} {issues.length === 1 ? 'issue' : 'issues'} found
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Document Content - Scrollable Area */}
+              <div className="flex-1 overflow-auto bg-gray-50">
+                <div className="p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div 
+                      ref={viewerRef}
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-8"
+                      style={{
+                        fontFamily: '"Times New Roman", Times, serif',
+                        fontSize: '12pt',
+                        lineHeight: '2',
+                        color: '#111827'
+                      }}
+                    >
+                      {documentHtml ? (
+                        <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
+                      ) : (
+                        <div className="text-center py-12">
+                          <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
+                            <h4 className="text-lg font-medium text-yellow-800 mb-2">Content Display Issue</h4>
+                            <p className="text-sm text-yellow-700 mb-4">
+                              Document loaded but HTML content could not be displayed.
+                            </p>
+                            <div className="bg-white p-4 rounded border border-yellow-200 text-left">
+                              <p className="text-sm font-medium text-gray-700 mb-2">Raw text preview:</p>
+                              <p className="text-xs text-gray-600 font-mono">
+                                {documentText ? documentText.substring(0, 500) + (documentText.length > 500 ? '...' : '') : 'No text content available'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full py-20 bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-sm border border-gray-100 animate-scale-in">
-          <div className="bg-blue-50 p-5 rounded-full mb-6 shadow-inner flex items-center justify-center">
-            <FileText className="h-20 w-20 text-blue-500" />
-          </div>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-3">Upload a document to begin</h2>
-          <p className="text-gray-500 mb-8">Validate your academic paper against APA 7th edition guidelines</p>
-          <div className="border-t border-gray-200 pt-6 w-full max-w-md">
-            <div className="bg-blue-50 rounded-md p-4 flex items-start hover:bg-blue-100 transition-colors hover-shadow">
-              <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
-              <span className="text-sm text-blue-800">Only .docx files are supported. For best results, ensure your document is properly formatted.</span>
+        <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50 p-8">
+          <div className="text-center max-w-md">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+              <FileText className="h-12 w-12 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Ready to Check Your Document</h2>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              Upload your academic paper and get instant feedback on APA 7th edition compliance
+            </p>
+            
+            <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+              <div className="flex items-start space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <InfoIcon className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium text-gray-900 mb-1">Supported Format</p>
+                  <p className="text-sm text-gray-600">
+                    Only <span className="font-medium">.docx files</span> are supported. Ensure your document is properly formatted for best results.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

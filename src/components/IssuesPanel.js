@@ -58,19 +58,29 @@ export default function IssuesPanel() {
   }, [issueCounts]);
   
   return (
-    <div className="h-full bg-gray-50 p-4">
-      <div className="flex justify-between items-center mb-5">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center">
-          <ClipboardList className="h-6 w-6 mr-2 text-blue-600" />
-          Document Issues
-        </h2>
-        {totalIssues > 0 && (
-          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
-            <span className="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
-            {totalIssues} {totalIssues === 1 ? 'Issue' : 'Issues'}
-          </span>
-        )}
+    <div className="h-full bg-white flex flex-col">
+      <div className="border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+              <ClipboardList className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Issues Found</h2>
+              <p className="text-sm text-gray-500">APA 7th edition compliance</p>
+            </div>
+          </div>
+          {totalIssues > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+              <span className="text-red-700 text-sm font-medium">
+                {totalIssues} {totalIssues === 1 ? 'Issue' : 'Issues'}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
+      
+      <div className="flex-1 overflow-auto p-6">
       
       {totalIssues > 0 ? (
         <div className="space-y-5">
@@ -141,65 +151,94 @@ export default function IssuesPanel() {
           )}
         </div>
       ) : issues.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-          <div className="bg-gray-100 p-4 rounded-full mb-4 flex items-center justify-center">
-            <FileText className="h-12 w-12 text-gray-400" />
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl mb-6 flex items-center justify-center">
+            <FileText className="h-8 w-8 text-gray-400" />
           </div>
-          <p className="text-xl font-medium text-gray-600">No document loaded</p>
-          <p className="mt-2 text-gray-500 max-w-xs text-center">Upload a document using the button above to check it against APA 7th Edition guidelines</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Document Loaded</h3>
+          <p className="text-gray-500 max-w-sm">
+            Upload a document using the button in the header to check it against APA 7th Edition guidelines
+          </p>
         </div>
       ) : (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg border border-green-100 shadow-sm">
-          <div className="flex items-center">
-            <div className="bg-green-100 p-2 rounded-full flex items-center justify-center">
-              <Check className="h-8 w-8 text-green-600" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <div className="flex items-start space-x-4">
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Check className="h-6 w-6 text-green-600" />
             </div>
-            <div className="ml-4">
-              <p className="text-lg font-semibold text-green-800">Perfect! No APA issues found.</p>
-              <p className="text-sm mt-1 text-green-700">Your document follows APA 7th Edition guidelines.</p>
+            <div>
+              <h3 className="text-lg font-semibold text-green-900 mb-1">Excellent Work!</h3>
+              <p className="text-green-700 mb-2">
+                No APA compliance issues found in your document.
+              </p>
+              <p className="text-sm text-green-600">
+                Your document follows APA 7th Edition guidelines correctly.
+              </p>
             </div>
           </div>
         </div>
       )}
       
+      </div>
+      
       {/* Document Statistics */}
       {issues.length > 0 && (
-        <div className="mt-6 bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
-            <PieChart className="h-4 w-4 mr-1 text-blue-500" />
-            Document Statistics
-          </h3>
+        <div className="border-t border-gray-200 p-6 bg-gray-50">
+          <div className="flex items-center mb-4">
+            <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
+              <PieChart className="h-3.5 w-3.5 text-blue-600" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900">Document Statistics</h3>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <p className="text-xs text-gray-500 mb-1">Compliance Score</p>
+            <div className="bg-white p-4 rounded-xl border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 mb-2">Compliance Score</p>
               <div className="flex items-center">
-                <div className={`w-2 h-8 rounded-full mr-2 ${
-                  weightedScore > 80 ? 'bg-green-500' : weightedScore > 50 ? 'bg-yellow-500' : 'bg-red-500'
-                }`}></div>
-                <p className="text-2xl font-bold text-gray-800">{weightedScore}%</p>
+                <span className={`text-2xl font-bold mr-3 ${
+                  weightedScore > 80 ? 'text-green-600' : weightedScore > 50 ? 'text-yellow-600' : 'text-red-600'
+                }`}>{weightedScore}%</span>
+                <div className="flex-1">
+                  <div className="bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        weightedScore > 80 ? 'bg-green-500' : weightedScore > 50 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}
+                      style={{width: `${weightedScore}%`}}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-              <p className="text-xs text-gray-500 mb-1">Issue Breakdown</p>
-              <div className="flex space-x-3 items-end">
+            <div className="bg-white p-4 rounded-xl border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 mb-2">Issue Breakdown</p>
+              <div className="flex justify-between items-end h-12">
                 {issueCounts.Critical > 0 && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-red-600">{issueCounts.Critical}</span>
-                    <div className="bg-red-500 w-4 rounded-t-sm" style={{height: `${issueCounts.Critical * 6}px`}}></div>
+                  <div className="flex flex-col items-center justify-end h-full">
+                    <span className="text-xs font-medium text-red-600 mb-1">{issueCounts.Critical}</span>
+                    <div 
+                      className="bg-red-500 w-6 rounded-t-lg" 
+                      style={{height: `${Math.max(8, issueCounts.Critical * 4)}px`}}
+                    ></div>
                     <span className="text-xs text-gray-500 mt-1">Critical</span>
                   </div>
                 )}
                 {issueCounts.Major > 0 && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-orange-600">{issueCounts.Major}</span>
-                    <div className="bg-orange-500 w-4 rounded-t-sm" style={{height: `${issueCounts.Major * 6}px`}}></div>
+                  <div className="flex flex-col items-center justify-end h-full">
+                    <span className="text-xs font-medium text-orange-600 mb-1">{issueCounts.Major}</span>
+                    <div 
+                      className="bg-orange-500 w-6 rounded-t-lg" 
+                      style={{height: `${Math.max(8, issueCounts.Major * 4)}px`}}
+                    ></div>
                     <span className="text-xs text-gray-500 mt-1">Major</span>
                   </div>
                 )}
                 {issueCounts.Minor > 0 && (
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-blue-600">{issueCounts.Minor}</span>
-                    <div className="bg-blue-500 w-4 rounded-t-sm" style={{height: `${issueCounts.Minor * 6}px`}}></div>
+                  <div className="flex flex-col items-center justify-end h-full">
+                    <span className="text-xs font-medium text-blue-600 mb-1">{issueCounts.Minor}</span>
+                    <div 
+                      className="bg-blue-500 w-6 rounded-t-lg" 
+                      style={{height: `${Math.max(8, issueCounts.Minor * 4)}px`}}
+                    ></div>
                     <span className="text-xs text-gray-500 mt-1">Minor</span>
                   </div>
                 )}

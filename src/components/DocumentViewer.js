@@ -1,9 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { FileText, InfoIcon } from 'lucide-react';
-import { useTooltip } from '@/components/Tooltip';
 
 export default function DocumentViewer() {
 const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt } = useDocumentStore();
@@ -14,8 +13,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   // Add a state for showing/hiding issues
   const [showIssues, setShowIssues] = useState(true);
   
-  // Initialize tooltip functionality
-  const { showTooltip, hideTooltip, TooltipComponent } = useTooltip();
   
   // Function to apply highlighting to the document
   const applyHighlighting = useCallback(() => {
@@ -146,31 +143,13 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   
   // Event handler for mark hover using event delegation
   const handleMarkHover = useCallback((event) => {
-    const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
-    if (mark) {
-      const title = mark.getAttribute('data-issue-title');
-      const explanation = mark.getAttribute('data-issue-explanation');
-      
-      if (explanation) {
-        const rect = mark.getBoundingClientRect();
-        const content = (
-          <div className="text-left">
-            <div className="font-semibold mb-1 text-white">{title}</div>
-            <div className="text-gray-200 text-xs leading-relaxed">{explanation}</div>
-          </div>
-        );
-        showTooltip(content, rect.left + rect.width / 2, rect.bottom);
-      }
-    }
-  }, [showTooltip]);
+    // Tooltip functionality removed - placeholder for potential future functionality
+  }, []);
   
   // Event handler for mark leave using event delegation
   const handleMarkLeave = useCallback((event) => {
-    const mark = event.target.closest('mark[data-issue-id][data-clickable="true"]');
-    if (mark) {
-      hideTooltip();
-    }
-  }, [hideTooltip]);
+    // Tooltip functionality removed - placeholder for potential future functionality
+  }, []);
   
   // Main useEffect for handling document HTML changes and initial load
   useEffect(() => {
@@ -301,7 +280,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
 
   return (
     <div className="p-8 h-full">
-      <TooltipComponent />
       {documentText ? (
         <>
           {isLoading ? (

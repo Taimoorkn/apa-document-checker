@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { BookOpen, Upload, Download, File, AlertTriangle, ChevronDown } from 'lucide-react';
-import AnalysisSettings from '@/components/AnalysisSettings';
 
 export default function Header() {
   const { 
@@ -13,8 +12,7 @@ export default function Header() {
     analyzeDocumentDebounced, 
     analysisScore, 
     exportDocument, 
-    processingState,
-    analysisSettings 
+    processingState
   } = useDocumentStore();
   
   // Local state for UI-only errors (now using store for processing state)
@@ -176,7 +174,6 @@ export default function Header() {
                 </div>
               )}
               
-              <AnalysisSettings />
             </div>
           </div>
           

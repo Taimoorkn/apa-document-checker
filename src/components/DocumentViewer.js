@@ -163,6 +163,28 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       issuesCount: issues?.length
     });
     
+    // Debug actual DOM styles after render
+    if (documentHtml && viewerRef.current) {
+      setTimeout(() => {
+        const element = viewerRef.current;
+        const computedStyle = window.getComputedStyle(element);
+        console.log('🔍 ACTUAL DOM STYLES:');
+        console.log('  font-family:', computedStyle.fontFamily);
+        console.log('  font-size:', computedStyle.fontSize);
+        console.log('  line-height:', computedStyle.lineHeight);
+        
+        // Check first paragraph too
+        const firstP = element.querySelector('p');
+        if (firstP) {
+          const pStyle = window.getComputedStyle(firstP);
+          console.log('🔍 FIRST PARAGRAPH STYLES:');
+          console.log('  font-family:', pStyle.fontFamily);
+          console.log('  font-size:', pStyle.fontSize);
+          console.log('  line-height:', pStyle.lineHeight);
+        }
+      }, 500);
+    }
+    
     if (documentHtml) {
       
       // Use a ref to track the current render cycle
@@ -289,18 +311,16 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       
       console.log('🎨 Applying formatting - Font:', font, 'Spacing:', spacing);
       
-      // Apply actual font family if available
+      // Apply exact font family from DOCX
       if (font && font.family) {
-        const fontFamily = `"${font.family}", ${baseStyles.fontFamily}`;
-        baseStyles.fontFamily = fontFamily;
-        console.log('✅ Font family applied:', fontFamily);
+        baseStyles.fontFamily = `"${font.family}", monospace, serif`;
+        console.log('✅ Font family applied:', font.family);
       }
       
-      // Apply actual font size if available and is a valid number
+      // Apply exact font size from DOCX - use pt units to maintain exact size
       if (font && font.size && typeof font.size === 'number' && font.size > 0) {
-        const fontSize = `${font.size}pt`;
-        baseStyles.fontSize = fontSize;
-        console.log('✅ Font size applied:', fontSize);
+        baseStyles.fontSize = `${font.size}pt`;
+        console.log('✅ Font size applied:', `${font.size}pt`, '(exact from DOCX)');
       }
       
       // Apply actual line spacing if available and is a valid number
@@ -363,10 +383,13 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   
   // Debug the actual values being applied
   if (documentFormatting && documentFormatting.document) {
-    console.log('Font family:', documentFormatting.document.font?.family);
-    console.log('Font size:', documentFormatting.document.font?.size);
-    console.log('Line spacing:', documentFormatting.document.spacing?.line);
-    console.log('Applied styles:', getDocumentStyles());
+    console.log('🔍 DOCX Font family:', documentFormatting.document.font?.family);
+    console.log('🔍 DOCX Font size:', documentFormatting.document.font?.size);
+    console.log('🔍 DOCX Line spacing:', documentFormatting.document.spacing?.line);
+    console.log('🔍 Full formatting object:', documentFormatting);
+    console.log('🔍 Applied styles:', getDocumentStyles());
+  } else {
+    console.log('❌ No documentFormatting available');
   }
 
   return (
@@ -439,7 +462,13 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
                     <div 
                       ref={viewerRef}
                       className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 libreoffice-compatible"
-                      style={getDocumentStyles()}
+                      style={{
+                        ...getDocumentStyles(),
+                        '--document-font-family': `"${documentFormatting?.document?.font?.family || 'Times New Roman'}", monospace, serif`,
+                        '--document-font-size': `${documentFormatting?.document?.font?.size || 12}px`,
+                        '--document-line-height': `${documentFormatting?.document?.spacing?.line || 2.0}`
+                      }}
+                      data-font-override="true"
                     >
                       {documentHtml ? (
                         <div dangerouslySetInnerHTML={{ __html: documentHtml }} />

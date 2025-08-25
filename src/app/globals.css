@@ -195,8 +195,27 @@ mark[data-issue-id]:hover::after {
   overflow-wrap: break-word;
 }
 
+/* Force exact font rendering - override Tailwind completely */
+.libreoffice-compatible[data-font-override] {
+  font-family: var(--document-font-family) !important;
+  font-size: var(--document-font-size) !important;
+  line-height: var(--document-line-height) !important;
+}
+
+.libreoffice-compatible[data-font-override] *,
+.libreoffice-compatible[data-font-override] p,
+.libreoffice-compatible[data-font-override] div,
+.libreoffice-compatible[data-font-override] span,
+.libreoffice-compatible[data-font-override] h1,
+.libreoffice-compatible[data-font-override] h2,
+.libreoffice-compatible[data-font-override] h3 {
+  font-size: inherit !important;
+  font-family: inherit !important;
+  line-height: inherit !important;
+}
+
 .libreoffice-compatible .libreoffice-document p {
-  margin-bottom: 12pt;
+  margin-bottom: 16px; /* 12pt = 16px */
   text-align: left;
   font-family: inherit;
   font-size: inherit;
@@ -211,7 +230,7 @@ mark[data-issue-id]:hover::after {
 .libreoffice-compatible .libreoffice-document h6 {
   font-weight: bold;
   text-align: center;
-  margin: 12pt 0;
+  margin: 16px 0; /* 12pt = 16px */
   font-family: inherit;
 }
 

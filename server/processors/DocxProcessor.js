@@ -261,12 +261,15 @@ class DocxProcessor {
             const rFonts = rPr['w:rFonts'];
             if (rFonts && rFonts.$) {
               runFormatting.font.family = rFonts.$['w:ascii'] || rFonts.$['w:hAnsi'] || null;
+              console.log('🔍 Font family extracted:', runFormatting.font.family);
             }
             
             // Font size - FIXED bracket notation
             const sz = rPr['w:sz'];
             if (sz && sz.$) {
-              runFormatting.font.size = parseInt(sz.$['w:val']) / 2; // Convert half-points to points
+              const halfPoints = parseInt(sz.$['w:val']);
+              runFormatting.font.size = halfPoints / 2; // Convert half-points to points
+              console.log('🔍 Font size extracted:', halfPoints, 'half-points =', runFormatting.font.size, 'points');
             }
             
             // Bold
@@ -741,7 +744,7 @@ class DocxProcessor {
       const cssStyles = `
         <style>
           .apa-document p {
-            margin: 0 0 12pt 0;
+            margin: 0 0 16px 0; /* 12pt = 16px */
             text-align: left;
           }
           .apa-document p.indented {
@@ -754,7 +757,7 @@ class DocxProcessor {
           .apa-document h1, .apa-document h2, .apa-document h3 {
             font-weight: bold;
             text-align: center;
-            margin: 12pt 0;
+            margin: 16px 0; /* 12pt = 16px */
           }
         </style>
       `;

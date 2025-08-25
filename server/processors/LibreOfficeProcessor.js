@@ -756,7 +756,7 @@ class LibreOfficeProcessor {
       const cssStyles = `
         <style>
           .apa-document p {
-            margin: 0 0 12pt 0;
+            margin: 0 0 16px 0; /* 12pt = 16px */
             text-align: left;
           }
           .apa-document p.indented {
@@ -769,7 +769,7 @@ class LibreOfficeProcessor {
           .apa-document h1, .apa-document h2, .apa-document h3 {
             font-weight: bold;
             text-align: center;
-            margin: 12pt 0;
+            margin: 16px 0; /* 12pt = 16px */
           }
         </style>
       `;

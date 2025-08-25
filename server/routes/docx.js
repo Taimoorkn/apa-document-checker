@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const os = require('os');
 const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
 const DocxProcessor = require('../processors/DocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
@@ -132,8 +133,8 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       ...result.processingInfo,
       processingTime: processingTime,
       originalFilename: req.file.originalname,
-      fileSize: req.file.size,
-      serverFilePath: filePath // Include server file path for modifications
+      fileSize: req.file.size
+      // No server file path - we're processing in memory only
     };
     
     // Validate processing results
@@ -141,10 +142,9 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('Document processing produced incomplete results');
     }
     
-    // Keep the original file for potential modifications - don't delete it yet
-    // We'll clean it up later or when applying fixes
-    // await fs.unlink(filePath);
-    // filePath = null; // Mark as cleaned up
+    // Clean up uploaded file immediately since we're processing in memory
+    await fs.unlink(filePath);
+    filePath = null; // Mark as cleaned up
     
     // Return success response
     res.json({
@@ -195,17 +195,31 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
 
 /**
  * POST /api/apply-fix
- * Apply a formatting fix to a DOCX document
+ * Apply a formatting fix to a DOCX document (Memory-based processing)
  */
-router.post('/apply-fix', express.json(), async (req, res) => {
+router.post('/apply-fix', async (req, res) => {
   try {
-    const { serverFilePath, fixAction, fixValue, originalFilename } = req.body;
+    // Parse JSON body manually if needed
+    let requestData;
+    if (req.is('multipart/form-data')) {
+      // Handle multipart data (document buffer + metadata)
+      requestData = {
+        fixAction: req.body.fixAction,
+        fixValue: req.body.fixValue,
+        originalFilename: req.body.originalFilename
+      };
+    } else {
+      // Handle JSON data with base64 document
+      requestData = req.body;
+    }
+    
+    const { documentBuffer, fixAction, fixValue, originalFilename } = requestData;
     
     // Validate input
-    if (!serverFilePath || !fixAction) {
+    if (!documentBuffer || !fixAction) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required parameters: serverFilePath and fixAction',
+        error: 'Missing required parameters: documentBuffer and fixAction',
         code: 'MISSING_PARAMS'
       });
     }
@@ -219,32 +233,19 @@ router.post('/apply-fix', express.json(), async (req, res) => {
       });
     }
     
-    // Validate that the original file still exists
-    try {
-      await fs.access(serverFilePath, fs.constants.R_OK);
-    } catch (error) {
-      return res.status(404).json({
-        success: false,
-        error: 'Original document file not found on server',
-        code: 'FILE_NOT_FOUND'
-      });
+    console.log(`🔧 Applying fix: ${fixAction} to document buffer`);
+    
+    // Convert base64 to buffer if needed
+    let docxBuffer;
+    if (typeof documentBuffer === 'string') {
+      docxBuffer = Buffer.from(documentBuffer, 'base64');
+    } else {
+      docxBuffer = Buffer.from(documentBuffer);
     }
     
-    console.log(`🔧 Applying fix: ${fixAction} to file: ${path.basename(serverFilePath)}`);
-    
-    // Create paths for the modified file
-    const timestamp = Date.now();
-    const fileExt = path.extname(serverFilePath);
-    const fileBasename = path.basename(serverFilePath, fileExt);
-    const modifiedFilePath = path.join(
-      path.dirname(serverFilePath), 
-      `${fileBasename}_fixed_${fixAction}_${timestamp}${fileExt}`
-    );
-    
-    // Apply the fix using DocxModifier
+    // Apply the fix using DocxModifier (memory-based)
     const modificationResult = await docxModifier.applyFormattingFix(
-      serverFilePath, 
-      modifiedFilePath, 
+      docxBuffer,
       fixAction, 
       fixValue
     );
@@ -259,17 +260,17 @@ router.post('/apply-fix', express.json(), async (req, res) => {
     
     console.log(`✅ Fix applied successfully, reprocessing document...`);
     
-    // Reprocess the modified document
+    // Reprocess the modified document buffer
     let reprocessingResult;
     const startTime = Date.now();
     
     try {
       // Try LibreOffice first, fallback to Mammoth
       console.log('Reprocessing with LibreOffice...');
-      reprocessingResult = await libreOfficeProcessor.processDocument(modifiedFilePath);
+      reprocessingResult = await libreOfficeProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
     } catch (libreOfficeError) {
       console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
-      reprocessingResult = await docxProcessor.processDocument(modifiedFilePath);
+      reprocessingResult = await docxProcessor.processDocumentBuffer(modificationResult.buffer);
       reprocessingResult.processingInfo = reprocessingResult.processingInfo || {};
       reprocessingResult.processingInfo.processor = 'Mammoth (LibreOffice fallback)';
       reprocessingResult.processingInfo.fallback = true;
@@ -284,21 +285,14 @@ router.post('/apply-fix', express.json(), async (req, res) => {
       processingTime: processingTime,
       originalFilename: originalFilename || 'unknown.docx',
       fixApplied: fixAction,
-      fixValue: fixValue,
-      serverFilePath: modifiedFilePath
+      fixValue: fixValue
     };
     
-    // Clean up the temporary modified file after processing
-    try {
-      await fs.unlink(modifiedFilePath);
-    } catch (cleanupError) {
-      console.warn('Could not clean up temporary file:', cleanupError.message);
-    }
-    
-    // Return the reprocessed document
+    // Return the reprocessed document with the modified buffer for further fixes
     res.json({
       success: true,
       document: reprocessingResult,
+      modifiedDocumentBuffer: modificationResult.buffer.toString('base64'), // For next fix iteration
       fixApplied: fixAction,
       message: `Successfully applied ${fixAction} and reprocessed document`
     });

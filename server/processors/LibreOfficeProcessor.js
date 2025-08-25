@@ -51,6 +51,30 @@ class LibreOfficeProcessor {
   /**
    * Main processing function using LibreOffice
    */
+  /**
+   * Process a DOCX document buffer and extract formatting data
+   */
+  async processDocumentBuffer(buffer, filename = 'document.docx') {
+    const tempFilePath = path.join(require('os').tmpdir(), `temp_${Date.now()}_${filename}`);
+    
+    try {
+      // Write buffer to temporary file for LibreOffice processing
+      await fs.writeFile(tempFilePath, buffer);
+      
+      // Process the temporary file
+      const result = await this.processDocument(tempFilePath);
+      
+      return result;
+    } finally {
+      // Clean up temporary file
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (error) {
+        console.warn('Could not clean up temporary file:', tempFilePath, error.message);
+      }
+    }
+  }
+
   async processDocument(filePath) {
     try {
       console.log('Starting LibreOffice processing for:', filePath);

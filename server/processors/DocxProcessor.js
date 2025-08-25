@@ -24,6 +24,26 @@ class DocxProcessor {
   /**
    * Main processing function
    */
+  /**
+   * Process a DOCX document buffer
+   */
+  async processDocumentBuffer(buffer) {
+    try {
+      console.log('Starting Mammoth processing from buffer...');
+      
+      // Process document buffer directly with mammoth
+      const result = await mammoth.convertToHtml(buffer, this.mammothOptions);
+      
+      // Extract text for analysis
+      const textResult = await mammoth.extractRawText(buffer);
+      
+      return this.processResults(result, textResult);
+    } catch (error) {
+      console.error('Error processing document with Mammoth:', error);
+      throw new Error(`Document processing failed: ${error.message}`);
+    }
+  }
+
   async processDocument(filePath) {
     try {
       console.log('Starting DOCX processing for:', filePath);

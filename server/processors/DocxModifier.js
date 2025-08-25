@@ -1,7 +1,5 @@
-// server/processors/DocxModifier.js - DOCX modification for APA fixes
-const fs = require('fs').promises;
+// server/processors/DocxModifier.js - DOCX modification for APA fixes (Memory-based)
 const PizZip = require('pizzip');
-const Docxtemplater = require('docxtemplater');
 
 class DocxModifier {
   constructor() {
@@ -9,29 +7,26 @@ class DocxModifier {
   }
 
   /**
-   * Apply formatting fix to a DOCX file by modifying the document structure
+   * Apply formatting fix to a DOCX buffer by modifying the document structure
    */
-  async applyFormattingFix(inputPath, outputPath, fixAction, fixValue) {
+  async applyFormattingFix(inputBuffer, fixAction, fixValue) {
     try {
-      console.log(`🔧 Applying ${fixAction} to DOCX file: ${inputPath}`);
+      console.log(`🔧 Applying ${fixAction} to DOCX buffer (${inputBuffer.length} bytes)`);
       
-      // Read the DOCX file
-      const content = await fs.readFile(inputPath, 'binary');
-      const zip = new PizZip(content);
+      // Create zip from buffer
+      const zip = new PizZip(inputBuffer);
       
       // Apply the specific fix by modifying document XML
       const modifiedZip = await this.modifyDocumentXML(zip, fixAction, fixValue);
       
-      // Write the modified DOCX file
+      // Generate the modified DOCX buffer
       const outputBuffer = modifiedZip.generate({
         type: 'nodebuffer',
         compression: 'DEFLATE'
       });
       
-      await fs.writeFile(outputPath, outputBuffer);
-      
-      console.log(`✅ DOCX modification complete: ${outputPath}`);
-      return { success: true, outputPath };
+      console.log(`✅ DOCX modification complete: ${outputBuffer.length} bytes`);
+      return { success: true, buffer: outputBuffer };
       
     } catch (error) {
       console.error('Error modifying DOCX:', error);

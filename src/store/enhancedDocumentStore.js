@@ -15,7 +15,8 @@ export const useDocumentStore = create((set, get) => ({
   documentFormatting: null, // Rich formatting data from server
   documentStructure: null,  // Document structure data
   documentStyles: null,     // Document styles
-  serverFilePath: null,     // Server-side file path for modifications
+  originalDocumentBuffer: null, // Original document buffer for first upload
+  currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
   documentStats: {
     wordCount: 0,
     charCount: 0,
@@ -67,6 +68,10 @@ export const useDocumentStore = create((set, get) => ({
       if (file.size > 10 * 1024 * 1024) { // 10MB
         throw new Error('File size must be less than 10MB');
       }
+      
+      // Store the original file buffer for fixes
+      const fileBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(fileBuffer);
       
       // Create FormData for file upload
       const formData = new FormData();
@@ -137,14 +142,15 @@ export const useDocumentStore = create((set, get) => ({
         }
       });
       
-      // Store the rich document data including server file path
+      // Store the rich document data including document buffers
       set(state => ({
         documentHtml: documentData.html,
         documentText: documentData.text,
         documentFormatting: documentData.formatting,
         documentStructure: documentData.structure,
         documentStyles: documentData.styles,
-        serverFilePath: documentData.processingInfo?.serverFilePath || null, // Store server file path
+        originalDocumentBuffer: uint8Array, // Store original buffer
+        currentDocumentBuffer: uint8Array,  // Initialize current buffer same as original
         documentStats: {
           wordCount: words,
           charCount: chars,
@@ -360,6 +366,7 @@ export const useDocumentStore = create((set, get) => ({
             documentFormatting: result.formatting,
             documentStructure: result.structure,
             documentStyles: result.styles,
+            currentDocumentBuffer: result.updatedBuffer || state.currentDocumentBuffer, // Update buffer for next fix
             documentStats: {
               wordCount: words,
               charCount: chars,
@@ -542,19 +549,19 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
   
-  // Apply formatting fix via server-side DOCX modification
+  // Apply formatting fix via server-side DOCX modification (Memory-based)
   applyFormattingFix: async (issue, originalFormatting, documentText) => {
     const SERVER_URL = process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3001' 
       : '';
     
-    const { serverFilePath, documentName } = get();
+    const { currentDocumentBuffer, documentName } = get();
     
     try {
-      console.log(`🔧 Applying server-side formatting fix: ${issue.fixAction}`);
+      console.log(`🔧 Applying memory-based formatting fix: ${issue.fixAction}`);
       
-      if (!serverFilePath) {
-        throw new Error('No server file path available for document modification');
+      if (!currentDocumentBuffer) {
+        throw new Error('No document buffer available for document modification');
       }
       
       // Determine fix value based on action
@@ -581,14 +588,17 @@ export const useDocumentStore = create((set, get) => ({
       
       console.log(`📡 Sending fix request to server: ${issue.fixAction} = ${JSON.stringify(fixValue)}`);
       
-      // Send fix request to server
+      // Convert Uint8Array to base64 for JSON transport
+      const base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
+      
+      // Send fix request to server with document buffer
       const response = await fetch(`${SERVER_URL}/api/apply-fix`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          serverFilePath: serverFilePath,
+          documentBuffer: base64Buffer,
           fixAction: issue.fixAction,
           fixValue: fixValue,
           originalFilename: documentName
@@ -606,7 +616,17 @@ export const useDocumentStore = create((set, get) => ({
         throw new Error(result.error || 'Server failed to apply fix');
       }
       
-      console.log('🎉 Server-side fix applied successfully');
+      console.log('🎉 Memory-based fix applied successfully');
+      
+      // Convert the returned buffer back to Uint8Array for next iteration
+      let updatedBuffer = null;
+      if (result.modifiedDocumentBuffer) {
+        const binaryString = atob(result.modifiedDocumentBuffer);
+        updatedBuffer = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          updatedBuffer[i] = binaryString.charCodeAt(i);
+        }
+      }
       
       // Return the updated document data from server
       return {
@@ -615,11 +635,12 @@ export const useDocumentStore = create((set, get) => ({
         text: result.document.text,
         formatting: result.document.formatting,
         structure: result.document.structure,
-        styles: result.document.styles
+        styles: result.document.styles,
+        updatedBuffer: updatedBuffer // Include updated buffer for cumulative fixes
       };
       
     } catch (error) {
-      console.error('Error applying server-side formatting fix:', error);
+      console.error('Error applying memory-based formatting fix:', error);
       return {
         success: false,
         error: error.message

@@ -416,11 +416,16 @@ export class EnhancedAPAAnalyzer {
     
     // Enhanced citation patterns to catch all APA violations
     
-    // 1. Check for citations missing commas (Author YEAR) format
-    const missingCommaPattern = /\(([A-Za-z][A-Za-z\s&.,]+)\s+(\d{4})\)/g;
+    // 1. Check for citations missing commas (Author YEAR) format - but exclude et al. cases
+    const missingCommaPattern = /\(([A-Za-z][A-Za-z\s&.]+(?<!et\s+al))\s+(\d{4})\)/g;
     let missingCommaMatch;
     while ((missingCommaMatch = missingCommaPattern.exec(text)) !== null) {
       const fullCitation = missingCommaMatch[0];
+      const authorPart = missingCommaMatch[1];
+      
+      // Skip if this contains et al. - handle separately
+      if (authorPart.includes('et al')) continue;
+      
       console.log(`Found citation missing comma:`, fullCitation);
       
       issues.push({
@@ -524,6 +529,85 @@ export class EnhancedAPAAnalyzer {
     // 4. Check for title page issues
     const titlePageIssues = this.analyzeTitlePage(text);
     issues.push(...titlePageIssues);
+    
+    // 5. Check for spacing issues around citations
+    const spacingIssuePattern = /[^\s]\(([^)]+,\s*\d{4})\)|(\([^)]+,\s*\d{4}\))[^\s.,;]/g;
+    let spacingMatch;
+    while ((spacingMatch = spacingIssuePattern.exec(text)) !== null) {
+      issues.push({
+        title: "Citation spacing error",
+        description: "Citations need proper spacing before and after",
+        text: spacingMatch[0],
+        severity: "Minor",
+        category: "formatting",
+        hasFix: false,
+        explanation: "There should be a space before opening parenthesis and proper punctuation after citations."
+      });
+    }
+    
+    // 6. Check for URLs in text that should be properly formatted
+    const urlInTextPattern = /https?:\/\/[^\s)]+/g;
+    let urlMatch;
+    while ((urlMatch = urlInTextPattern.exec(text)) !== null) {
+      if (!text.includes('Retrieved from') || !text.includes('doi:')) {
+        issues.push({
+          title: "URL formatting in text",
+          description: "URLs should be properly formatted in references, not embedded in text",
+          text: urlMatch[0],
+          severity: "Minor",
+          category: "formatting",
+          hasFix: false,
+          explanation: "URLs should appear in the reference list, not embedded in the main text."
+        });
+      }
+    }
+    
+    // 7. Check for proper capitalization in titles (basic check)
+    const titlePattern = /\n\s*([A-Z][A-Za-z\s]+)\s*\n/g;
+    let titleMatch;
+    while ((titleMatch = titlePattern.exec(text)) !== null) {
+      const title = titleMatch[1].trim();
+      if (title.length > 10 && title === title.toUpperCase()) {
+        issues.push({
+          title: "Title case formatting",
+          description: "Titles should use sentence case, not ALL CAPS",
+          text: title,
+          severity: "Minor",
+          category: "formatting", 
+          hasFix: false,
+          explanation: "APA 7th edition uses sentence case for most titles (capitalize only the first word and proper nouns)."
+        });
+      }
+    }
+    
+    // 8. Check for paragraph structure (multiple consecutive line breaks)
+    const excessiveBreaksPattern = /\n\s*\n\s*\n\s*\n/g;
+    if (excessiveBreaksPattern.test(text)) {
+      issues.push({
+        title: "Excessive line spacing",
+        description: "Too many blank lines between paragraphs",
+        severity: "Minor",
+        category: "formatting",
+        hasFix: false,
+        explanation: "APA format uses double-spacing with no extra blank lines between paragraphs."
+      });
+    }
+    
+    // 9. Check for missing periods at end of sentences
+    const incompleteSentencePattern = /[a-z]\s*\n\s*[A-Z]/g;
+    let incompleteMatch;
+    while ((incompleteMatch = incompleteSentencePattern.exec(text)) !== null) {
+      const context = text.substring(Math.max(0, incompleteMatch.index - 20), incompleteMatch.index + 30);
+      issues.push({
+        title: "Missing sentence punctuation",
+        description: "Sentences should end with proper punctuation",
+        text: context.trim(),
+        severity: "Minor",
+        category: "formatting",
+        hasFix: false,
+        explanation: "All sentences must end with appropriate punctuation (period, question mark, or exclamation point)."
+      });
+    }
     
     // Check for direct quotes without page numbers
     const quotePattern = /[""][^""]{10,}[""]\s*(\([^)]+\))/g;

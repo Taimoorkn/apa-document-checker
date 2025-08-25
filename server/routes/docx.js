@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
 const DocxProcessor = require('../processors/DocxProcessor');
+const DocxModifier = require('../processors/DocxModifier');
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();
@@ -51,6 +52,7 @@ const upload = multer({
 // Initialize processors - LibreOffice first, Mammoth as fallback
 const libreOfficeProcessor = new LibreOfficeProcessor();
 const docxProcessor = new DocxProcessor();
+const docxModifier = new DocxModifier();
 
 /**
  * POST /api/upload-docx
@@ -130,7 +132,8 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       ...result.processingInfo,
       processingTime: processingTime,
       originalFilename: req.file.originalname,
-      fileSize: req.file.size
+      fileSize: req.file.size,
+      serverFilePath: filePath // Include server file path for modifications
     };
     
     // Validate processing results
@@ -138,9 +141,10 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('Document processing produced incomplete results');
     }
     
-    // Clean up uploaded file
-    await fs.unlink(filePath);
-    filePath = null; // Mark as cleaned up
+    // Keep the original file for potential modifications - don't delete it yet
+    // We'll clean it up later or when applying fixes
+    // await fs.unlink(filePath);
+    // filePath = null; // Mark as cleaned up
     
     // Return success response
     res.json({
@@ -184,6 +188,128 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       success: false,
       error: errorMessage,
       code: errorCode,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+/**
+ * POST /api/apply-fix
+ * Apply a formatting fix to a DOCX document
+ */
+router.post('/apply-fix', express.json(), async (req, res) => {
+  try {
+    const { serverFilePath, fixAction, fixValue, originalFilename } = req.body;
+    
+    // Validate input
+    if (!serverFilePath || !fixAction) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: serverFilePath and fixAction',
+        code: 'MISSING_PARAMS'
+      });
+    }
+    
+    // Check if the fix is supported
+    if (!docxModifier.isFixSupported(fixAction)) {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported fix action: ${fixAction}`,
+        code: 'UNSUPPORTED_FIX'
+      });
+    }
+    
+    // Validate that the original file still exists
+    try {
+      await fs.access(serverFilePath, fs.constants.R_OK);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        error: 'Original document file not found on server',
+        code: 'FILE_NOT_FOUND'
+      });
+    }
+    
+    console.log(`🔧 Applying fix: ${fixAction} to file: ${path.basename(serverFilePath)}`);
+    
+    // Create paths for the modified file
+    const timestamp = Date.now();
+    const fileExt = path.extname(serverFilePath);
+    const fileBasename = path.basename(serverFilePath, fileExt);
+    const modifiedFilePath = path.join(
+      path.dirname(serverFilePath), 
+      `${fileBasename}_fixed_${fixAction}_${timestamp}${fileExt}`
+    );
+    
+    // Apply the fix using DocxModifier
+    const modificationResult = await docxModifier.applyFormattingFix(
+      serverFilePath, 
+      modifiedFilePath, 
+      fixAction, 
+      fixValue
+    );
+    
+    if (!modificationResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: `Failed to apply fix: ${modificationResult.error}`,
+        code: 'FIX_APPLICATION_FAILED'
+      });
+    }
+    
+    console.log(`✅ Fix applied successfully, reprocessing document...`);
+    
+    // Reprocess the modified document
+    let reprocessingResult;
+    const startTime = Date.now();
+    
+    try {
+      // Try LibreOffice first, fallback to Mammoth
+      console.log('Reprocessing with LibreOffice...');
+      reprocessingResult = await libreOfficeProcessor.processDocument(modifiedFilePath);
+    } catch (libreOfficeError) {
+      console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
+      reprocessingResult = await docxProcessor.processDocument(modifiedFilePath);
+      reprocessingResult.processingInfo = reprocessingResult.processingInfo || {};
+      reprocessingResult.processingInfo.processor = 'Mammoth (LibreOffice fallback)';
+      reprocessingResult.processingInfo.fallback = true;
+    }
+    
+    const processingTime = Date.now() - startTime;
+    console.log(`Document reprocessing completed in ${processingTime}ms`);
+    
+    // Add processing metadata
+    reprocessingResult.processingInfo = {
+      ...reprocessingResult.processingInfo,
+      processingTime: processingTime,
+      originalFilename: originalFilename || 'unknown.docx',
+      fixApplied: fixAction,
+      fixValue: fixValue,
+      serverFilePath: modifiedFilePath
+    };
+    
+    // Clean up the temporary modified file after processing
+    try {
+      await fs.unlink(modifiedFilePath);
+    } catch (cleanupError) {
+      console.warn('Could not clean up temporary file:', cleanupError.message);
+    }
+    
+    // Return the reprocessed document
+    res.json({
+      success: true,
+      document: reprocessingResult,
+      fixApplied: fixAction,
+      message: `Successfully applied ${fixAction} and reprocessed document`
+    });
+    
+  } catch (error) {
+    console.error('Error in apply-fix route:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to apply fix to document',
+      code: 'APPLY_FIX_ERROR',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

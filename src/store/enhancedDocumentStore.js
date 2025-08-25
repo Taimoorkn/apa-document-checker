@@ -15,6 +15,7 @@ export const useDocumentStore = create((set, get) => ({
   documentFormatting: null, // Rich formatting data from server
   documentStructure: null,  // Document structure data
   documentStyles: null,     // Document styles
+  serverFilePath: null,     // Server-side file path for modifications
   documentStats: {
     wordCount: 0,
     charCount: 0,
@@ -136,13 +137,14 @@ export const useDocumentStore = create((set, get) => ({
         }
       });
       
-      // Store the rich document data
+      // Store the rich document data including server file path
       set(state => ({
         documentHtml: documentData.html,
         documentText: documentData.text,
         documentFormatting: documentData.formatting,
         documentStructure: documentData.structure,
         documentStyles: documentData.styles,
+        serverFilePath: documentData.processingInfo?.serverFilePath || null, // Store server file path
         documentStats: {
           wordCount: words,
           charCount: chars,
@@ -306,9 +308,9 @@ export const useDocumentStore = create((set, get) => ({
     return await get().analyzeDocument();
   },
   
-  // Enhanced fix application (same as before, but with better data)
+  // Enhanced fix application with document regeneration
   applyFix: async (issueId) => {
-    const { issues, documentHtml, documentText } = get();
+    const { issues, documentHtml, documentText, documentFormatting } = get();
     const issue = issues.find(i => i.id === issueId);
     
     if (!issue || !issue.hasFix) {
@@ -325,46 +327,102 @@ export const useDocumentStore = create((set, get) => ({
     }));
     
     try {
-      // Apply the fix using the existing logic
-      let updatedHtml = documentHtml;
-      let updatedText = documentText;
-      let contentChanged = false;
+      // Check if this is a formatting fix that requires document regeneration
+      const formattingFixes = ['fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation'];
       
-      const success = await get().applySpecificFix(issue, updatedHtml, updatedText);
-      
-      if (success.changed) {
-        updatedHtml = success.html;
-        updatedText = success.text;
-        contentChanged = true;
-      }
-      
-      // Remove the fixed issue
-      const updatedIssues = issues.filter(i => i.id !== issueId);
-      
-      // Recalculate score
-      const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
-      const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
-      const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
-      
-      const newScore = updatedIssues.length === 0 ? 100 : 
-        Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
-      
-      set(state => ({
-        documentText: updatedText,
-        documentHtml: updatedHtml,
-        issues: updatedIssues,
-        analysisScore: newScore,
-        lastFixAppliedAt: contentChanged ? Date.now() : state.lastFixAppliedAt,
-        activeIssueId: null,
-        processingState: {
-          ...state.processingState,
-          isApplyingFix: false,
-          currentFixId: null,
-          stage: null
+      if (formattingFixes.includes(issue.fixAction)) {
+        console.log(`🔄 Regenerating document with fix: ${issue.fixAction}`);
+        
+        // Apply the fix to the formatting data and regenerate HTML
+        const result = await get().applyFormattingFix(issue, documentFormatting, documentText);
+        
+        if (result.success) {
+          // Remove the fixed issue and update all document data
+          const updatedIssues = issues.filter(i => i.id !== issueId);
+          
+          // Recalculate score
+          const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
+          const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
+          const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
+          
+          const newScore = updatedIssues.length === 0 ? 100 : 
+            Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
+          
+          // Calculate updated stats
+          const words = result.text ? result.text.trim().split(/\s+/).filter(Boolean).length : 0;
+          const chars = result.text ? result.text.length : 0;
+          const paragraphs = result.formatting?.paragraphs?.length || 0;
+          
+          set(state => ({
+            // Update all document data with the server response
+            documentHtml: result.html,
+            documentText: result.text,
+            documentFormatting: result.formatting,
+            documentStructure: result.structure,
+            documentStyles: result.styles,
+            documentStats: {
+              wordCount: words,
+              charCount: chars,
+              paragraphCount: paragraphs,
+              processingTime: state.documentStats.processingTime // Keep original processing time
+            },
+            complianceDetails: result.formatting?.compliance || null,
+            issues: updatedIssues,
+            analysisScore: newScore,
+            lastFixAppliedAt: Date.now(),
+            activeIssueId: null,
+            processingState: {
+              ...state.processingState,
+              isApplyingFix: false,
+              currentFixId: null,
+              stage: null
+            }
+          }));
+          
+          return true;
         }
-      }));
-      
-      return true;
+      } else {
+        // Use the original text-based fix approach for content issues
+        let updatedHtml = documentHtml;
+        let updatedText = documentText;
+        let contentChanged = false;
+        
+        const success = await get().applySpecificFix(issue, updatedHtml, updatedText);
+        
+        if (success.changed) {
+          updatedHtml = success.html;
+          updatedText = success.text;
+          contentChanged = true;
+        }
+        
+        // Remove the fixed issue
+        const updatedIssues = issues.filter(i => i.id !== issueId);
+        
+        // Recalculate score
+        const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
+        const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
+        const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
+        
+        const newScore = updatedIssues.length === 0 ? 100 : 
+          Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
+        
+        set(state => ({
+          documentText: updatedText,
+          documentHtml: updatedHtml,
+          issues: updatedIssues,
+          analysisScore: newScore,
+          lastFixAppliedAt: contentChanged ? Date.now() : state.lastFixAppliedAt,
+          activeIssueId: null,
+          processingState: {
+            ...state.processingState,
+            isApplyingFix: false,
+            currentFixId: null,
+            stage: null
+          }
+        }));
+        
+        return true;
+      }
       
     } catch (error) {
       console.error('Error applying fix:', error);
@@ -396,17 +454,6 @@ export const useDocumentStore = create((set, get) => ({
     
     try {
       switch (issue.fixAction) {
-        case 'fixFont':
-          updatedHtml = html.replace(
-            /font-family:[^;]+;?/gi, 
-            'font-family: "Times New Roman", Times, serif;'
-          );
-          if (!html.includes('font-family')) {
-            updatedHtml = `<div style="font-family: 'Times New Roman', Times, serif;">${html}</div>`;
-          }
-          changed = updatedHtml !== html;
-          break;
-          
         case 'addCitationComma':
           if (issue.text) {
             const fixedText = issue.text.replace(
@@ -492,6 +539,91 @@ export const useDocumentStore = create((set, get) => ({
     } catch (error) {
       console.error('Error in applySpecificFix:', error);
       return { html, text, changed: false };
+    }
+  },
+  
+  // Apply formatting fix via server-side DOCX modification
+  applyFormattingFix: async (issue, originalFormatting, documentText) => {
+    const SERVER_URL = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001' 
+      : '';
+    
+    const { serverFilePath, documentName } = get();
+    
+    try {
+      console.log(`🔧 Applying server-side formatting fix: ${issue.fixAction}`);
+      
+      if (!serverFilePath) {
+        throw new Error('No server file path available for document modification');
+      }
+      
+      // Determine fix value based on action
+      let fixValue;
+      switch (issue.fixAction) {
+        case 'fixFont':
+          fixValue = 'Times New Roman';
+          break;
+        case 'fixFontSize':
+          fixValue = 24; // 24 half-points = 12pt
+          break;
+        case 'fixLineSpacing':
+          fixValue = 480; // 480 = double spacing in Word
+          break;
+        case 'fixMargins':
+          fixValue = { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 };
+          break;
+        case 'fixIndentation':
+          fixValue = 0.5;
+          break;
+        default:
+          throw new Error(`Unknown fix action: ${issue.fixAction}`);
+      }
+      
+      console.log(`📡 Sending fix request to server: ${issue.fixAction} = ${JSON.stringify(fixValue)}`);
+      
+      // Send fix request to server
+      const response = await fetch(`${SERVER_URL}/api/apply-fix`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          serverFilePath: serverFilePath,
+          fixAction: issue.fixAction,
+          fixValue: fixValue,
+          originalFilename: documentName
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Server failed to apply fix');
+      }
+      
+      console.log('🎉 Server-side fix applied successfully');
+      
+      // Return the updated document data from server
+      return {
+        success: true,
+        html: result.document.html,
+        text: result.document.text,
+        formatting: result.document.formatting,
+        structure: result.document.structure,
+        styles: result.document.styles
+      };
+      
+    } catch (error) {
+      console.error('Error applying server-side formatting fix:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   },
   

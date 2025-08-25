@@ -438,7 +438,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
                   <div className="max-w-4xl mx-auto">
                     <div 
                       ref={viewerRef}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-8"
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 libreoffice-compatible"
                       style={getDocumentStyles()}
                     >
                       {documentHtml ? (

@@ -3,6 +3,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
 const DocxProcessor = require('../processors/DocxProcessor');
 
 // Create router instance - IMPORTANT: This must be the default export
@@ -47,7 +48,8 @@ const upload = multer({
   }
 });
 
-// Initialize DOCX processor
+// Initialize processors - LibreOffice first, Mammoth as fallback
+const libreOfficeProcessor = new LibreOfficeProcessor();
 const docxProcessor = new DocxProcessor();
 
 /**
@@ -70,6 +72,9 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     filePath = req.file.path;
     console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
     
+    // Check if user wants to force Mammoth processor
+    const forceMammoth = req.body.forceMammoth === 'true' || req.query.forceMammoth === 'true';
+    
     // Validate file exists and is readable
     try {
       await fs.access(filePath, fs.constants.R_OK);
@@ -83,14 +88,42 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('File is not a valid DOCX document');
     }
     
-    // Process the document
+    // Process the document - try LibreOffice first, fallback to Mammoth
     console.log('Starting document processing...');
     const startTime = Date.now();
     
-    const result = await docxProcessor.processDocument(filePath);
+    let result;
+    let processorUsed = 'LibreOffice';
+    
+    if (forceMammoth) {
+      console.log('Using Mammoth processor (forced by request)');
+      result = await docxProcessor.processDocument(filePath);
+      processorUsed = 'Mammoth (forced)';
+    } else {
+      try {
+        console.log('Attempting LibreOffice processing...');
+        result = await libreOfficeProcessor.processDocument(filePath);
+        processorUsed = result.processingInfo?.processor || 'LibreOffice';
+      } catch (libreOfficeError) {
+        console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
+        result = await docxProcessor.processDocument(filePath);
+        processorUsed = 'Mammoth (LibreOffice fallback)';
+        
+        // Add fallback information to the result
+        result.processingInfo = result.processingInfo || {};
+        result.processingInfo.processor = processorUsed;
+        result.processingInfo.fallback = true;
+        result.processingInfo.fallbackReason = libreOfficeError.message;
+        result.messages = result.messages || [];
+        result.messages.push({
+          type: 'warning',
+          message: `LibreOffice processing failed (${libreOfficeError.message}), used Mammoth as fallback`
+        });
+      }
+    }
     
     const processingTime = Date.now() - startTime;
-    console.log(`Document processing completed in ${processingTime}ms`);
+    console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
     
     // Add processing metadata
     result.processingInfo = {
@@ -160,15 +193,40 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
  * GET /api/processing-status
  * Health check for document processing capabilities
  */
-router.get('/processing-status', (req, res) => {
+router.get('/processing-status', async (req, res) => {
+  // Check LibreOffice availability
+  let libreOfficeAvailable = false;
+  let libreOfficeError = null;
+  
+  try {
+    await libreOfficeProcessor.checkLibreOfficeAvailability();
+    libreOfficeAvailable = true;
+  } catch (error) {
+    libreOfficeError = error.message;
+  }
+  
   res.json({
     success: true,
     status: 'operational',
     capabilities: {
       docxProcessing: true,
+      libreOfficeProcessing: libreOfficeAvailable,
+      mammothFallback: true,
       formattingExtraction: true,
       structureAnalysis: true,
       apaCompliance: true
+    },
+    processors: {
+      libreOffice: {
+        available: libreOfficeAvailable,
+        error: libreOfficeError,
+        primary: libreOfficeAvailable
+      },
+      mammoth: {
+        available: true,
+        primary: !libreOfficeAvailable,
+        fallback: true
+      }
     },
     limits: {
       maxFileSize: '10MB',

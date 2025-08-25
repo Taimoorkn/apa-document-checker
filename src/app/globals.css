@@ -188,3 +188,58 @@ mark[data-issue-id]:hover::after {
   height: 24px;
   animation: spin 1s linear infinite;
 }
+
+/* LibreOffice document styling */
+.libreoffice-compatible .libreoffice-document {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.libreoffice-compatible .libreoffice-document p {
+  margin-bottom: 12pt;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.libreoffice-compatible .libreoffice-document h1,
+.libreoffice-compatible .libreoffice-document h2,
+.libreoffice-compatible .libreoffice-document h3,
+.libreoffice-compatible .libreoffice-document h4,
+.libreoffice-compatible .libreoffice-document h5,
+.libreoffice-compatible .libreoffice-document h6 {
+  font-weight: bold;
+  text-align: center;
+  margin: 12pt 0;
+  font-family: inherit;
+}
+
+.libreoffice-compatible .libreoffice-document strong,
+.libreoffice-compatible .libreoffice-document b {
+  font-weight: bold;
+}
+
+.libreoffice-compatible .libreoffice-document em,
+.libreoffice-compatible .libreoffice-document i {
+  font-style: italic;
+}
+
+.libreoffice-compatible .libreoffice-document u {
+  text-decoration: underline;
+}
+
+/* Override any LibreOffice inline styles that conflict with APA */
+.libreoffice-compatible .libreoffice-document * {
+  max-width: 100%;
+}
+
+/* Ensure proper paragraph indentation */
+.libreoffice-compatible .libreoffice-document p.indented {
+  text-indent: 0.5in;
+}
+
+.libreoffice-compatible .libreoffice-document p.hanging {
+  padding-left: 0.5in;
+  text-indent: -0.5in;
+}

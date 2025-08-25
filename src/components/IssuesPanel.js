@@ -384,7 +384,7 @@ const IssueItem = React.memo(function IssueItem({ issue, isActive, onSelect, onA
               <div className="absolute -right-1 -top-1 h-2 w-2 bg-gray-300 rounded-full"></div>
               <div className="absolute -left-1 -bottom-1 h-2 w-2 bg-gray-300 rounded-full"></div>
               <div className="absolute -right-1 -bottom-1 h-2 w-2 bg-gray-300 rounded-full"></div>
-              "{issue.text}"
+              &ldquo;{issue.text}&rdquo;
             </div>
           )}
         </div>

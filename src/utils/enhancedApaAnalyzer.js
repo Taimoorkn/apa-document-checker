@@ -466,17 +466,17 @@ export class EnhancedAPAAnalyzer {
         });
       }
       
-      // Check for incorrect et al. formatting
-      if (authorPart.includes(', et al.')) {
+      // Check for incorrect et al. formatting - APA 7th edition REQUIRES comma before et al.
+      if (authorPart.includes(' et al.') && !authorPart.includes(', et al.')) {
         issues.push({
-          title: "Incorrect et al. formatting",
-          description: "No comma before 'et al.' in citations",
+          title: "Missing comma before et al.",
+          description: "APA 7th edition requires comma before 'et al.' in citations",
           text: fullCitation,
           severity: "Minor",
           category: "citations", 
           hasFix: true,
           fixAction: "fixEtAlFormatting",
-          explanation: "Use 'et al.' without a comma: (Smith et al., 2021)."
+          explanation: "APA 7th edition requires a comma before 'et al.': (Smith, et al., 2021)."
         });
       }
     }
@@ -562,20 +562,23 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
-    // 7. Check for proper capitalization in titles (basic check)
-    const titlePattern = /\n\s*([A-Z][A-Za-z\s]+)\s*\n/g;
+    // 7. Check for ALL CAPS headings (more precise detection)
+    const allCapsHeadingPattern = /\n\s*([A-Z][A-Z\s]{8,})\s*\n/g;
     let titleMatch;
-    while ((titleMatch = titlePattern.exec(text)) !== null) {
-      const title = titleMatch[1].trim();
-      if (title.length > 10 && title === title.toUpperCase()) {
+    while ((titleMatch = allCapsHeadingPattern.exec(text)) !== null) {
+      const heading = titleMatch[1].trim();
+      // Only flag if it's truly ALL CAPS and looks like a heading
+      if (heading.length > 8 && heading === heading.toUpperCase() && 
+          !heading.includes('(') && !heading.includes(',') && 
+          heading.split(' ').length <= 8) {
         issues.push({
-          title: "Title case formatting",
-          description: "Titles should use sentence case, not ALL CAPS",
-          text: title,
+          title: "ALL CAPS heading detected",
+          description: "Headings should use title case or sentence case, not ALL CAPS",
+          text: heading,
           severity: "Minor",
           category: "formatting", 
           hasFix: false,
-          explanation: "APA 7th edition uses sentence case for most titles (capitalize only the first word and proper nouns)."
+          explanation: "APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS."
         });
       }
     }
@@ -593,19 +596,30 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // 9. Check for missing periods at end of sentences
-    const incompleteSentencePattern = /[a-z]\s*\n\s*[A-Z]/g;
+    // 9. Check for sentences ending without punctuation (more precise)
+    const incompleteSentencePattern = /[a-z]\s+[A-Z][a-z]/g;
     let incompleteMatch;
-    while ((incompleteMatch = incompleteSentencePattern.exec(text)) !== null) {
-      const context = text.substring(Math.max(0, incompleteMatch.index - 20), incompleteMatch.index + 30);
+    let sentenceIssueCount = 0;
+    while ((incompleteMatch = incompleteSentencePattern.exec(text)) && sentenceIssueCount < 3) {
+      const context = text.substring(Math.max(0, incompleteMatch.index - 30), incompleteMatch.index + 50);
+      
+      // Skip if this looks like an abbreviation or proper formatting
+      if (context.includes('Dr.') || context.includes('Mr.') || context.includes('Ms.') ||
+          context.includes('etc.') || context.includes('i.e.') || context.includes('e.g.') ||
+          context.match(/\d+\s+[A-Z]/) || // Numbers followed by caps (like page numbers)
+          context.includes('(') || context.includes(')')) {
+        continue;
+      }
+      
+      sentenceIssueCount++;
       issues.push({
-        title: "Missing sentence punctuation",
-        description: "Sentences should end with proper punctuation",
-        text: context.trim(),
+        title: "Possible missing punctuation",
+        description: "Check if sentence needs proper punctuation",
+        text: context.trim().substring(0, 60) + '...',
         severity: "Minor",
         category: "formatting",
         hasFix: false,
-        explanation: "All sentences must end with appropriate punctuation (period, question mark, or exclamation point)."
+        explanation: "Sentences should end with appropriate punctuation before starting a new sentence."
       });
     }
     
@@ -681,17 +695,22 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // Check for author-year format in text (might indicate missing proper citation)
-    const hasInlineCitations = /\([A-Za-z]+,?\s+\d{4}\)/.test(firstPage);
-    if (hasInlineCitations) {
-      issues.push({
-        title: "Citations on title page",
-        description: "Title page should not contain in-text citations",
-        severity: "Minor",
-        category: "structure", 
-        hasFix: false,
-        explanation: "The title page should contain only title, author, affiliation information - no citations."
-      });
+    // Check for in-text citations on title page (but be more selective)
+    const citationPattern = /\([A-Za-z]+,?\s+\d{4}\)/g;
+    const citationsOnTitlePage = firstPage.match(citationPattern);
+    if (citationsOnTitlePage && citationsOnTitlePage.length > 0) {
+      // Only flag if it's clearly in the main title page content, not in author notes
+      const titlePageWithoutAuthorNote = firstPage.split('Author Note')[0];
+      if (citationPattern.test(titlePageWithoutAuthorNote)) {
+        issues.push({
+          title: "Citations on title page",
+          description: "Title page should not contain in-text citations",
+          severity: "Minor",
+          category: "structure", 
+          hasFix: false,
+          explanation: "The title page should contain only title, author, affiliation information - no citations."
+        });
+      }
     }
     
     console.log(`Title page analysis found ${issues.length} issues`);

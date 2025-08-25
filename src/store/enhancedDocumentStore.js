@@ -460,6 +460,29 @@ export const useDocumentStore = create((set, get) => ({
           }
           break;
           
+        case 'fixEtAlFormatting':
+          if (issue.text) {
+            // Fix et al. formatting: (Smith et al., 2021) → (Smith, et al., 2021)
+            const fixedText = issue.text.replace(
+              /\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, 
+              '($1, et al., $2)'
+            );
+            updatedText = text.replace(issue.text, fixedText);
+            updatedHtml = html.replace(issue.text, fixedText);
+            changed = updatedText !== text;
+          }
+          break;
+          
+        case 'fixReferenceConnector':
+          if (issue.text) {
+            // Fix reference connector: "Author, A., and Author, B." → "Author, A., & Author, B."
+            const fixedText = issue.text.replace(/, and /g, ', & ');
+            updatedText = text.replace(issue.text, fixedText);
+            updatedHtml = html.replace(issue.text, fixedText);
+            changed = updatedText !== text;
+          }
+          break;
+          
         default:
           console.log('Fix action not implemented:', issue.fixAction);
           break;

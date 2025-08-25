@@ -577,7 +577,8 @@ export class EnhancedAPAAnalyzer {
           text: heading,
           severity: "Minor",
           category: "formatting", 
-          hasFix: false,
+          hasFix: true,
+          fixAction: "fixAllCapsHeading",
           explanation: "APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS."
         });
       }

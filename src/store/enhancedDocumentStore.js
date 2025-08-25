@@ -483,6 +483,29 @@ export const useDocumentStore = create((set, get) => ({
           }
           break;
           
+        case 'fixAllCapsHeading':
+          if (issue.text) {
+            // Convert ALL CAPS heading to Title Case
+            const fixedText = issue.text.toLowerCase()
+              .split(' ')
+              .map(word => {
+                // Capitalize first letter of each word, except small words (unless first word)
+                const smallWords = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'];
+                const isFirstWord = word === issue.text.toLowerCase().split(' ')[0];
+                
+                if (isFirstWord || !smallWords.includes(word)) {
+                  return word.charAt(0).toUpperCase() + word.slice(1);
+                }
+                return word;
+              })
+              .join(' ');
+            
+            updatedText = text.replace(issue.text, fixedText);
+            updatedHtml = html.replace(issue.text, fixedText);
+            changed = updatedText !== text;
+          }
+          break;
+          
         default:
           console.log('Fix action not implemented:', issue.fixAction);
           break;

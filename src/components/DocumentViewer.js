@@ -5,7 +5,7 @@ import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { FileText, InfoIcon } from 'lucide-react';
 
 export default function DocumentViewer() {
-const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState } = useDocumentStore();
+const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState, documentFormatting } = useDocumentStore();
   const viewerRef = useRef(null);
   // Use processing state from store instead of local loading state
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
@@ -274,8 +274,58 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     }
   };
   
+  // Create dynamic styles based on actual document formatting
+  const getDocumentStyles = useCallback(() => {
+    const baseStyles = {
+      fontFamily: '"Times New Roman", Times, serif',
+      fontSize: '12pt',
+      lineHeight: '2.0',
+      color: '#111827'
+    };
+    
+    // Use actual document formatting if available
+    if (documentFormatting && documentFormatting.document) {
+      const { font, spacing } = documentFormatting.document;
+      
+      console.log('🎨 Applying formatting - Font:', font, 'Spacing:', spacing);
+      
+      // Apply actual font family if available
+      if (font && font.family) {
+        const fontFamily = `"${font.family}", ${baseStyles.fontFamily}`;
+        baseStyles.fontFamily = fontFamily;
+        console.log('✅ Font family applied:', fontFamily);
+      }
+      
+      // Apply actual font size if available and is a valid number
+      if (font && font.size && typeof font.size === 'number' && font.size > 0) {
+        const fontSize = `${font.size}pt`;
+        baseStyles.fontSize = fontSize;
+        console.log('✅ Font size applied:', fontSize);
+      }
+      
+      // Apply actual line spacing if available and is a valid number
+      if (spacing && spacing.line && typeof spacing.line === 'number' && spacing.line > 0) {
+        const lineHeight = spacing.line.toString();
+        baseStyles.lineHeight = lineHeight;
+        console.log('✅ Line spacing applied:', lineHeight);
+      }
+    }
+    
+    console.log('🎨 Final document styles:', baseStyles);
+    return baseStyles;
+  }, [documentFormatting]);
+
   // Add debug output for component state
   console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading, 'processingState:', processingState);
+  console.log('Document formatting data:', documentFormatting);
+  
+  // Debug the actual values being applied
+  if (documentFormatting && documentFormatting.document) {
+    console.log('Font family:', documentFormatting.document.font?.family);
+    console.log('Font size:', documentFormatting.document.font?.size);
+    console.log('Line spacing:', documentFormatting.document.spacing?.line);
+    console.log('Applied styles:', getDocumentStyles());
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -347,12 +397,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
                     <div 
                       ref={viewerRef}
                       className="bg-white rounded-lg shadow-sm border border-gray-200 p-8"
-                      style={{
-                        fontFamily: '"Times New Roman", Times, serif',
-                        fontSize: '12pt',
-                        lineHeight: '2',
-                        color: '#111827'
-                      }}
+                      style={getDocumentStyles()}
                     >
                       {documentHtml ? (
                         <div dangerouslySetInnerHTML={{ __html: documentHtml }} />

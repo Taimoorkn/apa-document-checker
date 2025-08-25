@@ -30,8 +30,33 @@ class DocxProcessor {
       
       const buffer = await fs.readFile(filePath);
       
-      // Extract content with mammoth (for clean HTML)
-      const contentResult = await mammoth.convertToHtml({ buffer });
+      // Extract content with mammoth with enhanced formatting preservation
+      const contentResult = await mammoth.convertToHtml({ 
+        buffer,
+        options: {
+          styleMap: [
+            "p[style-name='Normal'] => p:fresh",
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh", 
+            "p[style-name='Heading 3'] => h3:fresh",
+            "p[style-name='Heading 4'] => h4:fresh",
+            "p[style-name='Heading 5'] => h5:fresh",
+            "p[style-name='Title'] => h1.title:fresh",
+            "r[style-name='Strong'] => strong",
+            "r[style-name='Emphasis'] => em"
+          ],
+          includeDefaultStyleMap: true,
+          convertImage: mammoth.images.imgElement(function(image) {
+            return image.read("base64").then(function(imageBuffer) {
+              return {
+                src: "data:" + image.contentType + ";base64," + imageBuffer
+              };
+            });
+          }),
+          preserveEmptyParagraphs: true
+        }
+      });
+      
       const textResult = await mammoth.extractRawText({ buffer });
       
       // Extract rich formatting information
@@ -43,10 +68,13 @@ class DocxProcessor {
       // Extract styles information
       const styles = await this.extractStyles(buffer);
       
+      // Enhance HTML with actual formatting data
+      const enhancedHtml = this.applyFormattingToHtml(contentResult.value, formattingInfo);
+      
       console.log('DOCX processing completed successfully');
       
       return {
-        html: contentResult.value,
+        html: enhancedHtml,
         text: textResult.value,
         formatting: formattingInfo,
         structure: structure,
@@ -162,7 +190,7 @@ class DocxProcessor {
             paraFormatting.style = pPr['w:pStyle'].$['w:val'];
           }
           
-          // Spacing
+          // Spacing - enhanced detection
           const spacing = pPr['w:spacing'];
           if (spacing && spacing.$) {
             const attrs = spacing.$;
@@ -170,6 +198,14 @@ class DocxProcessor {
               line: attrs['w:line'] ? this.lineSpacingToDecimal(attrs['w:line'], attrs['w:lineRule']) : null,
               before: attrs['w:before'] ? this.twipsToPoints(parseInt(attrs['w:before'])) : null,
               after: attrs['w:after'] ? this.twipsToPoints(parseInt(attrs['w:after'])) : null
+            };
+            console.log(`📏 Spacing found for paragraph ${index}:`, paraFormatting.spacing);
+          } else {
+            // Set default double spacing if no explicit spacing found
+            paraFormatting.spacing = {
+              line: 2.0, // Default APA double spacing
+              before: null,
+              after: null
             };
           }
           
@@ -275,9 +311,32 @@ class DocxProcessor {
       // Set document-level defaults from most common paragraph settings
       if (formatting.paragraphs.length > 0) {
         const firstPara = formatting.paragraphs.find(p => p.font.family && p.font.size) || formatting.paragraphs[0];
-        formatting.document.font = { ...firstPara.font };
-        formatting.document.spacing.line = firstPara.spacing.line;
-        formatting.document.indentation = { ...firstPara.indentation };
+        
+        // Set font info
+        formatting.document.font = { 
+          family: firstPara.font.family || null,
+          size: firstPara.font.size || null
+        };
+        
+        // Set spacing info - with fallback to common settings
+        formatting.document.spacing.line = firstPara.spacing.line || null;
+        
+        // Set indentation info
+        formatting.document.indentation = { 
+          firstLine: firstPara.indentation.firstLine || null,
+          hanging: firstPara.indentation.hanging || null 
+        };
+        
+        // Debug log what we extracted
+        console.log('📊 Document-level formatting extracted:');
+        console.log('  Font:', formatting.document.font);
+        console.log('  Spacing:', formatting.document.spacing);
+        console.log('  Indentation:', formatting.document.indentation);
+        console.log('📝 Sample paragraph data:', {
+          font: firstPara.font,
+          spacing: firstPara.spacing,
+          indentation: firstPara.indentation
+        });
       }
       
       // Calculate APA compliance
@@ -639,6 +698,80 @@ class DocxProcessor {
     return 'unknown';
   }
   
+  /**
+   * Apply actual document formatting to HTML output
+   */
+  applyFormattingToHtml(html, formattingInfo) {
+    if (!formattingInfo || !formattingInfo.paragraphs) {
+      return html;
+    }
+    
+    try {
+      // Create a wrapper with document-level styles
+      const docFont = formattingInfo.document.font;
+      const docSpacing = formattingInfo.document.spacing;
+      
+      let documentStyles = '';
+      if (docFont.family) {
+        documentStyles += `font-family: "${docFont.family}", serif; `;
+      }
+      if (docFont.size) {
+        documentStyles += `font-size: ${docFont.size}pt; `;
+      }
+      if (docSpacing.line) {
+        documentStyles += `line-height: ${docSpacing.line}; `;
+      }
+      
+      // Apply paragraph-specific formatting
+      let enhancedHtml = html;
+      
+      // Add CSS for better formatting preservation - but let client handle document-level styling
+      const cssStyles = `
+        <style>
+          .apa-document p {
+            margin: 0 0 12pt 0;
+            text-align: left;
+          }
+          .apa-document p.indented {
+            text-indent: 0.5in;
+          }
+          .apa-document p.hanging {
+            padding-left: 0.5in;
+            text-indent: -0.5in;
+          }
+          .apa-document h1, .apa-document h2, .apa-document h3 {
+            font-weight: bold;
+            text-align: center;
+            margin: 12pt 0;
+          }
+        </style>
+      `;
+      
+      // Wrap the content with class for styling (but don't override font/size - let client handle that)
+      enhancedHtml = `${cssStyles}<div class="apa-document">${enhancedHtml}</div>`;
+      
+      // Apply paragraph-specific indentation based on formatting data
+      formattingInfo.paragraphs.forEach((para, index) => {
+        if (para.indentation && para.indentation.firstLine > 0.4) {
+          // Replace paragraph tags with indented versions
+          const paragraphRegex = new RegExp(`(<p[^>]*>)([^<]*(?:<[^/][^>]*>[^<]*</[^>]*>[^<]*)*)</p>`, 'g');
+          enhancedHtml = enhancedHtml.replace(paragraphRegex, (match, openTag, content) => {
+            if (content.trim().length > 0) {
+              return `<p class="indented">${content}</p>`;
+            }
+            return match;
+          });
+        }
+      });
+      
+      return enhancedHtml;
+      
+    } catch (error) {
+      console.error('Error applying formatting to HTML:', error);
+      return html; // Return original HTML if formatting fails
+    }
+  }
+
   getDefaultFormatting() {
     return {
       document: {

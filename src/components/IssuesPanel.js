@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useDocumentStore } from '@/store/documentStore';
+import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import React from 'react';
 import { 
   ClipboardList, 

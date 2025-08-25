@@ -64,10 +64,9 @@ export class EnhancedAPAAnalyzer {
       issues.push(...this.analyzeBasicStructure(text));
     }
     
-    // 3. Analyze citations with context
-    if (structure?.citations && text) {
-      issues.push(...this.analyzeCitations(text, structure.citations));
-    } else if (text) {
+    // 3. Analyze citations - use basic analysis for better results
+    if (text) {
+      console.log('📚 Using basic citation analysis for better coverage...');
       issues.push(...this.analyzeBasicCitations(text));
     }
     
@@ -325,8 +324,13 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
+    console.log('🏗️ Basic structure analysis starting...');
+    
     const hasReferences = text.toLowerCase().includes('references');
     const hasCitations = /\([^)]+,\s*\d{4}\)/.test(text);
+    
+    console.log('Has references section:', hasReferences);
+    console.log('Has citations:', hasCitations);
     
     if (hasCitations && !hasReferences) {
       issues.push({
@@ -340,6 +344,7 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
+    console.log(`Basic structure analysis found ${issues.length} issues`);
     return issues;
   }
   
@@ -405,6 +410,53 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
+    console.log('📝 Basic citation analysis starting...');
+    console.log('Text length:', text.length);
+    console.log('Text sample:', text.substring(0, 200));
+    
+    // Basic citation pattern from simple analyzer that worked
+    const citationPattern = /\(([^)]+),\s*(\d{4})[^)]*\)/g;
+    let match;
+    let citationCount = 0;
+    
+    while ((match = citationPattern.exec(text)) !== null) {
+      citationCount++;
+      const fullCitation = match[0];
+      const authorPart = match[1];
+      
+      console.log(`Found citation ${citationCount}:`, fullCitation);
+      
+      // Check for missing comma
+      if (!fullCitation.includes(', ' + match[2])) {
+        issues.push({
+          title: "Missing comma in citation",
+          description: "Citations must have a comma between author and year",
+          text: fullCitation,
+          severity: "Minor",
+          category: "citations",
+          hasFix: true,
+          fixAction: "addCitationComma",
+          explanation: "APA format requires a comma between author name(s) and year."
+        });
+      }
+      
+      // Check for incorrect ampersand usage
+      if (authorPart.includes(' and ') && fullCitation.includes('(')) {
+        issues.push({
+          title: "Incorrect connector in parenthetical citation",
+          description: "Use '&' instead of 'and' in parenthetical citations",
+          text: fullCitation,
+          severity: "Minor",
+          category: "citations",
+          hasFix: true,
+          fixAction: "fixParentheticalConnector",
+          explanation: "In parenthetical citations, use & to connect author names."
+        });
+      }
+    }
+    
+    console.log(`Found ${citationCount} total citations`);
+    
     // Check for direct quotes without page numbers
     const quotePattern = /[""][^""]{10,}[""]\s*(\([^)]+\))/g;
     let quoteMatch;
@@ -424,6 +476,7 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
+    console.log(`Basic citation analysis found ${issues.length} issues`);
     return issues;
   }
   
@@ -436,6 +489,25 @@ export class EnhancedAPAAnalyzer {
     if (!text) return issues;
     
     console.log('📖 Analyzing references...');
+    
+    // Simple check - if we have citations but no references section
+    const hasReferences = text.toLowerCase().includes('references');
+    const hasCitations = /\([^)]+,?\s*\d{4}\)/.test(text);
+    
+    console.log('References check - has references:', hasReferences, 'has citations:', hasCitations);
+    
+    if (hasCitations && !hasReferences) {
+      issues.push({
+        title: "Missing References section",
+        description: "Document has citations but no References section",
+        severity: "Critical",
+        category: "structure",
+        hasFix: true,
+        fixAction: "addReferencesHeader",
+        explanation: "All APA papers must include a References section."
+      });
+      console.log('Added missing references issue');
+    }
     
     const referencesMatch = text.match(/References[\s\n]+([\s\S]+?)(?:\n\n[A-Z]|$)/i);
     if (!referencesMatch) return issues;
@@ -509,6 +581,7 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
+    console.log(`Content analysis found ${issues.length} issues`);
     return issues;
   }
   

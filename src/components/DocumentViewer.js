@@ -5,9 +5,10 @@ import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { FileText, InfoIcon } from 'lucide-react';
 
 export default function DocumentViewer() {
-const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt } = useDocumentStore();
+const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState } = useDocumentStore();
   const viewerRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // Use processing state from store instead of local loading state
+  const isLoading = processingState.isUploading || processingState.isAnalyzing;
   const [lastContentUpdate, setLastContentUpdate] = useState(null);
   
   // Add a state for showing/hiding issues
@@ -163,7 +164,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     });
     
     if (documentHtml) {
-      setIsLoading(true);
       
       // Use a ref to track the current render cycle
       const renderCycleId = Date.now();
@@ -188,8 +188,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
             }, 100);
           }
           
-          // Finish loading regardless of success
-          setIsLoading(false);
+          // Loading state is now managed by store processing state
         }, 200);
       }
     }
@@ -276,7 +275,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   };
   
   // Add debug output for component state
-  console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading);
+  console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading, 'processingState:', processingState);
 
   return (
     <div className="p-8 h-full">

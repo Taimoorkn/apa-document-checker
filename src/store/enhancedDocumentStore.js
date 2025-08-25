@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 
 // Import the enhanced APA analyzer (same as before, but now works with rich data)
-import { analyzeAPADocument } from '@/utils/enhancedApaAnalyzer';
+import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
 
 export const useDocumentStore = create((set, get) => ({
   // Document state - now includes rich formatting data
@@ -27,11 +27,13 @@ export const useDocumentStore = create((set, get) => ({
   activeIssueId: null,
   analysisScore: null,
   complianceDetails: null, // Detailed compliance information
+  lastFixAppliedAt: null,
   
   // Processing state
   processingState: {
     isUploading: false,
     isAnalyzing: false,
+    isSchedulingAnalysis: false,
     isApplyingFix: false,
     lastError: null,
     progress: 0,
@@ -158,9 +160,12 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      console.log('Document successfully processed with rich formatting data');
-      console.log('Formatting data:', documentData.formatting);
-      console.log('Structure data:', documentData.structure);
+      console.log('✅ Document successfully processed with rich formatting data');
+      console.log('Document Text length:', documentData.text?.length);
+      console.log('Document HTML length:', documentData.html?.length);
+      console.log('Has formatting data:', !!documentData.formatting);
+      console.log('Has structure data:', !!documentData.structure);
+      console.log('Current processing state:', get().processingState);
       
       return true;
       
@@ -215,7 +220,7 @@ export const useDocumentStore = create((set, get) => ({
         styles: documentStyles
       };
       
-      console.log('Starting APA analysis with rich data...');
+      console.log('🔍 Starting APA analysis with rich data...');
       console.log('Available data:', {
         hasText: !!documentText,
         hasHtml: !!documentHtml,
@@ -223,12 +228,14 @@ export const useDocumentStore = create((set, get) => ({
         hasStructure: !!documentStructure,
         formattingCompliance: documentFormatting?.compliance?.overall
       });
+      console.log('Current processing state before analysis:', get().processingState);
       
       // Use enhanced analyzer with rich document data
       const analysisResults = await new Promise((resolve, reject) => {
         setTimeout(() => {
           try {
-            const results = analyzeAPADocument(documentData);
+            const analyzer = new EnhancedAPAAnalyzer();
+            const results = analyzer.analyzeDocument(documentData);
             resolve(results);
           } catch (error) {
             reject(error);
@@ -278,12 +285,14 @@ export const useDocumentStore = create((set, get) => ({
         processingState: {
           ...state.processingState,
           isAnalyzing: false,
+          isSchedulingAnalysis: false,
           stage: null
         }
       }));
       
-      console.log(`Analysis complete: ${issues.length} issues found, score: ${analysisScore}%`);
+      console.log(`✅ Analysis complete: ${issues.length} issues found, score: ${analysisScore}%`);
       console.log('Issues breakdown:', { criticalCount, majorCount, minorCount });
+      console.log('Final processing state:', get().processingState);
       
       return { 
         success: true, 
@@ -293,12 +302,14 @@ export const useDocumentStore = create((set, get) => ({
       };
       
     } catch (error) {
-      console.error('Error analyzing document:', error);
+      console.error('❌ Error analyzing document:', error);
+      console.error('Error details:', error.message, error.stack);
       
       set(state => ({
         processingState: {
           ...state.processingState,
           isAnalyzing: false,
+          isSchedulingAnalysis: false,
           lastError: error.message || 'Analysis failed',
           stage: null
         }
@@ -499,5 +510,56 @@ export const useDocumentStore = create((set, get) => ({
       },
       compliance: complianceDetails
     };
+  },
+
+  // Export document
+  exportDocument: async (format) => {
+    const { documentHtml, documentName } = get();
+    
+    if (!documentHtml) {
+      alert('No document to export');
+      return false;
+    }
+    
+    try {
+      // Simple HTML export
+      const fullHtml = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <title>APA Formatted Document</title>
+          <style>
+            body { 
+              font-family: "Times New Roman", Times, serif; 
+              font-size: 12pt; 
+              line-height: 2; 
+              margin: 1in; 
+            }
+          </style>
+        </head>
+        <body>${documentHtml}</body>
+        </html>
+      `;
+      
+      const blob = new Blob([fullHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = documentName ? 
+        documentName.replace('.docx', '_APA_formatted.html') : 
+        'apa_formatted_document.html';
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      return true;
+    } catch (error) {
+      console.error('Export failed:', error);
+      throw error;
+    }
   }
 }));

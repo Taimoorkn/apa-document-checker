@@ -259,7 +259,7 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       }
     }
   }, [lastFixAppliedAt, lastContentUpdate, applyHighlighting, isLoading]);
-  
+
   // Helper function to get issue class based on severity
   const getIssueClass = (severity) => {
     switch (severity) {
@@ -308,12 +308,54 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         const lineHeight = spacing.line.toString();
         baseStyles.lineHeight = lineHeight;
         console.log('✅ Line spacing applied:', lineHeight);
+      } else {
+        // Use default double spacing for APA
+        baseStyles.lineHeight = '2.0';
+        console.log('📄 Using default APA line spacing: 2.0');
       }
     }
     
     console.log('🎨 Final document styles:', baseStyles);
     return baseStyles;
   }, [documentFormatting]);
+
+  // Add CSS for paragraph-specific indentation
+  const addIndentationCSS = useCallback(() => {
+    if (!documentFormatting || !documentFormatting.paragraphs) return;
+    
+    // Create dynamic CSS for paragraph indentation
+    let indentCSS = '';
+    documentFormatting.paragraphs.forEach((para, index) => {
+      if (para.indentation && para.indentation.firstLine && para.indentation.firstLine > 0.1) {
+        indentCSS += `.apa-document p:nth-of-type(${index + 1}) { text-indent: ${para.indentation.firstLine}in; }\n`;
+      }
+    });
+    
+    if (indentCSS) {
+      // Remove existing indentation style
+      const existingStyle = document.getElementById('paragraph-indentation-css');
+      if (existingStyle) existingStyle.remove();
+      
+      // Add new indentation style
+      const styleElement = document.createElement('style');
+      styleElement.id = 'paragraph-indentation-css';
+      styleElement.textContent = indentCSS;
+      document.head.appendChild(styleElement);
+      
+      console.log('📝 Applied paragraph indentation CSS');
+    }
+  }, [documentFormatting]);
+
+  // Effect for applying indentation CSS when document formatting changes
+  useEffect(() => {
+    if (documentFormatting && !isLoading) {
+      const indentTimeout = setTimeout(() => {
+        addIndentationCSS();
+      }, 200);
+      
+      return () => clearTimeout(indentTimeout);
+    }
+  }, [documentFormatting, addIndentationCSS, isLoading]);
 
   // Add debug output for component state
   console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading, 'processingState:', processingState);

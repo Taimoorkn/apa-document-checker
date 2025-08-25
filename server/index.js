@@ -90,10 +90,7 @@ app.listen(PORT, (err) => {
     process.exit(1);
   }
   
-  console.log(`🚀 APA Document Checker Server running on port ${PORT}`);
-  console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`📄 Document upload: http://localhost:${PORT}/api/upload-docx`);
-  console.log(`🏠 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🚀 Server running on port ${PORT}`); 
 });
 
 // Graceful shutdown

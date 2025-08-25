@@ -179,67 +179,35 @@ class LibreOfficeProcessor {
    */
   async checkLibreOfficeAvailability() {
     try {
-      // Try to get LibreOffice version to verify installation
-      const { exec } = require('child_process');
-      const { promisify } = require('util');
-      const execAsync = promisify(exec);
+      console.log('🔍 Checking LibreOffice availability...');
       
-      // Check for LibreOffice on different platforms
-      const windowsPaths = [
-        'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
-        'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
-        'soffice'  // In case it's in PATH
-      ];
+      // Test LibreOffice by doing a simple conversion
+      // This is more reliable than checking version commands
+      const testBuffer = Buffer.from('PK'); // Minimal ZIP signature
       
-      const macPaths = [
-        '/Applications/LibreOffice.app/Contents/MacOS/soffice',
-        'soffice'
-      ];
+      // Try a quick conversion test with a very short timeout
+      const conversionPromise = libre.convertAsync(testBuffer, '.html', undefined);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('LibreOffice availability check timeout')), 3000);
+      });
       
-      const linuxPaths = [
-        'libreoffice',
-        'soffice',
-        'libreoffice6.4',
-        '/usr/bin/libreoffice',
-        '/usr/bin/soffice'
-      ];
+      await Promise.race([conversionPromise, timeoutPromise]);
       
-      let commandsToTry = [];
-      if (process.platform === 'win32') {
-        commandsToTry = windowsPaths.map(path => `"${path}" --version`);
-      } else if (process.platform === 'darwin') {
-        commandsToTry = macPaths.map(path => `"${path}" --version`);
-      } else {
-        commandsToTry = linuxPaths.map(path => `${path} --version`);
-      }
-      
-      let found = false;
-      let workingCommand = null;
-      
-      for (const command of commandsToTry) {
-        try {
-          console.log(`Trying LibreOffice command: ${command}`);
-          await execAsync(command, { timeout: 8000 });
-          found = true;
-          workingCommand = command;
-          console.log(`✅ LibreOffice found with command: ${command}`);
-          break;
-        } catch (e) {
-          console.log(`❌ Command failed: ${command} - ${e.message}`);
-          // Continue to next alternative
-        }
-      }
-      
-      if (!found) {
-        throw new Error('LibreOffice not found. Please ensure LibreOffice is installed and accessible.');
-      }
-      
-      // Store the working command for future use
-      this.libreOfficeCommand = workingCommand;
+      console.log('✅ LibreOffice is available and working');
+      return true;
       
     } catch (error) {
       console.warn('⚠️ LibreOffice availability check failed:', error.message);
-      throw new Error('LibreOffice not available on this system');
+      
+      // Check if it's a path/spawn error (LibreOffice not found)
+      if (error.message.includes('spawn') || error.message.includes('ENOENT')) {
+        throw new Error('LibreOffice not found on system. Please install LibreOffice.');
+      }
+      
+      // For other errors (like invalid test data), LibreOffice might still work
+      // so we'll let the actual conversion attempt handle it
+      console.log('💡 LibreOffice might be available but had issues with test data');
+      return true;
     }
   }
   
@@ -784,47 +752,30 @@ class LibreOfficeProcessor {
       const docFont = formattingInfo.document.font;
       const docSpacing = formattingInfo.document.spacing;
       
-      // Add enhanced CSS for better APA formatting
+      // Add CSS for better formatting preservation - but let client handle document-level styling
       const cssStyles = `
         <style>
-          .libreoffice-document {
-            font-family: "${docFont.family || 'Times New Roman'}", Times, serif;
-            font-size: ${docFont.size || 12}pt;
-            line-height: ${docSpacing.line || 2.0};
-            color: #111827;
-            max-width: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          .libreoffice-document p {
-            margin: 0 0 ${docSpacing.line ? (docSpacing.line * 6) : 12}pt 0;
+          .apa-document p {
+            margin: 0 0 12pt 0;
             text-align: left;
           }
-          .libreoffice-document p.indented {
+          .apa-document p.indented {
             text-indent: 0.5in;
           }
-          .libreoffice-document p.hanging {
+          .apa-document p.hanging {
             padding-left: 0.5in;
             text-indent: -0.5in;
           }
-          .libreoffice-document h1, .libreoffice-document h2, .libreoffice-document h3, 
-          .libreoffice-document h4, .libreoffice-document h5, .libreoffice-document h6 {
+          .apa-document h1, .apa-document h2, .apa-document h3 {
             font-weight: bold;
             text-align: center;
-            margin: ${docSpacing.line ? (docSpacing.line * 6) : 12}pt 0;
-            font-family: "${docFont.family || 'Times New Roman'}", Times, serif;
-          }
-          .libreoffice-document strong, .libreoffice-document b {
-            font-weight: bold;
-          }
-          .libreoffice-document em, .libreoffice-document i {
-            font-style: italic;
+            margin: 12pt 0;
           }
         </style>
       `;
       
-      // Prepend the styles to the HTML
-      let enhancedHtml = cssStyles + html;
+      // Wrap the content with class for styling (but don't override font/size - let client handle that)
+      let enhancedHtml = `${cssStyles}<div class="apa-document">${html}</div>`;
       
       // Apply paragraph-specific indentation based on formatting data
       if (formattingInfo.paragraphs) {

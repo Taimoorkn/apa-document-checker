@@ -414,7 +414,28 @@ export class EnhancedAPAAnalyzer {
     console.log('Text length:', text.length);
     console.log('Text sample:', text.substring(0, 200));
     
-    // Basic citation pattern from simple analyzer that worked
+    // Enhanced citation patterns to catch all APA violations
+    
+    // 1. Check for citations missing commas (Author YEAR) format
+    const missingCommaPattern = /\(([A-Za-z][A-Za-z\s&.,]+)\s+(\d{4})\)/g;
+    let missingCommaMatch;
+    while ((missingCommaMatch = missingCommaPattern.exec(text)) !== null) {
+      const fullCitation = missingCommaMatch[0];
+      console.log(`Found citation missing comma:`, fullCitation);
+      
+      issues.push({
+        title: "Missing comma in citation",
+        description: "Citations must have a comma between author and year",
+        text: fullCitation,
+        severity: "Minor", 
+        category: "citations",
+        hasFix: true,
+        fixAction: "addCitationComma",
+        explanation: "APA format requires a comma between author name(s) and year: (Author, YEAR)."
+      });
+    }
+    
+    // 2. Standard citation pattern with comma (Author, YEAR)
     const citationPattern = /\(([^)]+),\s*(\d{4})[^)]*\)/g;
     let match;
     let citationCount = 0;
@@ -425,20 +446,6 @@ export class EnhancedAPAAnalyzer {
       const authorPart = match[1];
       
       console.log(`Found citation ${citationCount}:`, fullCitation);
-      
-      // Check for missing comma
-      if (!fullCitation.includes(', ' + match[2])) {
-        issues.push({
-          title: "Missing comma in citation",
-          description: "Citations must have a comma between author and year",
-          text: fullCitation,
-          severity: "Minor",
-          category: "citations",
-          hasFix: true,
-          fixAction: "addCitationComma",
-          explanation: "APA format requires a comma between author name(s) and year."
-        });
-      }
       
       // Check for incorrect ampersand usage
       if (authorPart.includes(' and ') && fullCitation.includes('(')) {
@@ -453,9 +460,70 @@ export class EnhancedAPAAnalyzer {
           explanation: "In parenthetical citations, use & to connect author names."
         });
       }
+      
+      // Check for incorrect et al. formatting
+      if (authorPart.includes(', et al.')) {
+        issues.push({
+          title: "Incorrect et al. formatting",
+          description: "No comma before 'et al.' in citations",
+          text: fullCitation,
+          severity: "Minor",
+          category: "citations", 
+          hasFix: true,
+          fixAction: "fixEtAlFormatting",
+          explanation: "Use 'et al.' without a comma: (Smith et al., 2021)."
+        });
+      }
     }
     
     console.log(`Found ${citationCount} total citations`);
+    
+    // 3. Analyze References section for consistency issues
+    const referencesSection = text.match(/REFERENCES([\s\S]*?)(?=\n\n[A-Z]|$)/i);
+    if (referencesSection) {
+      const referencesText = referencesSection[1];
+      console.log('Found references section, analyzing...');
+      
+      // Check for "and" instead of "&" in references
+      const andInReferencesPattern = /^[^.]+,\s+[^,]+,\s+and\s+[^,]+\./gm;
+      let andMatch;
+      while ((andMatch = andInReferencesPattern.exec(referencesText)) !== null) {
+        issues.push({
+          title: "Incorrect connector in reference",
+          description: "Use '&' instead of 'and' in reference list",
+          text: andMatch[0],
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "fixReferenceConnector",
+          explanation: "In reference lists, use & (ampersand) to connect author names, not 'and'."
+        });
+      }
+      
+      // Check for missing DOI/URL when available
+      const lines = referencesText.split('\n').filter(line => line.trim().length > 0);
+      lines.forEach((line, index) => {
+        if (line.match(/^\s*[A-Z]/)) { // Reference entry line
+          if (!line.includes('doi:') && !line.includes('http') && !line.includes('Retrieved from')) {
+            if (line.toLowerCase().includes('journal') || line.toLowerCase().includes('article')) {
+              issues.push({
+                title: "Missing DOI or URL",
+                description: "Journal articles should include DOI or URL when available",
+                text: line.substring(0, 100) + '...',
+                severity: "Minor",
+                category: "references",
+                hasFix: false,
+                explanation: "Include DOI (preferred) or URL for journal articles and online sources when available."
+              });
+            }
+          }
+        }
+      });
+    }
+    
+    // 4. Check for title page issues
+    const titlePageIssues = this.analyzeTitlePage(text);
+    issues.push(...titlePageIssues);
     
     // Check for direct quotes without page numbers
     const quotePattern = /[""][^""]{10,}[""]\s*(\([^)]+\))/g;
@@ -477,6 +545,72 @@ export class EnhancedAPAAnalyzer {
     }
     
     console.log(`Basic citation analysis found ${issues.length} issues`);
+    return issues;
+  }
+  
+  /**
+   * Analyze title page structure
+   */
+  analyzeTitlePage(text) {
+    const issues = [];
+    
+    if (!text) return issues;
+    
+    console.log('📄 Analyzing title page structure...');
+    
+    const firstPage = text.substring(0, 1500); // First ~1500 chars for title page
+    
+    // Check for required elements in order
+    const lines = firstPage.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    if (lines.length < 3) {
+      issues.push({
+        title: "Incomplete title page",
+        description: "Title page appears to be missing required elements",
+        severity: "Major",
+        category: "structure",
+        hasFix: false,
+        explanation: "APA title page requires: paper title, author name(s), institutional affiliation, and author note."
+      });
+      return issues;
+    }
+    
+    // Check if title is centered (simple heuristic - no excessive leading spaces)
+    const possibleTitle = lines[0];
+    if (possibleTitle.length > 5 && possibleTitle.startsWith('  ')) {
+      // This might indicate improper formatting, but it's hard to detect without rich formatting
+      console.log('Possible title formatting issue detected');
+    }
+    
+    // Check for common title page issues
+    const titlePageText = firstPage.toLowerCase();
+    
+    // Check for missing running head
+    if (!titlePageText.includes('running head') && !titlePageText.includes('page')) {
+      issues.push({
+        title: "Missing running head",
+        description: "Title page should include a running head (for professional papers)",
+        severity: "Minor", 
+        category: "structure",
+        hasFix: false,
+        explanation: "Professional papers require a running head on the title page and throughout the document."
+      });
+    }
+    
+    // Check for author-year format in text (might indicate missing proper citation)
+    const hasInlineCitations = /\([A-Za-z]+,?\s+\d{4}\)/.test(firstPage);
+    if (hasInlineCitations) {
+      issues.push({
+        title: "Citations on title page",
+        description: "Title page should not contain in-text citations",
+        severity: "Minor",
+        category: "structure", 
+        hasFix: false,
+        explanation: "The title page should contain only title, author, affiliation information - no citations."
+      });
+    }
+    
+    console.log(`Title page analysis found ${issues.length} issues`);
     return issues;
   }
   

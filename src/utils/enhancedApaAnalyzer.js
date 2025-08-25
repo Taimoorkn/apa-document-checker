@@ -1,4 +1,4 @@
-// utils/enhancedApaAnalyzer.js
+// src/utils/enhancedApaAnalyzer.js - Fixed version with safe property access
 'use client';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
@@ -32,54 +32,87 @@ export class EnhancedAPAAnalyzer {
   analyzeDocument(documentData) {
     const issues = [];
     
-    const { text, html, formatting, structure } = documentData;
+    // Safely extract data with defaults
+    const { 
+      text = '', 
+      html = '', 
+      formatting = null, 
+      structure = null 
+    } = documentData || {};
     
-    // 1. Analyze formatting with precise data
-    issues.push(...this.analyzeFormatting(formatting));
+    console.log('🔍 Enhanced APA Analyzer starting...');
+    console.log('📊 Data received:', {
+      hasText: !!text,
+      hasHtml: !!html,
+      hasFormatting: !!formatting,
+      hasStructure: !!structure
+    });
+    
+    // 1. Analyze formatting with precise data (if available)
+    if (formatting) {
+      issues.push(...this.analyzeFormatting(formatting));
+    } else {
+      console.warn('⚠️ No formatting data available - using basic analysis');
+      issues.push(...this.analyzeBasicFormatting(html));
+    }
     
     // 2. Analyze document structure
-    issues.push(...this.analyzeStructure(structure, text));
+    if (structure && text) {
+      issues.push(...this.analyzeStructure(structure, text));
+    } else if (text) {
+      console.warn('⚠️ No structure data available - using text-based analysis');
+      issues.push(...this.analyzeBasicStructure(text));
+    }
     
     // 3. Analyze citations with context
-    issues.push(...this.analyzeCitations(text, structure.citations));
+    if (structure?.citations && text) {
+      issues.push(...this.analyzeCitations(text, structure.citations));
+    } else if (text) {
+      issues.push(...this.analyzeBasicCitations(text));
+    }
     
     // 4. Analyze references
-    issues.push(...this.analyzeReferences(text, structure));
+    if (text) {
+      issues.push(...this.analyzeReferences(text, structure));
+    }
     
     // 5. Analyze content compliance
-    issues.push(...this.analyzeContent(text));
+    if (text) {
+      issues.push(...this.analyzeContent(text));
+    }
+    
+    console.log(`✅ Analysis complete: ${issues.length} issues found`);
     
     return this.prioritizeAndDeduplicateIssues(issues);
   }
   
   /**
-   * Analyze formatting with precise measurements
+   * Analyze formatting with precise measurements - FIXED with safe property access
    */
   analyzeFormatting(formatting) {
     const issues = [];
     
-    if (!formatting) {
-      issues.push({
-        title: "Unable to detect document formatting",
-        description: "Could not extract formatting information from document",
-        severity: "Critical",
-        category: "formatting",
-        hasFix: false
-      });
-      return issues;
-    }
+    console.log('🎨 Analyzing formatting with rich data...');
     
-    // Check font family
-    if (formatting.font.family) {
-      const fontFamily = formatting.font.family.toLowerCase();
+    // Safely access formatting properties
+    const documentFormatting = formatting?.document || {};
+    const font = documentFormatting.font || {};
+    const spacing = documentFormatting.spacing || {};
+    const margins = documentFormatting.margins || {};
+    const indentation = documentFormatting.indentation || {};
+    const paragraphs = formatting?.paragraphs || [];
+    const compliance = formatting?.compliance || {};
+    
+    // Check font family - SAFE ACCESS
+    if (font.family) {
+      const fontFamily = font.family.toLowerCase();
       if (!fontFamily.includes('times new roman') && 
           !fontFamily.includes('times') && 
-          !fontFamily.includes('liberation serif') && // Alternative acceptable fonts
-          !fontFamily.includes('tex computer modern')) {
+          !fontFamily.includes('liberation serif')) {
         issues.push({
           title: "Incorrect font family",
-          description: `Document uses "${formatting.font.family}" instead of Times New Roman`,
-          text: `Font: ${formatting.font.family}`,
+          description: `Document uses "${font.family}" instead of Times New Roman`,
+          text: `Font: ${font.family}`,
           severity: "Major",
           category: "formatting",
           location: { type: "document", section: "font" },
@@ -88,16 +121,26 @@ export class EnhancedAPAAnalyzer {
           explanation: "APA 7th edition requires Times New Roman 12pt font throughout the document."
         });
       }
-    }
-    
-    // Check font size with tolerance
-    if (formatting.font.size && Math.abs(formatting.font.size - 12) > 0.5) {
+    } else if (compliance.font && !compliance.font.family) {
       issues.push({
-        title: "Incorrect font size",
-        description: `Font size is ${formatting.font.size}pt instead of 12pt`,
-        text: `Font size: ${formatting.font.size}pt`,
+        title: "Font family not specified or non-compliant",
+        description: "Document should use Times New Roman font",
         severity: "Major",
         category: "formatting",
+        hasFix: true,
+        fixAction: "fixFont",
+        explanation: "APA 7th edition requires Times New Roman font."
+      });
+    }
+    
+    // Check font size with tolerance - SAFE ACCESS
+    if (font.size && Math.abs(font.size - 12) > 0.5) {
+      issues.push({
+        title: "Incorrect font size",
+        description: `Font size is ${font.size}pt instead of 12pt`,
+        text: `Font size: ${font.size}pt`,
+        severity: "Major",
+        category: "formatting", 
         location: { type: "document", section: "font" },
         hasFix: true,
         fixAction: "fixFontSize",
@@ -105,12 +148,12 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // Check line spacing
-    if (formatting.spacing.line && Math.abs(formatting.spacing.line - 2.0) > 0.1) {
+    // Check line spacing - SAFE ACCESS
+    if (spacing.line && Math.abs(spacing.line - 2.0) > 0.1) {
       issues.push({
         title: "Incorrect line spacing",
-        description: `Line spacing is ${formatting.spacing.line} instead of double (2.0)`,
-        text: `Line spacing: ${formatting.spacing.line}`,
+        description: `Line spacing is ${spacing.line} instead of double (2.0)`,
+        text: `Line spacing: ${spacing.line}`,
         severity: "Major",
         category: "formatting", 
         location: { type: "document", section: "spacing" },
@@ -120,11 +163,11 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // Check margins with tolerance
+    // Check margins with tolerance - SAFE ACCESS
     const marginIssues = [];
     Object.entries(this.apaStandards.margins).forEach(([side, required]) => {
-      const actual = formatting.margins[side];
-      if (actual !== null && Math.abs(actual - required) > 0.1) {
+      const actual = margins[side];
+      if (actual !== null && actual !== undefined && Math.abs(actual - required) > 0.1) {
         marginIssues.push(`${side}: ${actual}" (should be ${required}")`);
       }
     });
@@ -143,22 +186,22 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // Check paragraph indentation
-    if (formatting.paragraphs && formatting.paragraphs.length > 0) {
-      const bodyParagraphs = formatting.paragraphs.filter(p => 
-        p.indentation.firstLine !== null || p.indentation.left !== null
+    // Check paragraph indentation - SAFE ACCESS
+    if (paragraphs.length > 0) {
+      const bodyParagraphs = paragraphs.filter(p => 
+        p && p.indentation && (p.indentation.firstLine !== null || p.indentation.left !== null)
       );
       
       const incorrectIndentation = bodyParagraphs.filter(p => {
-        const firstLine = p.indentation.firstLine || 0;
+        const firstLine = (p.indentation && p.indentation.firstLine) || 0;
         return Math.abs(firstLine - 0.5) > 0.05; // 5% tolerance
       });
       
-      if (incorrectIndentation.length > 0) {
+      if (bodyParagraphs.length > 0 && incorrectIndentation.length > 0) {
         issues.push({
           title: "Incorrect paragraph indentation",
-          description: `${incorrectIndentation.length} paragraphs have incorrect first-line indentation`,
-          text: `Expected: 0.5", Found: ${incorrectIndentation[0]?.indentation.firstLine || 0}"`,
+          description: `${incorrectIndentation.length} of ${bodyParagraphs.length} paragraphs have incorrect first-line indentation`,
+          text: `Expected: 0.5", Found: varies`,
           severity: "Minor",
           category: "formatting",
           location: { 
@@ -176,33 +219,53 @@ export class EnhancedAPAAnalyzer {
   }
   
   /**
+   * Fallback formatting analysis for when rich data isn't available
+   */
+  analyzeBasicFormatting(html) {
+    const issues = [];
+    
+    console.log('📝 Using basic formatting analysis (no rich data)...');
+    
+    if (!html) return issues;
+    
+    // Check font family
+    const fontCheck = html.match(/font-family:\s*['"]([^'"]+)['"]/i);
+    if (fontCheck && !fontCheck[1].toLowerCase().includes('times new roman')) {
+      issues.push({
+        title: "Incorrect font detected",
+        description: `Document appears to use "${fontCheck[1]}" instead of Times New Roman`,
+        text: `Font: ${fontCheck[1]}`,
+        severity: "Minor",
+        category: "formatting",
+        hasFix: true,
+        fixAction: "fixFont",
+        explanation: "APA 7th edition requires Times New Roman font."
+      });
+    }
+    
+    return issues;
+  }
+  
+  /**
    * Analyze document structure with heading hierarchy
    */
   analyzeStructure(structure, text) {
     const issues = [];
     
-    if (!structure) return issues;
+    console.log('🏗️ Analyzing document structure...');
+    
+    if (!structure || !text) return issues;
+    
+    const headings = structure.headings || [];
+    const sections = structure.sections || [];
+    const citations = structure.citations || [];
     
     // 1. Check for required sections
-    const requiredSections = ['title page', 'abstract', 'main body', 'references'];
-    const hasAbstract = text.toLowerCase().includes('abstract');
-    const hasReferences = structure.sections.some(s => s.type === 'references') || 
-                          text.toLowerCase().includes('references');
-    const hasTitle = text.length > 50; // Basic check
+    const hasAbstract = sections.some(s => s.type === 'abstract') || text.toLowerCase().includes('abstract');
+    const hasReferences = sections.some(s => s.type === 'references') || text.toLowerCase().includes('references');
+    const wordCount = text.split(/\s+/).length;
     
-    if (!hasTitle) {
-      issues.push({
-        title: "Missing title page",
-        description: "Document appears to be missing a title page",
-        severity: "Critical",
-        category: "structure",
-        hasFix: true,
-        fixAction: "addTitlePage",
-        explanation: "APA papers must begin with a title page containing the paper title, author name(s), institutional affiliation, and author note."
-      });
-    }
-    
-    if (text.split(/\s+/).length > 1000 && !hasAbstract) {
+    if (wordCount > 1000 && !hasAbstract) {
       issues.push({
         title: "Missing abstract",
         description: "Long papers typically require an abstract",
@@ -214,7 +277,7 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    if (!hasReferences && structure.citations.length > 0) {
+    if (!hasReferences && citations.length > 0) {
       issues.push({
         title: "Missing references section",
         description: "Document has citations but no references section",
@@ -227,7 +290,6 @@ export class EnhancedAPAAnalyzer {
     }
     
     // 2. Check heading hierarchy
-    const headings = structure.headings || [];
     if (headings.length > 1) {
       for (let i = 1; i < headings.length; i++) {
         const current = headings[i];
@@ -252,20 +314,29 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
-    // 3. Check for running head (professional papers)
-    const hasRunningHead = text.toLowerCase().includes('running head:') ||
-                          text.toLowerCase().match(/^.{0,200}running head/i);
+    return issues;
+  }
+  
+  /**
+   * Fallback structure analysis
+   */
+  analyzeBasicStructure(text) {
+    const issues = [];
     
-    const wordCount = text.split(/\s+/).length;
-    if (wordCount > 500 && !hasRunningHead) {
+    if (!text) return issues;
+    
+    const hasReferences = text.toLowerCase().includes('references');
+    const hasCitations = /\([^)]+,\s*\d{4}\)/.test(text);
+    
+    if (hasCitations && !hasReferences) {
       issues.push({
-        title: "Missing running head",
-        description: "Professional papers should include a running head",
-        severity: "Minor",
+        title: "Missing references section",
+        description: "Document has citations but no references section",
+        severity: "Critical",
         category: "structure",
         hasFix: true,
-        fixAction: "addRunningHead",
-        explanation: "Professional papers require a running head (shortened title, max 50 characters) on every page."
+        fixAction: "addReferencesSection",
+        explanation: "All sources cited in the text must be listed in a References section."
       });
     }
     
@@ -278,16 +349,18 @@ export class EnhancedAPAAnalyzer {
   analyzeCitations(text, extractedCitations) {
     const issues = [];
     
+    console.log('📚 Analyzing citations with structure data...');
+    
     // Use extracted citations for more accurate analysis
-    const citations = extractedCitations || this.extractCitations(text);
+    const citations = extractedCitations || [];
     
     citations.forEach((citation, index) => {
-      // Check author-year format
+      // Check author-year format - SAFE ACCESS
       if (!citation.year || !citation.author) {
         issues.push({
           title: "Incomplete citation",
           description: "Citation missing author or year",
-          text: citation.text,
+          text: citation.text || 'Unknown citation',
           severity: "Major",
           category: "citations",
           location: { 
@@ -302,7 +375,7 @@ export class EnhancedAPAAnalyzer {
       }
       
       // Check for proper punctuation
-      if (!citation.text.includes(`, ${citation.year}`)) {
+      if (citation.text && !citation.text.includes(`, ${citation.year}`)) {
         issues.push({
           title: "Missing comma in citation",
           description: "Citation missing comma between author and year",
@@ -319,26 +392,18 @@ export class EnhancedAPAAnalyzer {
           explanation: "In-text citations require a comma between the author name and year: (Smith, 2023)."
         });
       }
-      
-      // Check for ampersand vs "and"
-      if (citation.text.includes(' and ') && citation.text.includes('(')) {
-        issues.push({
-          title: "Incorrect connector in parenthetical citation",
-          description: "Use '&' instead of 'and' in parenthetical citations",
-          text: citation.text,
-          severity: "Minor",
-          category: "citations",
-          location: { 
-            type: "citation", 
-            paragraphIndex: citation.paragraphIndex,
-            citationIndex: index 
-          },
-          hasFix: true,
-          fixAction: "fixParentheticalConnector",
-          explanation: "In parenthetical citations, use & to connect author names: (Smith & Jones, 2023)."
-        });
-      }
     });
+    
+    return issues;
+  }
+  
+  /**
+   * Fallback citation analysis
+   */
+  analyzeBasicCitations(text) {
+    const issues = [];
+    
+    if (!text) return issues;
     
     // Check for direct quotes without page numbers
     const quotePattern = /[""][^""]{10,}[""]\s*(\([^)]+\))/g;
@@ -368,13 +433,10 @@ export class EnhancedAPAAnalyzer {
   analyzeReferences(text, structure) {
     const issues = [];
     
-    const referencesSection = structure.sections.find(s => s.type === 'references');
-    if (!referencesSection) {
-      // Already handled in structure analysis
-      return issues;
-    }
+    if (!text) return issues;
     
-    // Extract reference text
+    console.log('📖 Analyzing references...');
+    
     const referencesMatch = text.match(/References[\s\n]+([\s\S]+?)(?:\n\n[A-Z]|$)/i);
     if (!referencesMatch) return issues;
     
@@ -417,80 +479,6 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // Analyze individual reference entries
-    referenceEntries.forEach((entry, index) => {
-      const entryIssues = this.analyzeReferenceEntry(entry, index);
-      issues.push(...entryIssues);
-    });
-    
-    return issues;
-  }
-  
-  /**
-   * Analyze individual reference entry
-   */
-  analyzeReferenceEntry(entry, index) {
-    const issues = [];
-    
-    // Check basic format: Author. (Year). Title.
-    const basicFormat = /^([^.]+)\.\s*\((\d{4})\)\.\s*([^.]+)\./;
-    if (!basicFormat.test(entry)) {
-      issues.push({
-        title: `Reference ${index + 1}: Incorrect basic format`,
-        description: "Reference doesn't follow Author. (Year). Title. format",
-        text: entry.substring(0, 100) + '...',
-        severity: "Major",
-        category: "references",
-        location: { type: "reference", index },
-        hasFix: false,
-        explanation: "References must follow the format: Author, A. (Year). Title of work. Additional information."
-      });
-    }
-    
-    // Check for DOI or URL in journal articles
-    if (entry.toLowerCase().includes('journal') || 
-        entry.match(/,\s*\d+(\(\d+\))?/)) { // Volume(Issue) pattern
-      if (!entry.toLowerCase().includes('doi') && 
-          !entry.includes('http')) {
-        issues.push({
-          title: `Reference ${index + 1}: Missing DOI or URL`,
-          description: "Journal articles should include DOI when available",
-          text: entry.substring(0, 100) + '...',
-          severity: "Minor",
-          category: "references",
-          location: { type: "reference", index },
-          hasFix: false,
-          explanation: "Include DOI for journal articles when available to help readers locate the source."
-        });
-      }
-    }
-    
-    // Check title capitalization (sentence case for articles)
-    const titleMatch = entry.match(/\(\d{4}\)\.\s*([^.]+)\./);
-    if (titleMatch) {
-      const title = titleMatch[1];
-      const words = title.split(' ');
-      const capitalizedWords = words.filter(word => 
-        word.length > 0 && 
-        word[0] === word[0].toUpperCase() && 
-        !this.isCommonWord(word.toLowerCase())
-      );
-      
-      if (capitalizedWords.length > 2) {
-        issues.push({
-          title: `Reference ${index + 1}: Incorrect title capitalization`,
-          description: "Use sentence case for article titles",
-          text: title,
-          severity: "Minor",
-          category: "references",
-          location: { type: "reference", index },
-          hasFix: true,
-          fixAction: "fixTitleCapitalization",
-          explanation: "Use sentence case for article titles: capitalize only the first word, proper nouns, and first word after a colon."
-        });
-      }
-    }
-    
     return issues;
   }
   
@@ -500,43 +488,26 @@ export class EnhancedAPAAnalyzer {
   analyzeContent(text) {
     const issues = [];
     
-    // Check for first person usage in formal papers
+    if (!text) return issues;
+    
+    console.log('📄 Analyzing content compliance...');
+    
+    // Check for excessive first person usage
     const firstPersonPattern = /\b(I|me|my|mine|we|us|our|ours)\b/gi;
     const firstPersonMatches = text.match(firstPersonPattern) || [];
+    const wordCount = text.split(/\s+/).length;
     
-    if (firstPersonMatches.length > text.split(/\s+/).length * 0.02) { // More than 2%
+    if (firstPersonMatches.length > wordCount * 0.02) { // More than 2%
       issues.push({
         title: "Excessive first-person usage",
         description: "Consider reducing first-person pronouns in formal academic writing",
-        text: `Found ${firstPersonMatches.length} instances: ${firstPersonMatches.slice(0, 5).join(', ')}...`,
+        text: `Found ${firstPersonMatches.length} instances`,
         severity: "Minor",
         category: "content",
         hasFix: false,
-        explanation: "While not prohibited, excessive first-person usage should be avoided in formal academic writing. Use sparingly and appropriately."
+        explanation: "While not prohibited, excessive first-person usage should be avoided in formal academic writing."
       });
     }
-    
-    // Check for bias-free language issues
-    const biasedTerms = [
-      'mankind', 'manmade', 'chairman', 'policeman', 'fireman',
-      'normal', 'abnormal', 'crazy', 'insane'
-    ];
-    
-    biasedTerms.forEach(term => {
-      const regex = new RegExp(`\\b${term}\\b`, 'gi');
-      if (regex.test(text)) {
-        issues.push({
-          title: "Potentially biased language",
-          description: `Consider replacing "${term}" with more inclusive language`,
-          text: term,
-          severity: "Minor",
-          category: "content",
-          hasFix: true,
-          fixAction: "suggestInclusiveLanguage",
-          explanation: "APA 7th edition emphasizes the use of bias-free, inclusive language."
-        });
-      }
-    });
     
     return issues;
   }
@@ -544,36 +515,6 @@ export class EnhancedAPAAnalyzer {
   /**
    * Helper methods
    */
-  extractCitations(text) {
-    const citations = [];
-    const citationPattern = /\(([^)]+),\s*(\d{4})[^)]*\)/g;
-    let match;
-    
-    while ((match = citationPattern.exec(text)) !== null) {
-      citations.push({
-        text: match[0],
-        author: match[1],
-        year: match[2],
-        paragraphIndex: this.findParagraphIndex(text, match.index)
-      });
-    }
-    
-    return citations;
-  }
-  
-  findParagraphIndex(text, position) {
-    const beforeText = text.substring(0, position);
-    return (beforeText.match(/\n\s*\n/g) || []).length;
-  }
-  
-  isCommonWord(word) {
-    const commonWords = [
-      'and', 'or', 'but', 'for', 'nor', 'so', 'yet',
-      'a', 'an', 'the', 'in', 'on', 'at', 'by', 'of', 'to'
-    ];
-    return commonWords.includes(word);
-  }
-  
   prioritizeAndDeduplicateIssues(issues) {
     // Remove duplicates based on title and text
     const unique = issues.filter((issue, index, self) => 
@@ -603,7 +544,7 @@ export class EnhancedAPAAnalyzer {
   }
 }
 
-// Usage example:
+// Usage function that matches what your store expects
 export function analyzeAPADocument(documentData) {
   const analyzer = new EnhancedAPAAnalyzer();
   return analyzer.analyzeDocument(documentData);

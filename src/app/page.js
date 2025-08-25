@@ -1,11 +1,11 @@
 'use client';
 import './globals.css';
-import { useState } from 'react';
-import DocumentViewer from '@/components/DocumentViewer';
+import { useState } from 'react'; 
 import IssuesPanel from '@/components/IssuesPanel';
-import Header from '@/components/Header';
-import { useDocumentStore } from '@/store/documentStore';
+import Header from '@/components/Header'; 
 import { BookOpen } from 'lucide-react';
+import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import DocumentViewer from '@/components/DocumentViewer';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);

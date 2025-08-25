@@ -160,12 +160,6 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      console.log('✅ Document successfully processed with rich formatting data');
-      console.log('Document Text length:', documentData.text?.length);
-      console.log('Document HTML length:', documentData.html?.length);
-      console.log('Has formatting data:', !!documentData.formatting);
-      console.log('Has structure data:', !!documentData.structure);
-      console.log('Current processing state:', get().processingState);
       
       return true;
       
@@ -197,7 +191,6 @@ export const useDocumentStore = create((set, get) => ({
     } = get();
     
     if (!documentText) {
-      console.warn('Cannot analyze document: No document data available');
       return { success: false, error: 'No document data available' };
     }
     
@@ -220,15 +213,6 @@ export const useDocumentStore = create((set, get) => ({
         styles: documentStyles
       };
       
-      console.log('🔍 Starting APA analysis with rich data...');
-      console.log('Available data:', {
-        hasText: !!documentText,
-        hasHtml: !!documentHtml,
-        hasFormatting: !!documentFormatting,
-        hasStructure: !!documentStructure,
-        formattingCompliance: documentFormatting?.compliance?.overall
-      });
-      console.log('Current processing state before analysis:', get().processingState);
       
       // Use enhanced analyzer with rich document data
       const analysisResults = await new Promise((resolve, reject) => {
@@ -290,9 +274,6 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      console.log(`✅ Analysis complete: ${issues.length} issues found, score: ${analysisScore}%`);
-      console.log('Issues breakdown:', { criticalCount, majorCount, minorCount });
-      console.log('Final processing state:', get().processingState);
       
       return { 
         success: true, 
@@ -331,11 +312,8 @@ export const useDocumentStore = create((set, get) => ({
     const issue = issues.find(i => i.id === issueId);
     
     if (!issue || !issue.hasFix) {
-      console.warn('Cannot apply fix: issue not found or no fix available');
       return false;
     }
-    
-    console.log('Applying fix for issue:', issue.title);
     
     set(state => ({
       processingState: {
@@ -386,7 +364,6 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      console.log('Fix applied successfully');
       return true;
       
     } catch (error) {
@@ -507,7 +484,6 @@ export const useDocumentStore = create((set, get) => ({
           break;
           
         default:
-          console.log('Fix action not implemented:', issue.fixAction);
           break;
       }
       

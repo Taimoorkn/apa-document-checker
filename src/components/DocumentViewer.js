@@ -18,11 +18,8 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   // Function to apply highlighting to the document
   const applyHighlighting = useCallback(() => {
     if (!viewerRef.current || !documentHtml || !issues || !showIssues) {
-      console.log('Cannot apply highlighting, missing prerequisites');
       return;
     }
-    
-    console.log('Applying highlighting to document with', issues.length, 'issues');
     
     // First, reset any existing highlighting and remove event listeners to prevent memory leaks
     const existingMarks = viewerRef.current.querySelectorAll('mark[data-issue-id]');
@@ -89,7 +86,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
           // Only highlight the first occurrence
           break;
         } catch (error) {
-          console.error('Error highlighting text:', error);
           // Continue with next node if there's an error
           continue;
         }
@@ -157,33 +153,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     let mainTimeoutId;
     let highlightTimeoutId;
     
-    console.log('DocumentViewer main effect running:', {
-      hasDocumentHtml: !!documentHtml,
-      htmlLength: documentHtml?.length,
-      issuesCount: issues?.length
-    });
-    
-    // Debug actual DOM styles after render
-    if (documentHtml && viewerRef.current) {
-      setTimeout(() => {
-        const element = viewerRef.current;
-        const computedStyle = window.getComputedStyle(element);
-        console.log('🔍 ACTUAL DOM STYLES:');
-        console.log('  font-family:', computedStyle.fontFamily);
-        console.log('  font-size:', computedStyle.fontSize);
-        console.log('  line-height:', computedStyle.lineHeight);
-        
-        // Check first paragraph too
-        const firstP = element.querySelector('p');
-        if (firstP) {
-          const pStyle = window.getComputedStyle(firstP);
-          console.log('🔍 FIRST PARAGRAPH STYLES:');
-          console.log('  font-family:', pStyle.fontFamily);
-          console.log('  font-size:', pStyle.fontSize);
-          console.log('  line-height:', pStyle.lineHeight);
-        }
-      }, 500);
-    }
     
     if (documentHtml) {
       
@@ -195,7 +164,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         mainTimeoutId = setTimeout(() => {
           // Check if this is still the current render cycle
           if (viewerRef.current && viewerRef.current.getAttribute('data-render-cycle') === renderCycleId.toString()) {
-            console.log('Document HTML ready for highlighting');
             
             // Apply highlighting after a short delay to ensure DOM is ready
             highlightTimeoutId = setTimeout(() => {
@@ -209,8 +177,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
               }
             }, 100);
           }
-          
-          // Loading state is now managed by store processing state
         }, 200);
       }
     }
@@ -225,7 +191,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   // Separate effect for handling issue changes (highlighting updates)
   useEffect(() => {
     if (documentHtml && !isLoading && viewerRef.current) {
-      console.log('Issues or showIssues changed, updating highlighting');
       const highlightTimeout = setTimeout(() => {
         const cleanup = applyHighlighting();
         if (cleanup && typeof cleanup === 'function') {
@@ -240,7 +205,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   // Separate effect for handling active issue changes (scrolling)
   useEffect(() => {
     if (activeIssueId && viewerRef.current && !isLoading) {
-      console.log('Active issue changed to:', activeIssueId);
       
       // Small delay to ensure highlighting is applied first
       const scrollTimeout = setTimeout(() => {
@@ -265,7 +229,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
   // Effect for handling fixes applied (content updates)
   useEffect(() => {
     if (lastFixAppliedAt && lastFixAppliedAt !== lastContentUpdate) {
-      console.log('Fix was applied at:', lastFixAppliedAt, '- updating content');
       setLastContentUpdate(lastFixAppliedAt);
       
       // Ensure highlighting is reapplied after content changes
@@ -309,33 +272,26 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     if (documentFormatting && documentFormatting.document) {
       const { font, spacing } = documentFormatting.document;
       
-      console.log('🎨 Applying formatting - Font:', font, 'Spacing:', spacing);
       
       // Apply exact font family from DOCX
       if (font && font.family) {
         baseStyles.fontFamily = `"${font.family}", monospace, serif`;
-        console.log('✅ Font family applied:', font.family);
       }
       
       // Apply exact font size from DOCX - use pt units to maintain exact size
       if (font && font.size && typeof font.size === 'number' && font.size > 0) {
         baseStyles.fontSize = `${font.size}pt`;
-        console.log('✅ Font size applied:', `${font.size}pt`, '(exact from DOCX)');
       }
       
       // Apply actual line spacing if available and is a valid number
       if (spacing && spacing.line && typeof spacing.line === 'number' && spacing.line > 0) {
         const lineHeight = spacing.line.toString();
         baseStyles.lineHeight = lineHeight;
-        console.log('✅ Line spacing applied:', lineHeight);
       } else {
         // Use default double spacing for APA
         baseStyles.lineHeight = '2.0';
-        console.log('📄 Using default APA line spacing: 2.0');
       }
     }
-    
-    console.log('🎨 Final document styles:', baseStyles);
     return baseStyles;
   }, [documentFormatting]);
 
@@ -361,8 +317,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
       styleElement.id = 'paragraph-indentation-css';
       styleElement.textContent = indentCSS;
       document.head.appendChild(styleElement);
-      
-      console.log('📝 Applied paragraph indentation CSS');
     }
   }, [documentFormatting]);
 
@@ -377,20 +331,6 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     }
   }, [documentFormatting, addIndentationCSS, isLoading]);
 
-  // Add debug output for component state
-  console.log('DocumentViewer render - documentText exists:', !!documentText, 'documentHtml:', !!documentHtml, 'isLoading:', isLoading, 'processingState:', processingState);
-  console.log('Document formatting data:', documentFormatting);
-  
-  // Debug the actual values being applied
-  if (documentFormatting && documentFormatting.document) {
-    console.log('🔍 DOCX Font family:', documentFormatting.document.font?.family);
-    console.log('🔍 DOCX Font size:', documentFormatting.document.font?.size);
-    console.log('🔍 DOCX Line spacing:', documentFormatting.document.spacing?.line);
-    console.log('🔍 Full formatting object:', documentFormatting);
-    console.log('🔍 Applied styles:', getDocumentStyles());
-  } else {
-    console.log('❌ No documentFormatting available');
-  }
 
   return (
     <div className="h-full flex flex-col">

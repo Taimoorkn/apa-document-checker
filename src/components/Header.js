@@ -56,27 +56,19 @@ export default function Header() {
     }
     
     try {
-      console.log('🚀 Header: Starting upload process...');
       // Upload document (processing state is managed inside the store now)
       const success = await uploadDocument(file);
-      console.log('📤 Header: Upload result:', success);
       
       if (success) {
-        console.log('📊 Header: Starting analysis...');
         // Only analyze if upload was successful
         // Use debounced analysis for better performance with large documents
         const analysisResult = await analyzeDocumentDebounced();
-        console.log('📊 Header: Analysis result:', analysisResult);
         
         // If analysis failed, display error
         if (!analysisResult?.success && analysisResult?.error) {
-          console.log('❌ Header: Analysis failed:', analysisResult.error);
           setUploadError(`Analysis error: ${analysisResult.error}`);
-        } else {
-          console.log('✅ Header: Complete workflow finished successfully');
         }
       } else {
-        console.log('❌ Header: Upload failed');
         // If upload failed and store didn't set an error, set a generic one
         if (!processingState.lastError) {
           setUploadError('Failed to process document. Please try a different file.');

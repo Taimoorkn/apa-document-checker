@@ -1,0 +1,379 @@
+'use client';
+
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Highlight from '@tiptap/extension-highlight';
+import { TextStyle } from '@tiptap/extension-text-style';  // Fixed: Named import
+import { Color } from '@tiptap/extension-color';  // Fixed: Named import
+// Removed Underline - it's already in StarterKit
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import { FileText, Edit3, Eye, AlertCircle, Loader2 } from 'lucide-react';
+
+// Custom extension for APA highlighting
+const APAHighlight = Highlight.extend({
+  name: 'apaHighlight',
+  
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      issueId: {
+        default: null,
+      },
+      severity: {
+        default: 'minor',
+      },
+      title: {
+        default: '',
+      },
+    };
+  },
+});
+
+export default function DocumentEditor() {
+  const { 
+    displayData, 
+    analysisData, 
+    documentId,
+    activeIssueId, 
+    setActiveIssue,
+    issues 
+  } = useDocumentStore();
+  
+  const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'preview' | 'split'
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);  // Track client-side mounting
+  const editorRef = useRef(null);
+  const iframeRef = useRef(null);
+
+  // Ensure we're on client side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Initialize TipTap editor with SSR fix
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+      }),
+      APAHighlight.configure({
+        multicolor: true,
+      }),
+      TextStyle,
+      Color,
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'prose prose-lg max-w-none focus:outline-none min-h-full p-8',
+        style: 'font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 2;',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      // Debounced analysis could go here
+    },
+    immediatelyRender: false  // Fix for SSR hydration mismatch
+  });
+
+  // Load document HTML into editor
+  useEffect(() => {
+    if (displayData?.html && editor && viewMode !== 'preview') {
+      setIsProcessing(true);
+      
+      // Convert LibreOffice HTML to TipTap-compatible format
+      const cleanHtml = cleanLibreOfficeHtml(displayData.html);
+      
+      // Set content in editor
+      editor.commands.setContent(cleanHtml);
+      
+      // Apply highlights after content is loaded
+      setTimeout(() => {
+        applyIssueHighlights();
+        setIsProcessing(false);
+      }, 100);
+    }
+  }, [displayData?.html, editor, viewMode]);
+
+  // Load HTML into iframe for preview mode
+  useEffect(() => {
+    if (displayData?.html && iframeRef.current && viewMode === 'preview') {
+      const iframeDoc = iframeRef.current.contentDocument;
+      iframeDoc.open();
+      iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              ${displayData.css || ''}
+              body { 
+                margin: 0; 
+                padding: 20px;
+                background: white;
+                font-family: 'Times New Roman', Times, serif;
+                font-size: 12pt;
+                line-height: 2;
+              }
+              .apa-issue-highlight {
+                background: rgba(255, 235, 59, 0.3);
+                border-bottom: 2px solid #FFC107;
+                cursor: pointer;
+                transition: background-color 0.2s;
+              }
+              .apa-issue-highlight:hover {
+                background: rgba(255, 235, 59, 0.5);
+              }
+              .apa-issue-highlight.critical {
+                background: rgba(244, 67, 54, 0.2);
+                border-bottom-color: #F44336;
+              }
+              .apa-issue-highlight.major {
+                background: rgba(255, 152, 0, 0.2);
+                border-bottom-color: #FF9800;
+              }
+              .apa-issue-highlight.minor {
+                background: rgba(33, 150, 243, 0.2);
+                border-bottom-color: #2196F3;
+              }
+            </style>
+          </head>
+          <body>${displayData.html}</body>
+        </html>
+      `);
+      iframeDoc.close();
+      
+      // Apply highlights to iframe
+      setTimeout(() => {
+        applyIframeHighlights();
+      }, 100);
+    }
+  }, [displayData, viewMode]);
+
+  // Apply issue highlights to editor
+  const applyIssueHighlights = useCallback(() => {
+    if (!editor || !issues || issues.length === 0) return;
+
+    // Clear existing highlights
+    editor.commands.unsetHighlight();
+
+    // Apply new highlights
+    issues.forEach(issue => {
+      if (issue.text) {
+        // Find text in editor and highlight it
+        const content = editor.getHTML();
+        const index = content.toLowerCase().indexOf(issue.text.toLowerCase());
+        
+        if (index !== -1) {
+          // This is simplified - in production you'd need proper text position mapping
+          editor.chain()
+            .focus()
+            .setTextSelection({ from: index, to: index + issue.text.length })
+            .setHighlight({ 
+              color: getSeverityColor(issue.severity),
+              issueId: issue.id,
+              severity: issue.severity,
+              title: issue.title
+            })
+            .run();
+        }
+      }
+    });
+  }, [editor, issues]);
+
+  // Apply highlights to iframe (preview mode)
+  const applyIframeHighlights = useCallback(() => {
+    if (!iframeRef.current || !issues || issues.length === 0) return;
+
+    const iframeDoc = iframeRef.current.contentDocument;
+    if (!iframeDoc) return;
+
+    issues.forEach(issue => {
+      if (issue.text) {
+        // Find and wrap text with highlight spans
+        const walker = iframeDoc.createTreeWalker(
+          iframeDoc.body,
+          NodeFilter.SHOW_TEXT,
+          null,
+          false
+        );
+
+        let node;
+        while ((node = walker.nextNode())) {
+          const content = node.textContent;
+          const index = content.toLowerCase().indexOf(issue.text.toLowerCase());
+          
+          if (index !== -1) {
+            // Create highlighted span
+            const span = iframeDoc.createElement('span');
+            span.className = `apa-issue-highlight ${issue.severity.toLowerCase()}`;
+            span.setAttribute('data-issue-id', issue.id);
+            span.setAttribute('title', issue.title);
+            span.onclick = () => setActiveIssue(issue.id);
+            
+            // Wrap the text
+            const range = iframeDoc.createRange();
+            range.setStart(node, index);
+            range.setEnd(node, index + issue.text.length);
+            
+            try {
+              range.surroundContents(span);
+            } catch (e) {
+              console.warn('Could not highlight:', issue.text);
+            }
+            
+            break; // Only highlight first occurrence
+          }
+        }
+      }
+    });
+  }, [issues, setActiveIssue]);
+
+  // Clean LibreOffice HTML for TipTap
+  const cleanLibreOfficeHtml = (html) => {
+    // Remove LibreOffice-specific tags and attributes
+    let cleaned = html
+      .replace(/<o:p[^>]*>/g, '<p>')
+      .replace(/<\/o:p>/g, '</p>')
+      .replace(/style="[^"]*"/g, '') // Remove inline styles for now
+      .replace(/class="[^"]*"/g, ''); // Remove classes
+    
+    return cleaned;
+  };
+
+  // Get color based on severity
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'Critical': return '#ffcdd2';
+      case 'Major': return '#ffe0b2';
+      case 'Minor': return '#bbdefb';
+      default: return '#fff9c4';
+    }
+  };
+
+  // Handle active issue change
+  useEffect(() => {
+    if (activeIssueId && editor) {
+      // Scroll to and highlight the active issue
+      // This would need proper implementation with text position mapping
+    }
+  }, [activeIssueId, editor]);
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Toolbar */}
+      <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <FileText className="h-5 w-5 mr-2" />
+            Document Editor
+          </h3>
+          {documentId && (
+            <span className="text-sm text-gray-500">
+              ID: {documentId.substring(0, 8)}...
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {/* View mode toggle */}
+          <div className="inline-flex rounded-lg border border-gray-300 bg-white">
+            <button
+              onClick={() => setViewMode('edit')}
+              className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
+                viewMode === 'edit'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Edit3 className="h-4 w-4 inline mr-1" />
+              Edit
+            </button>
+            <button
+              onClick={() => setViewMode('preview')}
+              className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-colors ${
+                viewMode === 'preview'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Eye className="h-4 w-4 inline mr-1" />
+              Preview
+            </button>
+          </div>
+          
+          {isProcessing && (
+            <div className="flex items-center text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              Processing...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {!displayData?.html && !analysisData?.text ? (
+          // Empty state
+          <div className="h-full flex flex-col items-center justify-center p-8">
+            <div className="text-center max-w-md">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <FileText className="h-12 w-12 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                Ready to Check Your Document
+              </h2>
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Upload your academic paper to start editing and checking against APA 7th edition guidelines
+              </p>
+              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900 mb-1">
+                      Enhanced Editor Features
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      • Real-time APA validation<br />
+                      • In-line issue highlighting<br />
+                      • Rich text editing capabilities<br />
+                      • Live preview with original formatting
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Editor or Preview
+          <div className="h-full">
+            {viewMode === 'edit' ? (
+              // TipTap Editor (only render when mounted to avoid SSR issues)
+              <div className="h-full overflow-auto bg-white" ref={editorRef}>
+                {isMounted && editor ? (
+                  <EditorContent 
+                    editor={editor} 
+                    className="h-full"
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Preview iframe
+              <iframe
+                ref={iframeRef}
+                className="w-full h-full border-0 bg-white"
+                title="Document Preview"
+                sandbox="allow-same-origin"
+              />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

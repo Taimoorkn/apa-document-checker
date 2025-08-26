@@ -60,14 +60,15 @@ export default function Header() {
       const success = await uploadDocument(file);
       
       if (success) {
-        // Only analyze if upload was successful
-        // Use debounced analysis for better performance with large documents
-        const analysisResult = await analyzeDocumentDebounced();
-        
-        // If analysis failed, display error
-        if (!analysisResult?.success && analysisResult?.error) {
-          setUploadError(`Analysis error: ${analysisResult.error}`);
-        }
+        // Automatically analyze after upload with the new data
+        setTimeout(async () => {
+          const analysisResult = await analyzeDocument();
+          
+          // If analysis failed, display error
+          if (!analysisResult?.success && analysisResult?.error) {
+            setUploadError(`Analysis error: ${analysisResult.error}`);
+          }
+        }, 500); // Small delay to let UI update
       } else {
         // If upload failed and store didn't set an error, set a generic one
         if (!processingState.lastError) {

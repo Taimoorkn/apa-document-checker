@@ -1,4 +1,4 @@
-// server/routes/docx.js - Ensure proper router export
+// server/routes/docx.js - Enhanced with dual pipeline processing
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -7,6 +7,8 @@ const os = require('os');
 const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
 const DocxProcessor = require('../processors/DocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
+const DualProcessor = require('../processors/DualProcessor');
+const cacheService = require('../services/CacheService');
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();
@@ -50,14 +52,15 @@ const upload = multer({
   }
 });
 
-// Initialize processors - LibreOffice first, Mammoth as fallback
+// Initialize processors
 const libreOfficeProcessor = new LibreOfficeProcessor();
 const docxProcessor = new DocxProcessor();
 const docxModifier = new DocxModifier();
+const dualProcessor = new DualProcessor(libreOfficeProcessor);
 
 /**
  * POST /api/upload-docx
- * Upload and process a DOCX file
+ * Upload and process a DOCX file with dual pipeline
  */
 router.post('/upload-docx', upload.single('document'), async (req, res) => {
   let filePath = null;
@@ -73,88 +76,69 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     }
     
     filePath = req.file.path;
-    console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
+    console.log(`📄 Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
     
-    // Check if user wants to force Mammoth processor
-    const forceMammoth = req.body.forceMammoth === 'true' || req.query.forceMammoth === 'true';
-    
-    // Validate file exists and is readable
-    try {
-      await fs.access(filePath, fs.constants.R_OK);
-    } catch (error) {
-      throw new Error('Uploaded file is not readable');
-    }
-    
-    // Additional DOCX validation - check file header
+    // Read file buffer
     const fileBuffer = await fs.readFile(filePath);
+    
+    // Validate DOCX file
     if (!isValidDocxFile(fileBuffer)) {
       throw new Error('File is not a valid DOCX document');
     }
     
-    // Process the document - try LibreOffice first, fallback to Mammoth
-    console.log('Starting document processing...');
+    // Generate cache key
+    const cacheKey = cacheService.generateKey(fileBuffer);
+    
+    // Check cache first
+    let cachedResult = await cacheService.get(cacheKey);
+    
+    if (cachedResult) {
+      console.log('✨ Returning cached result');
+      
+      // Clean up uploaded file
+      await fs.unlink(filePath);
+      filePath = null;
+      
+      return res.json({
+        success: true,
+        documentId: cachedResult.documentHash,
+        display: cachedResult.display,
+        analysis: cachedResult.analysis,
+        cached: true,
+        processingInfo: {
+          ...cachedResult.processingInfo,
+          fromCache: true
+        }
+      });
+    }
+    
+    // Process with dual pipeline (parallel processing)
+    console.log('🚀 Starting dual pipeline processing...');
     const startTime = Date.now();
     
-    let result;
-    let processorUsed = 'LibreOffice';
-    
-    if (forceMammoth) {
-      console.log('Using Mammoth processor (forced by request)');
-      result = await docxProcessor.processDocument(filePath);
-      processorUsed = 'Mammoth (forced)';
-    } else {
-      try {
-        console.log('Attempting LibreOffice processing...');
-        result = await libreOfficeProcessor.processDocument(filePath);
-        processorUsed = result.processingInfo?.processor || 'LibreOffice';
-      } catch (libreOfficeError) {
-        console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
-        result = await docxProcessor.processDocument(filePath);
-        processorUsed = 'Mammoth (LibreOffice fallback)';
-        
-        // Add fallback information to the result
-        result.processingInfo = result.processingInfo || {};
-        result.processingInfo.processor = processorUsed;
-        result.processingInfo.fallback = true;
-        result.processingInfo.fallbackReason = libreOfficeError.message;
-        result.messages = result.messages || [];
-        result.messages.push({
-          type: 'warning',
-          message: `LibreOffice processing failed (${libreOfficeError.message}), used Mammoth as fallback`
-        });
-      }
-    }
+    const result = await dualProcessor.processDocument(fileBuffer, req.file.originalname);
     
     const processingTime = Date.now() - startTime;
-    console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
+    console.log(`✅ Dual pipeline completed in ${processingTime}ms`);
     
-    // Add processing metadata
-    result.processingInfo = {
-      ...result.processingInfo,
-      processingTime: processingTime,
-      originalFilename: req.file.originalname,
-      fileSize: req.file.size
-      // No server file path - we're processing in memory only
-    };
+    // Cache the result
+    await cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
     
-    // Validate processing results
-    if (!result.text || !result.html) {
-      throw new Error('Document processing produced incomplete results');
-    }
-    
-    // Clean up uploaded file immediately since we're processing in memory
+    // Clean up uploaded file
     await fs.unlink(filePath);
-    filePath = null; // Mark as cleaned up
+    filePath = null;
     
-    // Return success response
+    // Return structured response
     res.json({
       success: true,
-      document: result,
-      message: 'Document processed successfully'
+      documentId: result.documentHash,
+      display: result.display,
+      analysis: result.analysis,
+      processingInfo: result.processingInfo
     });
     
   } catch (error) {
-    console.error('Error processing document:', error);
+    console.error('❌ Error processing document:', error);
     
     // Clean up uploaded file if it exists
     if (filePath) {
@@ -174,10 +158,6 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       statusCode = 400;
       errorCode = 'INVALID_FILE';
       errorMessage = 'File is not a valid DOCX document';
-    } else if (error.message.includes('DOCX processing failed')) {
-      statusCode = 422;
-      errorCode = 'PROCESSING_FAILED';
-      errorMessage = 'Document could not be processed';
     } else if (error.message.includes('not readable')) {
       statusCode = 400;
       errorCode = 'FILE_UNREADABLE';
@@ -325,11 +305,16 @@ router.get('/processing-status', async (req, res) => {
     libreOfficeError = error.message;
   }
   
+  // Check cache status
+  const cacheStats = await cacheService.getStats();
+  
   res.json({
     success: true,
     status: 'operational',
     capabilities: {
       docxProcessing: true,
+      dualPipeline: true, // NEW
+      parallelProcessing: true, // NEW
       libreOfficeProcessing: libreOfficeAvailable,
       mammothFallback: true,
       formattingExtraction: true,
@@ -337,6 +322,10 @@ router.get('/processing-status', async (req, res) => {
       apaCompliance: true
     },
     processors: {
+      dualProcessor: { // NEW
+        available: true,
+        description: 'Parallel processing for display and analysis'
+      },
       libreOffice: {
         available: libreOfficeAvailable,
         error: libreOfficeError,
@@ -346,8 +335,13 @@ router.get('/processing-status', async (req, res) => {
         available: true,
         primary: !libreOfficeAvailable,
         fallback: true
+      },
+      pizzip: { // NEW
+        available: true,
+        description: 'Fast XML extraction for analysis'
       }
     },
+    cache: cacheStats, // NEW
     limits: {
       maxFileSize: '10MB',
       allowedFormats: ['DOCX'],

@@ -9,15 +9,28 @@ import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
 import { aiEnhancedAnalyzer } from '@/utils/aiEnhancedAnalyzer';
 
 export const useDocumentStore = create((set, get) => ({
-  // Document state - now includes rich formatting data
-  documentText: null,
-  documentHtml: null,
+  // SEPARATED CONCERNS - Display vs Analysis
+  
+  // Display data (for visual rendering)
+  displayData: {
+    html: null,
+    css: null,
+    isLoading: false,
+    processor: null // 'LibreOffice' or 'Mammoth'
+  },
+  
+  // Analysis data (for APA checking)
+  analysisData: {
+    text: null,
+    formatting: null,     // Exact formatting values from PizZip
+    structure: null,      // Document structure (headings, citations, etc.)
+    isAnalyzing: false
+  },
+  
+  // Document metadata
+  documentId: null,
   documentName: null,
-  documentFormatting: null, // Rich formatting data from server
-  documentStructure: null,  // Document structure data
-  documentStyles: null,     // Document styles
-  originalDocumentBuffer: null, // Original document buffer for first upload
-  currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
+  documentHash: null,
   documentStats: {
     wordCount: 0,
     charCount: 0,
@@ -25,34 +38,36 @@ export const useDocumentStore = create((set, get) => ({
     processingTime: 0
   },
   
-  // Issues and analysis state
+  // Issues and analysis results
   issues: [],
   activeIssueId: null,
   analysisScore: null,
-  complianceDetails: null, // Detailed compliance information
+  complianceDetails: null,
   lastFixAppliedAt: null,
   
   // Processing state
   processingState: {
     isUploading: false,
     isAnalyzing: false,
-    isSchedulingAnalysis: false,
     isApplyingFix: false,
-    isAiAnalyzing: false, // New: AI analysis state
+    isAiAnalyzing: false,
     lastError: null,
     progress: 0,
     currentFixId: null,
     stage: null
   },
   
-  // Upload document with server-side processing
+  // Upload document with NEW dual pipeline processing
   uploadDocument: async (file) => {
     const SERVER_URL = process.env.NODE_ENV === 'development' 
       ? 'http://localhost:3001' 
       : '';
     
     try {
+      // Update both display and analysis loading states
       set({
+        displayData: { ...get().displayData, isLoading: true },
+        analysisData: { ...get().analysisData, isAnalyzing: true },
         processingState: {
           ...get().processingState,
           isUploading: true,
@@ -71,10 +86,6 @@ export const useDocumentStore = create((set, get) => ({
         throw new Error('File size must be less than 10MB');
       }
       
-      // Store the original file buffer for fixes
-      const fileBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(fileBuffer);
-      
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('document', file);
@@ -88,11 +99,10 @@ export const useDocumentStore = create((set, get) => ({
         }
       });
       
-      // Send to server for processing
+      // Send to NEW dual pipeline endpoint
       const response = await fetch(`${SERVER_URL}/api/upload-docx`, {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type header - let browser set it with boundary
       });
       
       set({
@@ -118,23 +128,17 @@ export const useDocumentStore = create((set, get) => ({
         processingState: {
           ...get().processingState,
           progress: 80,
-          stage: 'Extracting document data...'
+          stage: 'Loading document data...'
         }
       });
       
-      const { document: documentData } = result;
+      // NEW: Handle separated display and analysis data
+      const { display, analysis, documentId, processingInfo, cached } = result;
       
-      // Validate that we got the expected data structure
-      if (!documentData.html || !documentData.text) {
-        console.warn('Incomplete document data from server:', documentData);
-        throw new Error('Server returned incomplete document data');
-      }
-      
-      // Calculate stats
-      const words = documentData.processingInfo?.wordCount || 
-                    documentData.text.trim().split(/\s+/).filter(Boolean).length;
-      const chars = documentData.text.length;
-      const paragraphs = documentData.formatting?.paragraphs?.length || 0;
+      // Calculate stats from analysis data
+      const words = analysis?.text ? analysis.text.trim().split(/\s+/).filter(Boolean).length : 0;
+      const chars = analysis?.text ? analysis.text.length : 0;
+      const paragraphs = analysis?.formatting?.paragraphs?.length || 0;
       
       set({
         processingState: {
@@ -144,39 +148,59 @@ export const useDocumentStore = create((set, get) => ({
         }
       });
       
-      // Store the rich document data including document buffers
+      // NEW: Store separated data
       set(state => ({
-        documentHtml: documentData.html,
-        documentText: documentData.text,
-        documentFormatting: documentData.formatting,
-        documentStructure: documentData.structure,
-        documentStyles: documentData.styles,
-        originalDocumentBuffer: uint8Array, // Store original buffer
-        currentDocumentBuffer: uint8Array,  // Initialize current buffer same as original
+        // Display data
+        displayData: {
+          html: display?.html || null,
+          css: display?.css || null,
+          isLoading: false,
+          processor: display?.processor || 'unknown'
+        },
+        
+        // Analysis data
+        analysisData: {
+          text: analysis?.text || null,
+          formatting: analysis?.formatting || null,
+          structure: analysis?.structure || null,
+          isAnalyzing: false
+        },
+        
+        // Document metadata
+        documentId: documentId,
+        documentHash: documentId, // Using same ID as hash for now
         documentStats: {
           wordCount: words,
           charCount: chars,
           paragraphCount: paragraphs,
-          processingTime: documentData.processingInfo?.processingTime || 0
+          processingTime: processingInfo?.processingTime || 0
         },
-        complianceDetails: documentData.formatting?.compliance || null,
-        issues: [], // Clear previous issues
+        
+        // Compliance from analysis
+        complianceDetails: analysis?.formatting?.compliance || null,
+        
+        // Clear previous issues
+        issues: [],
         activeIssueId: null,
+        
+        // Update processing state
         processingState: {
           ...state.processingState,
           progress: 100,
           isUploading: false,
-          stage: 'Upload complete'
+          stage: cached ? 'Loaded from cache' : 'Upload complete'
         }
       }));
       
-      
+      console.log(`📄 Document loaded successfully ${cached ? '(from cache)' : ''}`);
       return true;
       
     } catch (error) {
       console.error('Error uploading document:', error);
       
       set(state => ({
+        displayData: { ...state.displayData, isLoading: false },
+        analysisData: { ...state.analysisData, isAnalyzing: false },
         processingState: {
           ...state.processingState,
           isUploading: false,
@@ -190,17 +214,11 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
   
-  // Enhanced analysis using rich document data
+  // Enhanced analysis using NEW separated data
   analyzeDocument: async () => {
-    const { 
-      documentText, 
-      documentHtml, 
-      documentFormatting, 
-      documentStructure,
-      documentStyles 
-    } = get();
+    const { analysisData } = get();
     
-    if (!documentText) {
+    if (!analysisData?.text) {
       return { success: false, error: 'No document data available' };
     }
     
@@ -214,13 +232,13 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      // Create comprehensive document data object
+      // Use NEW analysis data structure
       const documentData = {
-        text: documentText,
-        html: documentHtml,
-        formatting: documentFormatting,
-        structure: documentStructure,
-        styles: documentStyles
+        text: analysisData.text,
+        html: get().displayData.html, // Still need HTML for some checks
+        formatting: analysisData.formatting,
+        structure: analysisData.structure,
+        styles: null // Not using styles for now
       };
       
       
@@ -282,11 +300,12 @@ export const useDocumentStore = create((set, get) => ({
       
       // Use server-provided compliance data if available
       let analysisScore;
-      if (documentFormatting?.compliance?.overall !== undefined) {
+      const formatting = get().analysisData?.formatting;
+      if (formatting?.compliance?.overall !== undefined) {
         // Adjust server compliance score based on content issues
         const contentPenalty = criticalCount * 10 + majorCount * 5 + minorCount * 2;
         analysisScore = Math.max(0, Math.min(100, 
-          Math.round(documentFormatting.compliance.overall - contentPenalty)
+          Math.round(formatting.compliance.overall - contentPenalty)
         ));
       } else {
         // Fallback calculation

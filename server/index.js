@@ -1,12 +1,17 @@
-// server/index.js - Fixed router import
+// server/index.js - Enhanced with WebSocket support
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs').promises;
+const http = require('http');
+const webSocketService = require('./services/WebSocketService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Create HTTP server for Socket.io
+const server = http.createServer(app);
 
 // Security middleware
 app.use(helmet({
@@ -83,14 +88,18 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Start server
-app.listen(PORT, (err) => {
+// Initialize WebSocket service
+webSocketService.initialize(server);
+
+// Start server with Socket.io
+server.listen(PORT, (err) => {
   if (err) {
     console.error('Failed to start server:', err);
     process.exit(1);
   }
   
-  console.log(`🚀 Server running on port ${PORT}`); 
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔌 WebSocket ready on port ${PORT}`);
 });
 
 // Graceful shutdown

@@ -5,23 +5,23 @@ import IssuesPanel from '@/components/IssuesPanel';
 import Header from '@/components/Header'; 
 import { BookOpen } from 'lucide-react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import DocumentViewer from '@/components/DocumentViewer';
+import DocumentEditor from '@/components/DocumentEditor';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);
-  const { documentText, issues } = useDocumentStore();
+  const { analysisData, issues } = useDocumentStore();
 
   return (
     <main className="flex flex-col h-screen bg-gray-100">
       <Header />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Document Viewer (left panel) */}
+        {/* Document Editor (left panel) */}
         <div 
           className="relative bg-white border-r border-gray-300"
           style={{ width: `${splitRatio}%` }}
         >
-          <DocumentViewer />
+          <DocumentEditor />
         </div>
         
         {/* Resize handle */}

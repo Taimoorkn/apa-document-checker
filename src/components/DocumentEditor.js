@@ -8,7 +8,7 @@ import { Color } from '@tiptap/extension-color';  // Fixed: Named import
 // Removed Underline - it's already in StarterKit
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, AlertCircle, Loader2, Highlighter } from 'lucide-react';
 
 // Custom extension for APA highlighting
 const APAHighlight = Highlight.extend({
@@ -42,6 +42,7 @@ export default function DocumentEditor() {
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);  // Track client-side mounting
+  const [showHighlights, setShowHighlights] = useState(true); // Toggle for highlights
   const editorRef = useRef(null);
 
   // Ensure we're on client side
@@ -67,7 +68,7 @@ export default function DocumentEditor() {
     editorProps: {
       attributes: {
         class: 'prose prose-lg max-w-none focus:outline-none min-h-full p-8',
-        style: 'font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 2;',
+        // Don't force Times New Roman - preserve document's original formatting
       },
     },
     onUpdate: ({ editor }) => {
@@ -81,19 +82,34 @@ export default function DocumentEditor() {
     if (displayData?.html && editor) {
       setIsProcessing(true);
       
-      // Convert LibreOffice HTML to TipTap-compatible format
-      const cleanHtml = cleanLibreOfficeHtml(displayData.html);
+      // Use the original HTML with its formatting preserved
+      // Don't clean it too aggressively to maintain formatting
+      const formattedHtml = preserveFormattingInHtml(displayData.html);
       
       // Set content in editor
-      editor.commands.setContent(cleanHtml);
+      editor.commands.setContent(formattedHtml);
       
-      // Apply highlights after content is loaded
+      // Apply highlights after content is loaded if enabled
       setTimeout(() => {
-        applyIssueHighlights();
+        if (showHighlights) {
+          applyIssueHighlights();
+        }
         setIsProcessing(false);
       }, 100);
     }
   }, [displayData?.html, editor]);
+
+  // Re-apply or clear highlights when toggle changes
+  useEffect(() => {
+    if (editor && displayData?.html) {
+      if (showHighlights) {
+        applyIssueHighlights();
+      } else {
+        // Clear all highlights
+        editor.commands.unsetHighlight();
+      }
+    }
+  }, [showHighlights, editor, issues]);
 
   // Removed iframe preview mode - using single unified editor
 
@@ -130,14 +146,15 @@ export default function DocumentEditor() {
 
   // Removed iframe highlighting - using TipTap editor only
 
-  // Clean LibreOffice HTML for TipTap
-  const cleanLibreOfficeHtml = (html) => {
-    // Remove LibreOffice-specific tags and attributes
+  // Preserve formatting while cleaning HTML
+  const preserveFormattingInHtml = (html) => {
+    // Keep important styles but remove LibreOffice-specific tags
     let cleaned = html
       .replace(/<o:p[^>]*>/g, '<p>')
-      .replace(/<\/o:p>/g, '</p>')
-      .replace(/style="[^"]*"/g, '') // Remove inline styles for now
-      .replace(/class="[^"]*"/g, ''); // Remove classes
+      .replace(/<\/o:p>/g, '</p>');
+    
+    // Preserve important inline styles for formatting
+    // Don't remove style attributes completely
     
     return cleaned;
   };
@@ -177,6 +194,19 @@ export default function DocumentEditor() {
         </div>
         
         <div className="flex items-center space-x-2">
+          {/* Show/Hide Highlights Toggle */}
+          <button
+            onClick={() => setShowHighlights(!showHighlights)}
+            className={`px-3 py-1.5 rounded-lg flex items-center space-x-2 text-sm font-medium transition-colors ${
+              showHighlights
+                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                : 'bg-gray-100 text-gray-600 border border-gray-300'
+            }`}
+          >
+            <Highlighter className="h-4 w-4" />
+            <span>{showHighlights ? 'Hide' : 'Show'} Highlights</span>
+          </button>
+          
           {isProcessing && (
             <div className="flex items-center text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />

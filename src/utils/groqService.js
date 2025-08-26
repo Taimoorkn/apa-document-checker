@@ -176,7 +176,8 @@ Context around the issue:
 ${context.substring(0, 800)}
 """
 
-Provide helpful, specific guidance in JSON format:
+IMPORTANT: Respond with ONLY valid JSON, no markdown or extra text. Use this exact format:
+
 {
   "explanation": "Why this issue matters for APA compliance",
   "steps": [

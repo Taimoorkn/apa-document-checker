@@ -366,7 +366,18 @@ export class AIEnhancedAnalyzer {
       const result = await groqService.generateFixSuggestions(issue, context);
       
       if (result.success) {
-        const suggestion = JSON.parse(result.content);
+        // Clean the AI response like we do for other AI methods
+        let cleanContent = result.content;
+        cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+        
+        const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanContent = jsonMatch[0];
+        }
+        
+        console.log('🔍 Parsing AI fix suggestion:', cleanContent.substring(0, 200));
+        
+        const suggestion = JSON.parse(cleanContent);
         return {
           success: true,
           suggestion: {

@@ -11,16 +11,22 @@ import {
   PieChart, 
   Check,
   ChevronDown,
-  FileText
+  FileText,
+  Sparkles,
+  Lightbulb,
+  ExternalLink,
+  BookOpen
 } from 'lucide-react';
 
 export default function IssuesPanel() {
-  const { issues, activeIssueId, setActiveIssue, applyFix, processingState } = useDocumentStore();
+  const { issues, activeIssueId, setActiveIssue, applyFix, processingState, generateAIFixSuggestion } = useDocumentStore();
   const [expandedCategories, setExpandedCategories] = useState({
     Critical: true,
     Major: true,
     Minor: false
   });
+  
+  const [aiSuggestionLoading, setAiSuggestionLoading] = useState({});
   
   // Group issues by severity (memoized to prevent recalculation on re-renders)
   const groupedIssues = useMemo(() => {
@@ -47,6 +53,22 @@ export default function IssuesPanel() {
       [category]: !prev[category]
     }));
   }, []);
+  
+  // Handle AI suggestion generation
+  const handleAISuggestion = useCallback(async (issueId) => {
+    setAiSuggestionLoading(prev => ({ ...prev, [issueId]: true }));
+    
+    try {
+      const result = await generateAIFixSuggestion(issueId);
+      if (!result.success) {
+        console.warn('AI suggestion failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestion:', error);
+    } finally {
+      setAiSuggestionLoading(prev => ({ ...prev, [issueId]: false }));
+    }
+  }, [generateAIFixSuggestion]);
   
   // Calculate compliance score (memoized)
   const { totalIssues, weightedScore } = useMemo(() => {
@@ -100,7 +122,9 @@ export default function IssuesPanel() {
                   isActive={activeIssueId === issue.id}
                   onSelect={() => setActiveIssue(issue.id)}
                   onApplyFix={() => applyFix(issue.id)}
+                  onAISuggestion={() => handleAISuggestion(issue.id)}
                   isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                  isAiSuggestionLoading={aiSuggestionLoading[issue.id] || false}
                 />
               ))}
             </IssueCategory>
@@ -122,7 +146,9 @@ export default function IssuesPanel() {
                   isActive={activeIssueId === issue.id}
                   onSelect={() => setActiveIssue(issue.id)}
                   onApplyFix={() => applyFix(issue.id)}
+                  onAISuggestion={() => handleAISuggestion(issue.id)}
                   isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                  isAiSuggestionLoading={aiSuggestionLoading[issue.id] || false}
                 />
               ))}
             </IssueCategory>
@@ -144,7 +170,9 @@ export default function IssuesPanel() {
                   isActive={activeIssueId === issue.id}
                   onSelect={() => setActiveIssue(issue.id)}
                   onApplyFix={() => applyFix(issue.id)}
+                  onAISuggestion={() => handleAISuggestion(issue.id)}
                   isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                  isAiSuggestionLoading={aiSuggestionLoading[issue.id] || false}
                 />
               ))}
             </IssueCategory>
@@ -339,7 +367,15 @@ const IssueCategory = React.memo(function IssueCategory({ title, count, severity
 });
 
 // Memoize IssueItem to prevent unnecessary re-renders
-const IssueItem = React.memo(function IssueItem({ issue, isActive, onSelect, onApplyFix, isApplyingFix = false }) {
+const IssueItem = React.memo(function IssueItem({ 
+  issue, 
+  isActive, 
+  onSelect, 
+  onApplyFix, 
+  onAISuggestion,
+  isApplyingFix = false,
+  isAiSuggestionLoading = false
+}) {
   // Get highlight color based on severity
   const getHighlightColor = () => {
     switch (issue.severity) {
@@ -376,10 +412,25 @@ const IssueItem = React.memo(function IssueItem({ issue, isActive, onSelect, onA
           <div className="flex items-center mb-1.5">
             {getIcon()}
             <p className="text-sm font-semibold text-gray-800 ml-1">{issue.title}</p>
+            {/* AI Issue Badge */}
+            {issue.aiGenerated && (
+              <div className="ml-2 flex items-center">
+                <div className="flex items-center bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 text-xs px-2 py-0.5 rounded-full border border-purple-200">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  AI
+                </div>
+              </div>
+            )}
           </div>
           <p className="text-xs text-gray-600 mb-2 leading-relaxed">{issue.description}</p>
+          
+          {/* Text snippet */}
           {issue.text && (
-            <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-md text-xs font-mono text-gray-700 relative animate-scale-in">
+            <div className={`mt-2 p-3 border rounded-md text-xs font-mono relative animate-scale-in ${
+              issue.aiGenerated 
+                ? 'bg-purple-50 border-purple-200 text-purple-800' 
+                : 'bg-gray-50 border-gray-200 text-gray-700'
+            }`}>
               <div className="absolute -left-1 -top-1 h-2 w-2 bg-gray-300 rounded-full"></div>
               <div className="absolute -right-1 -top-1 h-2 w-2 bg-gray-300 rounded-full"></div>
               <div className="absolute -left-1 -bottom-1 h-2 w-2 bg-gray-300 rounded-full"></div>
@@ -387,10 +438,54 @@ const IssueItem = React.memo(function IssueItem({ issue, isActive, onSelect, onA
               &ldquo;{issue.text}&rdquo;
             </div>
           )}
+          
+          {/* AI Suggestion Display */}
+          {issue.aiSuggestion && (
+            <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center mb-2">
+                <Lightbulb className="h-4 w-4 text-blue-600 mr-2" />
+                <span className="text-sm font-medium text-blue-800">AI Suggestion</span>
+              </div>
+              <p className="text-xs text-blue-700 mb-2">{issue.aiSuggestion.explanation}</p>
+              
+              {issue.aiSuggestion.steps && issue.aiSuggestion.steps.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-medium text-blue-800 mb-1">Steps to fix:</p>
+                  <ul className="text-xs text-blue-700 space-y-0.5">
+                    {issue.aiSuggestion.steps.map((step, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="text-blue-500 mr-1">•</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {issue.aiSuggestion.examples?.before && issue.aiSuggestion.examples?.after && (
+                <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
+                  <div>
+                    <span className="font-medium text-red-700">Before:</span>
+                    <div className="bg-red-50 p-2 rounded border border-red-200 mt-1">
+                      <code className="text-red-800">{issue.aiSuggestion.examples.before}</code>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-green-700">After:</span>
+                    <div className="bg-green-50 p-2 rounded border border-green-200 mt-1">
+                      <code className="text-green-800">{issue.aiSuggestion.examples.after}</code>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         
-        {issue.hasFix && (
-          <div className="flex flex-col justify-center">
+        {/* Action Buttons */}
+        <div className="flex flex-col justify-center space-y-2">
+          {/* Apply Fix Button for rule-based issues */}
+          {issue.hasFix && (
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -418,8 +513,39 @@ const IssueItem = React.memo(function IssueItem({ issue, isActive, onSelect, onA
                 </>
               )}
             </button>
-          </div>
-        )}
+          )}
+          
+          {/* AI Help Button for AI issues without suggestions */}
+          {issue.aiGenerated && !issue.aiSuggestion && onAISuggestion && (
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isAiSuggestionLoading) onAISuggestion();
+              }}
+              disabled={isAiSuggestionLoading}
+              className={`flex items-center justify-center text-xs px-4 py-1.5 rounded-md shadow-sm transition-all h-fit whitespace-nowrap font-medium ${
+                isAiSuggestionLoading 
+                  ? 'bg-purple-400 text-white cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 hover:shadow hover:translate-y-[-1px]'
+              }`}
+            >
+              {isAiSuggestionLoading ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Getting Help...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 mr-1" />
+                  Get AI Help
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

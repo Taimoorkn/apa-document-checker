@@ -101,7 +101,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown or extra text. For each iss
       }
     ];
 
-    return await this.callGroq(messages, 1500, 0.1); // Lower temperature for more consistent JSON
+    return await this.callGroq(messages, 1500, 0.05); // Very low temperature for consistent JSON
   }
 
   /**
@@ -156,7 +156,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown or extra text. Include "hig
       }
     ];
 
-    return await this.callGroq(messages, 1200, 0.1); // Lower temperature for consistent JSON
+    return await this.callGroq(messages, 1200, 0.05); // Very low temperature for consistent JSON
   }
 
   /**
@@ -199,7 +199,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown or extra text. Use this exa
       }
     ];
 
-    return await this.callGroq(messages, 800, 0.4);
+    return await this.callGroq(messages, 800, 0.05); // Very low temperature for consistent JSON
   }
 
   /**
@@ -248,7 +248,7 @@ IMPORTANT: Respond with ONLY valid JSON, no markdown or extra text. Use this exa
       }
     ];
 
-    return await this.callGroq(messages, 1000, 0.1); // Lower temperature for consistent JSON
+    return await this.callGroq(messages, 1000, 0.05); // Very low temperature for consistent JSON
   }
 
   /**

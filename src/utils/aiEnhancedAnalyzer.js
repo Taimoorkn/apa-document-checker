@@ -116,19 +116,29 @@ export class AIEnhancedAnalyzer {
     const issues = [];
     
     try {
-      // Clean the AI response - sometimes it has markdown formatting
+      // Clean the AI response with more robust parsing
       let cleanContent = aiResult.content;
       
-      // Remove markdown code blocks if present
-      cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      // Remove everything before first { and after last }
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
       
-      // Try to extract JSON if it's wrapped in other text
-      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanContent = jsonMatch[0];
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
       }
       
-      console.log('🔍 Parsing AI content result:', cleanContent.substring(0, 200));
+      // Fix common JSON syntax errors
+      cleanContent = cleanContent
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .replace(/"type":\s*"\s*:/g, '"type":') // Fix "type": ": pattern
+        .replace(/"issues":\s*\[([^\]]+)\]\s*"accuracy"/g, '"issues": [$1], "accuracy"') // Fix missing commas
+        .replace(/\]\s*"([a-zA-Z]+)":/g, '], "$1":') // Fix missing commas before properties
+        .replace(/"([^"]+)"\s*\n\s*\[/g, '"$1": [') // Fix missing colons
+        .replace(/\}\s*missingCitations:/g, ', "missingCitations":') // Fix missing comma
+        .replace(/\]\s*overallQuality:/g, '], "overallQuality":'); // Fix missing comma and quotes
+      
+      console.log('🔍 Parsing AI content result:', cleanContent.substring(0, 300));
       
       const analysis = JSON.parse(cleanContent);
       
@@ -191,14 +201,21 @@ export class AIEnhancedAnalyzer {
     const issues = [];
     
     try {
-      // Clean the AI response
+      // Clean the AI response with robust parsing
       let cleanContent = aiResult.content;
-      cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       
-      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanContent = jsonMatch[0];
+      // Extract JSON from response
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
+      
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
       }
+      
+      // Fix common JSON issues
+      cleanContent = cleanContent
+        .replace(/```json\n?/g, '').replace(/```\n?/g, '')
+        .replace(/"missingElements":\s*\[([^\]]+)\]\s*"recommendations"/g, '"missingElements": [$1], "recommendations"');
       
       console.log('🔍 Parsing AI structure result:', cleanContent.substring(0, 200));
       
@@ -262,14 +279,24 @@ export class AIEnhancedAnalyzer {
     const issues = [];
     
     try {
-      // Clean the AI response
+      // Clean the AI response with robust parsing
       let cleanContent = aiResult.content;
-      cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
       
-      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanContent = jsonMatch[0];
+      // Extract JSON from response
+      const firstBrace = cleanContent.indexOf('{');
+      const lastBrace = cleanContent.lastIndexOf('}');
+      
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
       }
+      
+      // Fix common JSON issues in citation responses
+      cleanContent = cleanContent
+        .replace(/```json\n?/g, '').replace(/```\n?/g, '')
+        .replace(/"issues":\s*\[([^\]]+)\]\s*"accuracy"/g, '"issues": [$1], "accuracy"') // Fix missing comma
+        .replace(/\]\s*missingCitations:/g, '], "missingCitations":') // Fix missing comma and quotes
+        .replace(/\]\s*overallQuality:/g, '], "overallQuality":') // Fix missing comma and quotes
+        .replace(/overallQuality:\s*([^}]+)/g, '"overallQuality": "$1"'); // Add missing quotes
       
       console.log('🔍 Parsing AI citation result:', cleanContent.substring(0, 200));
       
@@ -366,14 +393,21 @@ export class AIEnhancedAnalyzer {
       const result = await groqService.generateFixSuggestions(issue, context);
       
       if (result.success) {
-        // Clean the AI response like we do for other AI methods
+        // Clean the AI response with robust parsing
         let cleanContent = result.content;
-        cleanContent = cleanContent.replace(/```json\n?/g, '').replace(/```\n?/g, '');
         
-        const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cleanContent = jsonMatch[0];
+        // Extract JSON from response
+        const firstBrace = cleanContent.indexOf('{');
+        const lastBrace = cleanContent.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanContent = cleanContent.substring(firstBrace, lastBrace + 1);
         }
+        
+        // Fix common JSON issues
+        cleanContent = cleanContent
+          .replace(/```json\n?/g, '').replace(/```\n?/g, '')
+          .replace(/"tips":\s*\[([^\]]+)\]\s*"resources"/g, '"tips": [$1], "resources"'); // Fix missing commas
         
         console.log('🔍 Parsing AI fix suggestion:', cleanContent.substring(0, 200));
         

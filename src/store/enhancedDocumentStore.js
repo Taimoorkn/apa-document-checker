@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Import the enhanced APA analyzer (same as before, but now works with rich data)
 import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
+import { aiEnhancedAnalyzer } from '@/utils/aiEnhancedAnalyzer';
 
 export const useDocumentStore = create((set, get) => ({
   // Document state - now includes rich formatting data
@@ -37,6 +38,7 @@ export const useDocumentStore = create((set, get) => ({
     isAnalyzing: false,
     isSchedulingAnalysis: false,
     isApplyingFix: false,
+    isAiAnalyzing: false, // New: AI analysis state
     lastError: null,
     progress: 0,
     currentFixId: null,
@@ -236,7 +238,7 @@ export const useDocumentStore = create((set, get) => ({
       });
       
       // Map results to store format and add IDs
-      const issues = analysisResults.map(issue => ({
+      let issues = analysisResults.map(issue => ({
         id: uuidv4(),
         ...issue,
         // Ensure all required fields are present
@@ -250,6 +252,28 @@ export const useDocumentStore = create((set, get) => ({
         fixAction: issue.fixAction || null,
         explanation: issue.explanation || issue.description || ''
       }));
+
+      // Enhance with AI analysis if API key is available
+      try {
+        if (process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+          console.log('🤖 Starting AI-enhanced analysis...');
+          
+          set(state => ({
+            processingState: {
+              ...state.processingState,
+              isAiAnalyzing: true,
+              stage: 'AI analyzing content...'
+            }
+          }));
+
+          const enhancedIssues = await aiEnhancedAnalyzer.enhanceAnalysis(documentData, issues);
+          issues = enhancedIssues;
+          
+          console.log(`✨ AI analysis complete: ${issues.length} total issues (${issues.filter(i => i.aiGenerated).length} AI-generated)`);
+        }
+      } catch (aiError) {
+        console.warn('⚠️ AI analysis failed, continuing with rule-based analysis:', aiError.message);
+      }
       
       // Calculate enhanced compliance score
       const criticalCount = issues.filter(i => i.severity === 'Critical').length;
@@ -278,6 +302,7 @@ export const useDocumentStore = create((set, get) => ({
           ...state.processingState,
           isAnalyzing: false,
           isSchedulingAnalysis: false,
+          isAiAnalyzing: false,
           stage: null
         }
       }));
@@ -651,6 +676,41 @@ export const useDocumentStore = create((set, get) => ({
   // Set active issue
   setActiveIssue: (issueId) => {
     set({ activeIssueId: issueId });
+  },
+
+  // Generate AI-powered fix suggestion
+  generateAIFixSuggestion: async (issueId) => {
+    const { issues, documentText } = get();
+    const issue = issues.find(i => i.id === issueId);
+    
+    if (!issue || !documentText || !process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+      return { success: false, error: 'AI suggestions not available' };
+    }
+
+    try {
+      console.log(`🤖 Generating AI fix suggestion for: ${issue.title}`);
+      
+      const suggestion = await aiEnhancedAnalyzer.generateFixSuggestion(issue, documentText);
+      
+      if (suggestion.success) {
+        // Update the issue with AI suggestion
+        set(state => ({
+          issues: state.issues.map(i => 
+            i.id === issueId 
+              ? { ...i, aiSuggestion: suggestion.suggestion }
+              : i
+          )
+        }));
+        
+        return suggestion;
+      }
+      
+      return suggestion;
+      
+    } catch (error) {
+      console.error('Error generating AI fix suggestion:', error);
+      return { success: false, error: error.message };
+    }
   },
   
   // Get analysis summary with rich formatting data

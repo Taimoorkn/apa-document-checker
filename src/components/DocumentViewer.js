@@ -37,7 +37,11 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
     
     // Now apply new highlighting
     for (const issue of issues) {
-      if (!issue.text) continue;
+      // Skip issues without text to highlight
+      if (!issue.text) {
+        // For AI issues without specific text, we could add general highlighting later
+        continue;
+      }
       
       // Find all text nodes in the document
       const allTextNodes = [];
@@ -53,10 +57,22 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         allTextNodes.push(node);
       }
       
-      // Look for the issue text in these nodes
+      // Look for the issue text in these nodes (case-insensitive for AI issues)
+      let foundMatch = false;
       for (const textNode of allTextNodes) {
+        if (foundMatch) break;
+        
         const content = textNode.textContent;
-        const index = content.indexOf(issue.text);
+        let index = -1;
+        
+        // For AI-generated issues, try case-insensitive matching
+        if (issue.aiGenerated) {
+          const lowerContent = content.toLowerCase();
+          const lowerIssueText = issue.text.toLowerCase();
+          index = lowerContent.indexOf(lowerIssueText);
+        } else {
+          index = content.indexOf(issue.text);
+        }
         
         if (index === -1) continue;
         
@@ -71,24 +87,33 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
           mark.setAttribute('data-issue-id', issue.id);
           mark.setAttribute('data-issue-title', issue.title);
           mark.setAttribute('data-issue-explanation', issue.explanation || issue.description || 'APA formatting issue detected');
-          mark.className = getIssueClass(issue.severity);
+          
+          // Use different styling for AI issues
+          if (issue.aiGenerated) {
+            mark.className = getAIIssueClass(issue.severity, issue.category);
+          } else {
+            mark.className = getIssueClass(issue.severity);
+          }
           
           // Wrap the text in the mark
           range.surroundContents(mark);
           
           // Use a data attribute instead of direct event listener
-          // This makes the DOM element serializable and prevents memory leaks
           mark.setAttribute('data-clickable', 'true');
           
           // Track created marks
           createdMarks.push(mark);
-          
-          // Only highlight the first occurrence
-          break;
+          foundMatch = true;
         } catch (error) {
           // Continue with next node if there's an error
+          console.warn('Error highlighting issue:', issue.title, error);
           continue;
         }
+      }
+      
+      // If no match found and it's an AI issue, log for debugging
+      if (!foundMatch && issue.aiGenerated && issue.text) {
+        console.warn('AI issue text not found in document:', issue.text.substring(0, 50));
       }
     }
     
@@ -256,6 +281,32 @@ const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastF
         return 'bg-blue-200 border-b-2 border-blue-500 cursor-pointer';
       default:
         return '';
+    }
+  };
+  
+  // Helper function to get AI issue class with different styling
+  const getAIIssueClass = (severity, category) => {
+    const baseClass = 'cursor-pointer border-b-2';
+    
+    // Different colors for different AI categories
+    const categoryColors = {
+      'ai-content': 'bg-purple-100 border-purple-500',
+      'ai-structure': 'bg-indigo-100 border-indigo-500', 
+      'ai-citations': 'bg-pink-100 border-pink-500'
+    };
+    
+    const categoryColor = categoryColors[category] || 'bg-purple-100 border-purple-500';
+    
+    // Add intensity based on severity
+    switch (severity) {
+      case 'Critical':
+        return `${baseClass} ${categoryColor} opacity-90 font-medium`;
+      case 'Major':
+        return `${baseClass} ${categoryColor} opacity-75`;
+      case 'Minor':
+        return `${baseClass} ${categoryColor} opacity-60`;
+      default:
+        return `${baseClass} ${categoryColor} opacity-60`;
     }
   };
   

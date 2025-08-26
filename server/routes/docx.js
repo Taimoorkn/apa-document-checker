@@ -8,7 +8,7 @@ const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
 const DocxProcessor = require('../processors/DocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
 const DualProcessor = require('../processors/DualProcessor');
-const cacheService = require('../services/CacheService');
+// const cacheService = require('../services/CacheService'); // Removed caching
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();
@@ -86,31 +86,7 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('File is not a valid DOCX document');
     }
     
-    // Generate cache key
-    const cacheKey = cacheService.generateKey(fileBuffer);
-    
-    // Check cache first
-    let cachedResult = await cacheService.get(cacheKey);
-    
-    if (cachedResult) {
-      console.log('✨ Returning cached result');
-      
-      // Clean up uploaded file
-      await fs.unlink(filePath);
-      filePath = null;
-      
-      return res.json({
-        success: true,
-        documentId: cachedResult.documentHash,
-        display: cachedResult.display,
-        analysis: cachedResult.analysis,
-        cached: true,
-        processingInfo: {
-          ...cachedResult.processingInfo,
-          fromCache: true
-        }
-      });
-    }
+    // Caching removed - process every document fresh
     
     // Process with dual pipeline (parallel processing)
     console.log('🚀 Starting dual pipeline processing...');
@@ -121,8 +97,7 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     const processingTime = Date.now() - startTime;
     console.log(`✅ Dual pipeline completed in ${processingTime}ms`);
     
-    // Cache the result
-    await cacheService.set(cacheKey, result, 3600); // Cache for 1 hour
+    // Caching removed - no longer storing results
     
     // Clean up uploaded file
     await fs.unlink(filePath);

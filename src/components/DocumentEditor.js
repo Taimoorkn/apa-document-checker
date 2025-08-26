@@ -8,7 +8,7 @@ import { Color } from '@tiptap/extension-color';  // Fixed: Named import
 // Removed Underline - it's already in StarterKit
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { FileText, Edit3, Eye, AlertCircle, Loader2 } from 'lucide-react';
+import { FileText, AlertCircle, Loader2 } from 'lucide-react';
 
 // Custom extension for APA highlighting
 const APAHighlight = Highlight.extend({
@@ -40,11 +40,9 @@ export default function DocumentEditor() {
     issues 
   } = useDocumentStore();
   
-  const [viewMode, setViewMode] = useState('edit'); // 'edit' | 'preview' | 'split'
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);  // Track client-side mounting
   const editorRef = useRef(null);
-  const iframeRef = useRef(null);
 
   // Ensure we're on client side
   useEffect(() => {
@@ -80,7 +78,7 @@ export default function DocumentEditor() {
 
   // Load document HTML into editor
   useEffect(() => {
-    if (displayData?.html && editor && viewMode !== 'preview') {
+    if (displayData?.html && editor) {
       setIsProcessing(true);
       
       // Convert LibreOffice HTML to TipTap-compatible format
@@ -95,61 +93,9 @@ export default function DocumentEditor() {
         setIsProcessing(false);
       }, 100);
     }
-  }, [displayData?.html, editor, viewMode]);
+  }, [displayData?.html, editor]);
 
-  // Load HTML into iframe for preview mode
-  useEffect(() => {
-    if (displayData?.html && iframeRef.current && viewMode === 'preview') {
-      const iframeDoc = iframeRef.current.contentDocument;
-      iframeDoc.open();
-      iframeDoc.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              ${displayData.css || ''}
-              body { 
-                margin: 0; 
-                padding: 20px;
-                background: white;
-                font-family: 'Times New Roman', Times, serif;
-                font-size: 12pt;
-                line-height: 2;
-              }
-              .apa-issue-highlight {
-                background: rgba(255, 235, 59, 0.3);
-                border-bottom: 2px solid #FFC107;
-                cursor: pointer;
-                transition: background-color 0.2s;
-              }
-              .apa-issue-highlight:hover {
-                background: rgba(255, 235, 59, 0.5);
-              }
-              .apa-issue-highlight.critical {
-                background: rgba(244, 67, 54, 0.2);
-                border-bottom-color: #F44336;
-              }
-              .apa-issue-highlight.major {
-                background: rgba(255, 152, 0, 0.2);
-                border-bottom-color: #FF9800;
-              }
-              .apa-issue-highlight.minor {
-                background: rgba(33, 150, 243, 0.2);
-                border-bottom-color: #2196F3;
-              }
-            </style>
-          </head>
-          <body>${displayData.html}</body>
-        </html>
-      `);
-      iframeDoc.close();
-      
-      // Apply highlights to iframe
-      setTimeout(() => {
-        applyIframeHighlights();
-      }, 100);
-    }
-  }, [displayData, viewMode]);
+  // Removed iframe preview mode - using single unified editor
 
   // Apply issue highlights to editor
   const applyIssueHighlights = useCallback(() => {
@@ -182,53 +128,7 @@ export default function DocumentEditor() {
     });
   }, [editor, issues]);
 
-  // Apply highlights to iframe (preview mode)
-  const applyIframeHighlights = useCallback(() => {
-    if (!iframeRef.current || !issues || issues.length === 0) return;
-
-    const iframeDoc = iframeRef.current.contentDocument;
-    if (!iframeDoc) return;
-
-    issues.forEach(issue => {
-      if (issue.text) {
-        // Find and wrap text with highlight spans
-        const walker = iframeDoc.createTreeWalker(
-          iframeDoc.body,
-          NodeFilter.SHOW_TEXT,
-          null,
-          false
-        );
-
-        let node;
-        while ((node = walker.nextNode())) {
-          const content = node.textContent;
-          const index = content.toLowerCase().indexOf(issue.text.toLowerCase());
-          
-          if (index !== -1) {
-            // Create highlighted span
-            const span = iframeDoc.createElement('span');
-            span.className = `apa-issue-highlight ${issue.severity.toLowerCase()}`;
-            span.setAttribute('data-issue-id', issue.id);
-            span.setAttribute('title', issue.title);
-            span.onclick = () => setActiveIssue(issue.id);
-            
-            // Wrap the text
-            const range = iframeDoc.createRange();
-            range.setStart(node, index);
-            range.setEnd(node, index + issue.text.length);
-            
-            try {
-              range.surroundContents(span);
-            } catch (e) {
-              console.warn('Could not highlight:', issue.text);
-            }
-            
-            break; // Only highlight first occurrence
-          }
-        }
-      }
-    });
-  }, [issues, setActiveIssue]);
+  // Removed iframe highlighting - using TipTap editor only
 
   // Clean LibreOffice HTML for TipTap
   const cleanLibreOfficeHtml = (html) => {
@@ -277,32 +177,6 @@ export default function DocumentEditor() {
         </div>
         
         <div className="flex items-center space-x-2">
-          {/* View mode toggle */}
-          <div className="inline-flex rounded-lg border border-gray-300 bg-white">
-            <button
-              onClick={() => setViewMode('edit')}
-              className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
-                viewMode === 'edit'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Edit3 className="h-4 w-4 inline mr-1" />
-              Edit
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-colors ${
-                viewMode === 'preview'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Eye className="h-4 w-4 inline mr-1" />
-              Preview
-            </button>
-          </div>
-          
           {isProcessing && (
             <div className="flex items-center text-sm text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -346,30 +220,17 @@ export default function DocumentEditor() {
             </div>
           </div>
         ) : (
-          // Editor or Preview
-          <div className="h-full">
-            {viewMode === 'edit' ? (
-              // TipTap Editor (only render when mounted to avoid SSR issues)
-              <div className="h-full overflow-auto bg-white" ref={editorRef}>
-                {isMounted && editor ? (
-                  <EditorContent 
-                    editor={editor} 
-                    className="h-full"
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Preview iframe
-              <iframe
-                ref={iframeRef}
-                className="w-full h-full border-0 bg-white"
-                title="Document Preview"
-                sandbox="allow-same-origin"
+          // Unified Editor (like Grammarly)
+          <div className="h-full overflow-auto bg-white" ref={editorRef}>
+            {isMounted && editor ? (
+              <EditorContent 
+                editor={editor} 
+                className="h-full"
               />
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
             )}
           </div>
         )}

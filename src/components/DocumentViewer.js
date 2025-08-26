@@ -5,7 +5,10 @@ import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { FileText, InfoIcon } from 'lucide-react';
 
 export default function DocumentViewer() {
-const { documentText, documentHtml, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState, documentFormatting } = useDocumentStore();
+  const { displayData, analysisData, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState } = useDocumentStore();
+  const documentHtml = displayData?.html;
+  const documentText = analysisData?.text;
+  const documentFormatting = analysisData?.formatting;
   const viewerRef = useRef(null);
   // Use processing state from store instead of local loading state
   const isLoading = processingState.isUploading || processingState.isAnalyzing;

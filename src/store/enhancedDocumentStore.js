@@ -360,7 +360,10 @@ export const useDocumentStore = create((set, get) => ({
   
   // Enhanced fix application with document regeneration
   applyFix: async (issueId) => {
-    const { issues, documentHtml, documentText, documentFormatting } = get();
+    const { issues, displayData, analysisData } = get();
+    const documentHtml = displayData?.html;
+    const documentText = analysisData?.text;
+    const documentFormatting = analysisData?.formatting;
     const issue = issues.find(i => i.id === issueId);
     
     if (!issue || !issue.hasFix) {
@@ -405,10 +408,16 @@ export const useDocumentStore = create((set, get) => ({
           
           set(state => ({
             // Update all document data with the server response
-            documentHtml: result.html,
-            documentText: result.text,
-            documentFormatting: result.formatting,
-            documentStructure: result.structure,
+            displayData: {
+              ...state.displayData,
+              html: result.html,
+            },
+            analysisData: {
+              ...state.analysisData,
+              text: result.text,
+              formatting: result.formatting,
+              structure: result.structure,
+            },
             documentStyles: result.styles,
             currentDocumentBuffer: result.updatedBuffer || state.currentDocumentBuffer, // Update buffer for next fix
             documentStats: {
@@ -458,8 +467,14 @@ export const useDocumentStore = create((set, get) => ({
           Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
         
         set(state => ({
-          documentText: updatedText,
-          documentHtml: updatedHtml,
+          displayData: {
+            ...state.displayData,
+            html: updatedHtml,
+          },
+          analysisData: {
+            ...state.analysisData,
+            text: updatedText,
+          },
           issues: updatedIssues,
           analysisScore: newScore,
           lastFixAppliedAt: contentChanged ? Date.now() : state.lastFixAppliedAt,
@@ -699,7 +714,8 @@ export const useDocumentStore = create((set, get) => ({
 
   // Generate AI-powered fix suggestion
   generateAIFixSuggestion: async (issueId) => {
-    const { issues, documentText } = get();
+    const { issues, analysisData } = get();
+    const documentText = analysisData?.text;
     const issue = issues.find(i => i.id === issueId);
     
     if (!issue || !documentText || !process.env.NEXT_PUBLIC_GROQ_API_KEY) {
@@ -768,7 +784,8 @@ export const useDocumentStore = create((set, get) => ({
 
   // Export document
   exportDocument: async (format) => {
-    const { documentHtml, documentName } = get();
+    const { displayData, documentName } = get();
+    const documentHtml = displayData?.html;
     
     if (!documentHtml) {
       alert('No document to export');

@@ -45,7 +45,7 @@ class LibreOfficeProcessor {
       indentation: { firstLine: 0.5 }
     };
     
-    this.conversionTimeout = 30000; // 30 seconds timeout
+    this.conversionTimeout = 60000; // 60 seconds timeout for slower systems
   }
   
   /**
@@ -205,32 +205,26 @@ class LibreOfficeProcessor {
     try {
       console.log('🔍 Checking LibreOffice availability...');
       
-      // Test LibreOffice by doing a simple conversion
-      // This is more reliable than checking version commands
-      const testBuffer = Buffer.from('PK'); // Minimal ZIP signature
+      // Skip the test conversion - it's using invalid data
+      // Just check if LibreOffice path exists on Windows
+      if (process.platform === 'win32' && process.env.LIBREOFFICE_PATH) {
+        const fs = require('fs');
+        fs.accessSync(process.env.LIBREOFFICE_PATH, fs.constants.F_OK);
+        console.log('✅ LibreOffice found at:', process.env.LIBREOFFICE_PATH);
+        return true;
+      }
       
-      // Try a quick conversion test with a very short timeout
-      const conversionPromise = libre.convertAsync(testBuffer, '.html', undefined);
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('LibreOffice availability check timeout')), 3000);
-      });
-      
-      await Promise.race([conversionPromise, timeoutPromise]);
-      
-      console.log('✅ LibreOffice is available and working');
+      // On other platforms or if no path set, assume it's available
+      // and let the actual conversion handle any errors
+      console.log('✅ Assuming LibreOffice is available');
       return true;
       
     } catch (error) {
-      console.warn('⚠️ LibreOffice availability check failed:', error.message);
+      console.warn('⚠️ LibreOffice not found at expected path');
       
-      // Check if it's a path/spawn error (LibreOffice not found)
-      if (error.message.includes('spawn') || error.message.includes('ENOENT')) {
-        throw new Error('LibreOffice not found on system. Please install LibreOffice.');
-      }
-      
-      // For other errors (like invalid test data), LibreOffice might still work
-      // so we'll let the actual conversion attempt handle it
-      console.log('💡 LibreOffice might be available but had issues with test data');
+      // Still return true and let the actual conversion try
+      // LibreOffice might be in PATH or installed elsewhere
+      console.log('💡 Will attempt conversion anyway');
       return true;
     }
   }

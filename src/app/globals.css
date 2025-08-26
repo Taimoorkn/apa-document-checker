@@ -18,22 +18,39 @@ body {
   background-color: var(--background);
 }
 
-/* Typography */
+/* Typography - Let document styles come through */
 h1, h2, h3, h4, h5 {
-  font-family: 'Inter', sans-serif;
+  /* Don't force Inter font */
 }
 
 body {
-  font-family: 'Roboto', sans-serif;
+  /* Don't force Roboto font on body */
 }
 
 /* APA styling for document viewer */
 .prose {
-  font-family: 'Times New Roman', Times, serif;
-  font-size: 12pt;
-  line-height: 2;
   max-width: none;
 }
+
+/* Document HTML Content - preserve all original styles */
+.document-html-content {
+  /* Let all inline styles work */
+}
+
+.document-html-content * {
+  /* Don't override any inline styles */
+}
+
+/* Highlight styles for issues */
+.apa-issue-highlight {
+  transition: all 0.2s ease;
+}
+
+.apa-issue-highlight:hover {
+  filter: brightness(0.9);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 
 /* Issue highlighting styles */
 mark[data-issue-id] {

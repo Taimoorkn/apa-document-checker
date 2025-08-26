@@ -7,6 +7,7 @@ import { FileText, InfoIcon } from 'lucide-react';
 export default function DocumentViewer() {
   const { displayData, analysisData, activeIssueId, issues, setActiveIssue, lastFixAppliedAt, processingState } = useDocumentStore();
   const documentHtml = displayData?.html;
+  const documentCss = displayData?.css;  // Get CSS from display data
   const documentText = analysisData?.text;
   const documentFormatting = analysisData?.formatting;
   const viewerRef = useRef(null);
@@ -349,41 +350,57 @@ export default function DocumentViewer() {
     return baseStyles;
   }, [documentFormatting]);
 
-  // Add CSS for paragraph-specific indentation
-  const addIndentationCSS = useCallback(() => {
-    if (!documentFormatting || !documentFormatting.paragraphs) return;
+  // Add document-specific CSS including LibreOffice styles
+  const addDocumentCSS = useCallback(() => {
+    // Remove existing document style
+    const existingStyle = document.getElementById('document-formatting-css');
+    if (existingStyle) existingStyle.remove();
     
-    // Create dynamic CSS for paragraph indentation
-    let indentCSS = '';
-    documentFormatting.paragraphs.forEach((para, index) => {
-      if (para.indentation && para.indentation.firstLine && para.indentation.firstLine > 0.1) {
-        indentCSS += `.apa-document p:nth-of-type(${index + 1}) { text-indent: ${para.indentation.firstLine}in; }\n`;
+    let fullCSS = '';
+    
+    // Add LibreOffice CSS if available
+    if (documentCss) {
+      fullCSS += documentCss + '\n';
+    }
+    
+    // Add paragraph-specific indentation
+    if (documentFormatting && documentFormatting.paragraphs) {
+      documentFormatting.paragraphs.forEach((para, index) => {
+        if (para.indentation && para.indentation.firstLine && para.indentation.firstLine > 0.1) {
+          fullCSS += `.apa-document p:nth-of-type(${index + 1}) { text-indent: ${para.indentation.firstLine}in; }\n`;
+        }
+      });
+    }
+    
+    // Add CSS to preserve original formatting
+    fullCSS += `
+      .libreoffice-compatible {
+        /* Preserve original document formatting */
       }
-    });
+      .libreoffice-compatible * {
+        /* Inherit document styles */
+      }
+    `;
     
-    if (indentCSS) {
-      // Remove existing indentation style
-      const existingStyle = document.getElementById('paragraph-indentation-css');
-      if (existingStyle) existingStyle.remove();
-      
-      // Add new indentation style
+    if (fullCSS) {
+      // Add combined styles
       const styleElement = document.createElement('style');
-      styleElement.id = 'paragraph-indentation-css';
-      styleElement.textContent = indentCSS;
+      styleElement.id = 'document-formatting-css';
+      styleElement.textContent = fullCSS;
       document.head.appendChild(styleElement);
     }
-  }, [documentFormatting]);
+  }, [documentFormatting, documentCss]);
 
-  // Effect for applying indentation CSS when document formatting changes
+  // Effect for applying document CSS when content changes
   useEffect(() => {
-    if (documentFormatting && !isLoading) {
-      const indentTimeout = setTimeout(() => {
-        addIndentationCSS();
+    if ((documentFormatting || documentCss) && !isLoading) {
+      const styleTimeout = setTimeout(() => {
+        addDocumentCSS();
       }, 200);
       
-      return () => clearTimeout(indentTimeout);
+      return () => clearTimeout(styleTimeout);
     }
-  }, [documentFormatting, addIndentationCSS, isLoading]);
+  }, [documentFormatting, documentCss, addDocumentCSS, isLoading]);
 
 
   return (
@@ -455,17 +472,22 @@ export default function DocumentViewer() {
                   <div className="max-w-4xl mx-auto">
                     <div 
                       ref={viewerRef}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 libreoffice-compatible"
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 libreoffice-compatible apa-document"
                       style={{
-                        ...getDocumentStyles(),
+                        // Don't override document styles - let the original formatting come through
                         '--document-font-family': `"${documentFormatting?.document?.font?.family || 'Times New Roman'}", monospace, serif`,
                         '--document-font-size': `${documentFormatting?.document?.font?.size || 12}px`,
                         '--document-line-height': `${documentFormatting?.document?.spacing?.line || 2.0}`
                       }}
-                      data-font-override="true"
+                      data-font-override="false"
                     >
                       {documentHtml ? (
-                        <div dangerouslySetInnerHTML={{ __html: documentHtml }} />
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: documentHtml }} 
+                          style={{ 
+                            /* Let original document styles apply */
+                          }}
+                        />
                       ) : (
                         <div className="text-center py-12">
                           <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-200">

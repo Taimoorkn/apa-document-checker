@@ -1,34 +1,8 @@
 'use client';
 
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Highlight from '@tiptap/extension-highlight';
-import { TextStyle } from '@tiptap/extension-text-style';  // Fixed: Named import
-import { Color } from '@tiptap/extension-color';  // Fixed: Named import
-// Removed Underline - it's already in StarterKit
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { FileText, AlertCircle, Loader2, Highlighter } from 'lucide-react';
-
-// Custom extension for APA highlighting
-const APAHighlight = Highlight.extend({
-  name: 'apaHighlight',
-  
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      issueId: {
-        default: null,
-      },
-      severity: {
-        default: 'minor',
-      },
-      title: {
-        default: '',
-      },
-    };
-  },
-});
 
 export default function DocumentEditor() {
   const { 
@@ -41,141 +15,145 @@ export default function DocumentEditor() {
   } = useDocumentStore();
   
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);  // Track client-side mounting
-  const [showHighlights, setShowHighlights] = useState(true); // Toggle for highlights
+  const [showHighlights, setShowHighlights] = useState(true);
   const editorRef = useRef(null);
+  const [isContentLoaded, setIsContentLoaded] = useState(false);
 
-  // Ensure we're on client side
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Initialize TipTap editor with SSR fix
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6],
-        },
-      }),
-      APAHighlight.configure({
-        multicolor: true,
-      }),
-      TextStyle,
-      Color,
-    ],
-    content: '',
-    editorProps: {
-      attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none min-h-full p-8',
-        // Don't force Times New Roman - preserve document's original formatting
-      },
-    },
-    onUpdate: ({ editor }) => {
-      // Debounced analysis could go here
-    },
-    immediatelyRender: false  // Fix for SSR hydration mismatch
-  });
-
-  // Load document HTML into editor
-  useEffect(() => {
-    if (displayData?.html && editor) {
-      setIsProcessing(true);
+  // Apply highlights directly to the HTML content
+  const applyHighlightsToHTML = useCallback((html) => {
+    if (!showHighlights || !issues || issues.length === 0) return html;
+    
+    let highlightedHTML = html;
+    
+    // Sort issues by text length (longest first) to avoid nested highlighting issues
+    const sortedIssues = [...issues].sort((a, b) => 
+      (b.text?.length || 0) - (a.text?.length || 0)
+    );
+    
+    sortedIssues.forEach(issue => {
+      if (!issue.text) return;
       
-      // Use the original HTML with its formatting preserved
-      // Don't clean it too aggressively to maintain formatting
-      const formattedHtml = preserveFormattingInHtml(displayData.html);
+      // Escape special regex characters in the issue text
+      const escapedText = issue.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      // Set content in editor
-      editor.commands.setContent(formattedHtml);
+      // Create a regex to find the text (case insensitive)
+      const regex = new RegExp(`(${escapedText})`, 'gi');
       
-      // Apply highlights after content is loaded if enabled
-      setTimeout(() => {
-        if (showHighlights) {
-          applyIssueHighlights();
-        }
-        setIsProcessing(false);
-      }, 100);
-    }
-  }, [displayData?.html, editor]);
-
-  // Re-apply or clear highlights when toggle changes
-  useEffect(() => {
-    if (editor && displayData?.html) {
-      if (showHighlights) {
-        applyIssueHighlights();
-      } else {
-        // Clear all highlights
-        editor.commands.unsetHighlight();
-      }
-    }
-  }, [showHighlights, editor, issues]);
-
-  // Removed iframe preview mode - using single unified editor
-
-  // Apply issue highlights to editor
-  const applyIssueHighlights = useCallback(() => {
-    if (!editor || !issues || issues.length === 0) return;
-
-    // Clear existing highlights
-    editor.commands.unsetHighlight();
-
-    // Apply new highlights
-    issues.forEach(issue => {
-      if (issue.text) {
-        // Find text in editor and highlight it
-        const content = editor.getHTML();
-        const index = content.toLowerCase().indexOf(issue.text.toLowerCase());
-        
-        if (index !== -1) {
-          // This is simplified - in production you'd need proper text position mapping
-          editor.chain()
-            .focus()
-            .setTextSelection({ from: index, to: index + issue.text.length })
-            .setHighlight({ 
-              color: getSeverityColor(issue.severity),
-              issueId: issue.id,
-              severity: issue.severity,
-              title: issue.title
-            })
-            .run();
-        }
-      }
+      // Determine highlight color based on severity
+      const color = getSeverityColor(issue.severity);
+      const borderColor = getSeverityBorderColor(issue.severity);
+      
+      // Replace with highlighted version
+      highlightedHTML = highlightedHTML.replace(regex, 
+        `<mark class="apa-issue-highlight" data-issue-id="${issue.id}" style="background-color: ${color}; border-bottom: 2px solid ${borderColor}; padding: 0 2px; border-radius: 2px; cursor: pointer;" title="${issue.title}">$1</mark>`
+      );
     });
-  }, [editor, issues]);
-
-  // Removed iframe highlighting - using TipTap editor only
-
-  // Preserve formatting while cleaning HTML
-  const preserveFormattingInHtml = (html) => {
-    // Keep important styles but remove LibreOffice-specific tags
-    let cleaned = html
-      .replace(/<o:p[^>]*>/g, '<p>')
-      .replace(/<\/o:p>/g, '</p>');
     
-    // Preserve important inline styles for formatting
-    // Don't remove style attributes completely
-    
-    return cleaned;
-  };
+    return highlightedHTML;
+  }, [issues, showHighlights]);
 
   // Get color based on severity
   const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'Critical': return '#ffcdd2';
-      case 'Major': return '#ffe0b2';
-      case 'Minor': return '#bbdefb';
+    switch (severity?.toLowerCase()) {
+      case 'critical': return '#ffcdd2';
+      case 'major': return '#ffe0b2';
+      case 'minor': return '#bbdefb';
       default: return '#fff9c4';
     }
   };
 
-  // Handle active issue change
-  useEffect(() => {
-    if (activeIssueId && editor) {
-      // Scroll to and highlight the active issue
-      // This would need proper implementation with text position mapping
+  const getSeverityBorderColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return '#f44336';
+      case 'major': return '#ff9800';
+      case 'minor': return '#2196f3';
+      default: return '#ffeb3b';
     }
-  }, [activeIssueId, editor]);
+  };
+
+  // Handle click on highlighted issues
+  useEffect(() => {
+    if (!isContentLoaded || !editorRef.current) return;
+    
+    const handleHighlightClick = (e) => {
+      const mark = e.target.closest('mark[data-issue-id]');
+      if (mark) {
+        const issueId = mark.getAttribute('data-issue-id');
+        if (issueId) {
+          setActiveIssue(issueId);
+        }
+      }
+    };
+    
+    editorRef.current.addEventListener('click', handleHighlightClick);
+    
+    return () => {
+      if (editorRef.current) {
+        editorRef.current.removeEventListener('click', handleHighlightClick);
+      }
+    };
+  }, [isContentLoaded, setActiveIssue]);
+
+  // Scroll to active issue
+  useEffect(() => {
+    if (!activeIssueId || !editorRef.current) return;
+    
+    const mark = editorRef.current.querySelector(`mark[data-issue-id="${activeIssueId}"]`);
+    if (mark) {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Add temporary highlight effect
+      mark.style.transition = 'all 0.3s ease';
+      const originalBg = mark.style.backgroundColor;
+      mark.style.backgroundColor = '#ffd54f';
+      setTimeout(() => {
+        mark.style.backgroundColor = originalBg;
+      }, 500);
+    }
+  }, [activeIssueId]);
+
+  // Add document CSS styles
+  useEffect(() => {
+    if (!displayData?.css) return;
+    
+    const styleId = 'document-css-styles';
+    let styleElement = document.getElementById(styleId);
+    
+    if (!styleElement) {
+      styleElement = document.createElement('style');
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+    
+    // Add CSS to preserve document formatting
+    const additionalCSS = `
+      .document-html-content {
+        /* Preserve all original styles */
+      }
+      .document-html-content * {
+        /* Don't override any inline styles */
+      }
+    `;
+    
+    styleElement.textContent = displayData.css + additionalCSS;
+    
+    return () => {
+      const element = document.getElementById(styleId);
+      if (element) {
+        element.remove();
+      }
+    };
+  }, [displayData?.css]);
+
+  // Process HTML content
+  const processedHTML = displayData?.html ? applyHighlightsToHTML(displayData.html) : '';
+
+  // Set content loaded flag
+  useEffect(() => {
+    if (displayData?.html) {
+      setIsContentLoaded(true);
+    }
+  }, [displayData?.html]);
 
   return (
     <div className="h-full flex flex-col bg-white">
@@ -184,7 +162,7 @@ export default function DocumentEditor() {
         <div className="flex items-center space-x-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <FileText className="h-5 w-5 mr-2" />
-            Document Editor
+            Document Viewer
           </h3>
           {documentId && (
             <span className="text-sm text-gray-500">
@@ -195,23 +173,21 @@ export default function DocumentEditor() {
         
         <div className="flex items-center space-x-2">
           {/* Show/Hide Highlights Toggle */}
-          <button
-            onClick={() => setShowHighlights(!showHighlights)}
-            className={`px-3 py-1.5 rounded-lg flex items-center space-x-2 text-sm font-medium transition-colors ${
-              showHighlights
-                ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
-                : 'bg-gray-100 text-gray-600 border border-gray-300'
-            }`}
-          >
-            <Highlighter className="h-4 w-4" />
-            <span>{showHighlights ? 'Hide' : 'Show'} Highlights</span>
-          </button>
-          
-          {isProcessing && (
-            <div className="flex items-center text-sm text-gray-500">
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              Processing...
-            </div>
+          {issues && issues.length > 0 && (
+            <button
+              onClick={() => setShowHighlights(!showHighlights)}
+              className={`px-3 py-1.5 rounded-lg flex items-center space-x-2 text-sm font-medium transition-all duration-200 ${
+                showHighlights
+                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 shadow-sm'
+                  : 'bg-gray-100 text-gray-600 border border-gray-300'
+              }`}
+            >
+              <Highlighter className="h-4 w-4" />
+              <span>{showHighlights ? 'Hide' : 'Show'} Highlights</span>
+              {issues.length > 0 && (
+                <span className="ml-1 text-xs">({issues.length})</span>
+              )}
+            </button>
           )}
         </div>
       </div>
@@ -229,20 +205,20 @@ export default function DocumentEditor() {
                 Ready to Check Your Document
               </h2>
               <p className="text-gray-600 mb-8 leading-relaxed">
-                Upload your academic paper to start editing and checking against APA 7th edition guidelines
+                Upload your academic paper to start checking against APA 7th edition guidelines
               </p>
               <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
                 <div className="flex items-start space-x-3">
                   <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
                   <div className="text-left">
                     <p className="font-medium text-gray-900 mb-1">
-                      Enhanced Editor Features
+                      Document Features
                     </p>
                     <p className="text-sm text-gray-600">
+                      • Original formatting preserved<br />
                       • Real-time APA validation<br />
                       • In-line issue highlighting<br />
-                      • Rich text editing capabilities<br />
-                      • Live preview with original formatting
+                      • Click highlights to see details
                     </p>
                   </div>
                 </div>
@@ -250,18 +226,21 @@ export default function DocumentEditor() {
             </div>
           </div>
         ) : (
-          // Unified Editor (like Grammarly)
-          <div className="h-full overflow-auto bg-white" ref={editorRef}>
-            {isMounted && editor ? (
-              <EditorContent 
-                editor={editor} 
-                className="h-full"
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            )}
+          // Document Display with Original HTML
+          <div className="h-full overflow-auto bg-white p-8">
+            <div 
+              ref={editorRef}
+              className="document-html-content max-w-4xl mx-auto"
+              dangerouslySetInnerHTML={{ __html: processedHTML }}
+              style={{
+                // Apply document-specific formatting if available
+                fontFamily: analysisData?.formatting?.document?.font?.family ? 
+                  `"${analysisData.formatting.document.font.family}", serif` : 'inherit',
+                fontSize: analysisData?.formatting?.document?.font?.size ? 
+                  `${analysisData.formatting.document.font.size}pt` : 'inherit',
+                lineHeight: analysisData?.formatting?.document?.spacing?.line || 'inherit'
+              }}
+            />
           </div>
         )}
       </div>

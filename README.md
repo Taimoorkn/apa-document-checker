@@ -1,82 +1,93 @@
-# APA 7th Edition Document Checker
+THis is my current setup :
+APA Document Checker - Technical Summary
 
-A professional web application that validates academic documents against APA 7th edition guidelines, providing real-time feedback and suggested fixes.
+  What It Does
 
-## Features
+  An academic writing assistant that validates Word documents (.docx) against APA 7th edition guidelines. Students and researchers upload their papers and get instant feedback on formatting, citations,
+  structure, and writing quality with automated fixes for common issues.
 
-- **Document Upload**: Import .docx files for analysis
-- **Real-Time Analysis**: Receive immediate feedback on APA compliance
-- **Split-View Interface**: Document viewer and issues panel side-by-side
-- **Interactive Feedback**: Navigate between document and issues with clickable elements
-- **Categorized Issues**: Critical, Major, and Minor APA violations
-- **Fix Suggestions**: One-click fixes for common APA issues
-- **Document Statistics**: Word count and compliance score
+  How It Works
 
-## Technical Stack
+  Document Processing Flow
 
-- **Frontend Framework**: Next.js (JavaScript)
-- **Styling**: Tailwind CSS with Typography plugin
-- **Rendering**: Client-side for real-time document analysis
-- **State Management**: Zustand
-- **Document Processing**: LibreOffice for .docx parsing and formatting extraction
+  1. Upload: User uploads .docx file through web interface
+  2. Server Processing: LibreOffice converts document to HTML while preserving rich formatting data
+  3. Analysis: Dual-layer validation system checks document:
+    - Rule-based: Validates against 50+ specific APA requirements
+    - AI-powered: Analyzes content quality and academic tone (optional)
+  4. Interactive Feedback: Issues displayed in categorized panels with clickable highlighting
+  5. Auto-Fix: One-click fixes for common formatting issues by modifying the original document
 
-## Setup Instructions
+  Tech Stack & Libraries
 
-1. Clone the repository
-2. **Install LibreOffice** (Required):
-   - **Windows**: Download from https://www.libreoffice.org/download/
-   - **macOS**: Download from https://www.libreoffice.org/download/
-   - **Linux**: `sudo apt install libreoffice` (Ubuntu/Debian) or `sudo yum install libreoffice` (RHEL/CentOS)
-3. Install dependencies:
-   ```
-   npm install
-   ```
-4. Run the development server:
-   ```
-   npm run dev
-   ```
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+  Frontend (Next.js 15)
 
-**Note**: LibreOffice is required for document processing. The application will not function without it.
+  Core Framework
+  - next (15.5.0) - React framework with SSR and routing
+  - react (19.1.0) + react-dom (19.1.0) - UI library and DOM rendering
 
-## Component Architecture
+  State Management & Utils
+  - zustand (5.0.8) - Lightweight state management for document store
+  - uuid (11.1.0) - Unique ID generation for issues and components
+  - lucide-react (0.541.0) - Modern icon library for UI elements
 
-The application is built with the following core components:
+  Styling & UI
+  - tailwindcss (3.4.16) - Utility-first CSS framework
+  - autoprefixer (10.4.21) + postcss (8.4.49) - CSS processing and vendor prefixes
+  - Custom CSS animations for issue highlighting and transitions
 
-- **DocumentViewer**: Displays the uploaded document with highlighted issues
-- **IssuesPanel**: Shows categorized APA issues with fix options
-- **Header**: Contains upload button, export option, and document stats
+  Backend (Express.js)
 
-State management is handled through Zustand with the following stores:
-- **documentStore**: Manages document content, analysis, and issues
+  Core Server
+  - express (4.21.2) - Web application framework
+  - cors (2.8.5) - Cross-origin resource sharing configuration
+  - helmet (7.2.0) - Security middleware for HTTP headers
 
-## APA Rule Implementation
+  Document Processing
+  - libreoffice-convert (1.6.1) - LibreOffice integration for DOCX→HTML conversion
+  - multer (1.4.5-lts.1) - Multipart form data handling for file uploads
+  - jszip (3.10.1) + pizzip (3.2.0) - ZIP file manipulation for DOCX structure
+  - xml2js (0.6.2) - XML parsing for document formatting extraction
+  - @xmldom/xmldom (0.8.11) - XML DOM manipulation
+  - node-html-parser (6.1.13) - HTML parsing and manipulation
 
-The application validates documents against the following APA 7th Edition guidelines:
+  Text Analysis
+  - natural (6.12.0) - Natural language processing for content analysis
 
-### Citation Rules
-- In-text citation format (Author, year)
-- Parenthetical citations
-- Multiple author handling rules
-- Quote formatting and page numbers
+  Development & Build Tools
 
-### Reference List Rules
-- Alphabetical ordering
-- Author formatting
-- Publication details for different source types
+  Development Server
+  - concurrently (8.2.2) - Run frontend and backend simultaneously
+  - nodemon (3.1.10) - Auto-restart server on changes
 
-### Document Structure Rules
-- Heading levels and formatting
-- Abstract structure
-- Title page elements
-- Section organization
+  Code Quality
+  - eslint (9) + eslint-config-next (15.5.0) - Code linting with Next.js rules
+  - @eslint/eslintrc (3) - ESLint configuration compatibility
 
-### Formatting Rules
-- Font requirements (12pt Times New Roman)
-- Double spacing
-- Margins and indentation
-- Page numbering
+  Type Definitions (Development)
+  - @types/multer (1.4.13) - TypeScript definitions for Multer
+  - @types/xml2js (0.4.14) - TypeScript definitions for XML parsing
 
-## License
+  Analysis Engine
 
-MIT
+  APA Validation
+  - Custom EnhancedAPAAnalyzer class with 50+ APA 7th edition rules
+  - Real-time DOM manipulation for issue highlighting
+  - Formatting analysis using extracted DOCX XML data
+
+  AI Enhancement (Optional)
+  - Groq AI API integration for content quality analysis
+  - Academic tone and clarity assessment
+  - Context-aware citation verification
+  - Smart fix suggestions with examples
+
+  Key Features by Library
+
+  - Document Upload: multer handles secure file validation and storage
+  - Rich Formatting: libreoffice-convert preserves exact document formatting
+  - DOCX Manipulation: jszip/pizzip enable real-time document fixes
+  - XML Processing: xml2js + @xmldom/xmldom extract formatting metadata
+  - State Management: zustand manages complex document analysis state
+  - UI Interactions: lucide-react icons + custom CSS animations
+  - Cross-Platform: cors + helmet ensure secure API communication
+  - Development: concurrently + nodemon enable hot reloading workflow

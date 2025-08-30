@@ -9,7 +9,8 @@
       "Bash(tree:*)",
       "Bash(npx eslint:*)",
       "Bash(node:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

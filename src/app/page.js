@@ -5,7 +5,7 @@ import IssuesPanel from '@/components/IssuesPanel';
 import Header from '@/components/Header'; 
 import { BookOpen } from 'lucide-react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import DocumentViewer from '@/components/DocumentViewer';
+import DocumentEditor from '@/components/DocumentEditor';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);
@@ -21,7 +21,7 @@ export default function Home() {
           className="relative bg-white border-r border-gray-300"
           style={{ width: `${splitRatio}%` }}
         >
-          <DocumentViewer />
+          <DocumentEditor />
         </div>
         
         {/* Resize handle */}

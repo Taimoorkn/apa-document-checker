@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
-const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
+const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
 
 // Create router instance - IMPORTANT: This must be the default export
@@ -49,8 +49,8 @@ const upload = multer({
   }
 });
 
-// Initialize processors - LibreOffice only
-const libreOfficeProcessor = new LibreOfficeProcessor();
+// Initialize processors - XML-based processing
+const xmlDocxProcessor = new XmlDocxProcessor();
 const docxModifier = new DocxModifier();
 
 /**
@@ -73,7 +73,7 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     filePath = req.file.path;
     console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
     
-    // LibreOffice is the only processor available
+    // XML-based processing
     
     // Validate file exists and is readable
     try {
@@ -88,13 +88,13 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('File is not a valid DOCX document');
     }
     
-    // Process the document using LibreOffice
-    console.log('Starting document processing...');
+    // Process the document using XML parser
+    console.log('Starting XML-based document processing...');
     const startTime = Date.now();
     
-    console.log('Processing with LibreOffice...');
-    const result = await libreOfficeProcessor.processDocument(filePath);
-    const processorUsed = result.processingInfo?.processor || 'LibreOffice';
+    console.log('Processing with XML parser...');
+    const result = await xmlDocxProcessor.processDocument(filePath);
+    const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
     
     const processingTime = Date.now() - startTime;
     console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
@@ -231,11 +231,11 @@ router.post('/apply-fix', async (req, res) => {
     
     console.log(`✅ Fix applied successfully, reprocessing document...`);
     
-    // Reprocess the modified document buffer using LibreOffice
-    console.log('Reprocessing with LibreOffice...');
+    // Reprocess the modified document buffer using XML processor
+    console.log('Reprocessing with XML processor...');
     const startTime = Date.now();
     
-    const reprocessingResult = await libreOfficeProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
+    const reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
     
     const processingTime = Date.now() - startTime;
     console.log(`Document reprocessing completed in ${processingTime}ms`);
@@ -275,31 +275,32 @@ router.post('/apply-fix', async (req, res) => {
  * Health check for document processing capabilities
  */
 router.get('/processing-status', async (req, res) => {
-  // Check LibreOffice availability
-  let libreOfficeAvailable = false;
-  let libreOfficeError = null;
+  // Check XML processor availability
+  let xmlProcessorAvailable = true; // XML processing is always available
+  let xmlProcessorError = null;
   
   try {
-    await libreOfficeProcessor.checkLibreOfficeAvailability();
-    libreOfficeAvailable = true;
+    // Test basic XML processing capability
+    new XmlDocxProcessor();
   } catch (error) {
-    libreOfficeError = error.message;
+    xmlProcessorAvailable = false;
+    xmlProcessorError = error.message;
   }
   
   res.json({
     success: true,
     status: 'operational',
     capabilities: {
-      docxProcessing: libreOfficeAvailable,
-      libreOfficeProcessing: libreOfficeAvailable,
-      formattingExtraction: libreOfficeAvailable,
-      structureAnalysis: libreOfficeAvailable,
-      apaCompliance: libreOfficeAvailable
+      docxProcessing: xmlProcessorAvailable,
+      xmlProcessing: xmlProcessorAvailable,
+      formattingExtraction: xmlProcessorAvailable,
+      structureAnalysis: xmlProcessorAvailable,
+      apaCompliance: xmlProcessorAvailable
     },
     processors: {
-      libreOffice: {
-        available: libreOfficeAvailable,
-        error: libreOfficeError,
+      xmlProcessor: {
+        available: xmlProcessorAvailable,
+        error: xmlProcessorError,
         primary: true,
         required: true
       }

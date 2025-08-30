@@ -18,6 +18,11 @@ export const useDocumentStore = create((set, get) => ({
   documentStyles: null,     // Document styles
   originalDocumentBuffer: null, // Original document buffer for first upload
   currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
+  
+  // Editor state
+  editorContent: null,      // Slate.js editor content
+  isEditorMode: false,      // Toggle between editor and preview
+  editorChanged: false,     // Track if editor content has changed
   documentStats: {
     wordCount: 0,
     charCount: 0,
@@ -745,6 +750,186 @@ export const useDocumentStore = create((set, get) => ({
       },
       compliance: complianceDetails
     };
+  },
+
+  // Editor management functions
+  setEditorContent: (content) => {
+    set({ 
+      editorContent: content, 
+      editorChanged: true 
+    });
+  },
+
+  setEditorMode: (isEditorMode) => {
+    set({ isEditorMode });
+  },
+
+  // Convert editor content back to text for analysis
+  getTextFromEditorContent: (editorContent) => {
+    if (!editorContent || !Array.isArray(editorContent)) return '';
+    
+    return editorContent.map(node => {
+      if (node.children) {
+        return node.children.map(child => child.text || '').join('');
+      }
+      return node.text || '';
+    }).join('\n');
+  },
+
+  // Real-time analysis for editor changes
+  analyzeEditorContent: async (editorContent) => {
+    if (!editorContent) return { success: false, error: 'No editor content' };
+    
+    const { documentHtml, documentFormatting, documentStructure, documentStyles } = get();
+    
+    try {
+      set(state => ({
+        processingState: {
+          ...state.processingState,
+          isAnalyzing: true,
+          lastError: null,
+          stage: 'Analyzing edited content...'
+        }
+      }));
+
+      // Convert editor content to text
+      const text = get().getTextFromEditorContent(editorContent);
+      
+      if (!text || text.trim().length < 10) {
+        set(state => ({
+          issues: [],
+          analysisScore: 100,
+          processingState: {
+            ...state.processingState,
+            isAnalyzing: false,
+            stage: null
+          }
+        }));
+        return { success: true, issueCount: 0 };
+      }
+
+      // Create comprehensive document data object
+      const documentData = {
+        text: text,
+        html: documentHtml,
+        formatting: documentFormatting,
+        structure: documentStructure,
+        styles: documentStyles
+      };
+
+      // Use enhanced analyzer with rich document data
+      const analysisResults = await new Promise((resolve, reject) => {
+        setTimeout(() => {
+          try {
+            const analyzer = new EnhancedAPAAnalyzer();
+            const results = analyzer.analyzeDocument(documentData);
+            resolve(results);
+          } catch (error) {
+            reject(error);
+          }
+        }, 100);
+      });
+
+      // Map results to store format and add IDs
+      let issues = analysisResults.map(issue => ({
+        id: uuidv4(),
+        ...issue,
+        title: issue.title || 'Unknown Issue',
+        description: issue.description || '',
+        severity: issue.severity || 'Minor',
+        category: issue.category || 'general',
+        text: issue.text || null,
+        location: issue.location || null,
+        hasFix: issue.hasFix || false,
+        fixAction: issue.fixAction || null,
+        explanation: issue.explanation || issue.description || ''
+      }));
+
+      // Enhance with AI analysis if available
+      try {
+        if (process.env.NEXT_PUBLIC_GROQ_API_KEY) {
+          console.log('🤖 Starting AI-enhanced analysis for edited content...');
+          
+          set(state => ({
+            processingState: {
+              ...state.processingState,
+              isAiAnalyzing: true,
+              stage: 'AI analyzing edited content...'
+            }
+          }));
+
+          const enhancedIssues = await aiEnhancedAnalyzer.enhanceAnalysis(documentData, issues);
+          issues = enhancedIssues;
+        }
+      } catch (aiError) {
+        console.warn('⚠️ AI analysis failed for edited content:', aiError.message);
+      }
+
+      // Calculate enhanced compliance score
+      const criticalCount = issues.filter(i => i.severity === 'Critical').length;
+      const majorCount = issues.filter(i => i.severity === 'Major').length;
+      const minorCount = issues.filter(i => i.severity === 'Minor').length;
+
+      let analysisScore;
+      if (documentFormatting?.compliance?.overall !== undefined) {
+        const contentPenalty = criticalCount * 10 + majorCount * 5 + minorCount * 2;
+        analysisScore = Math.max(0, Math.min(100, 
+          Math.round(documentFormatting.compliance.overall - contentPenalty)
+        ));
+      } else {
+        analysisScore = Math.max(0, Math.min(100, 
+          Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))
+        ));
+      }
+
+      // Update stats from editor content
+      const words = text.trim().split(/\s+/).filter(Boolean).length;
+      const chars = text.length;
+      const paragraphs = text.split('\n').filter(p => p.trim().length > 0).length;
+
+      set(state => ({
+        documentText: text, // Update document text with editor content
+        issues,
+        analysisScore,
+        documentStats: {
+          ...state.documentStats,
+          wordCount: words,
+          charCount: chars,
+          paragraphCount: paragraphs
+        },
+        processingState: {
+          ...state.processingState,
+          isAnalyzing: false,
+          isAiAnalyzing: false,
+          stage: null
+        },
+        editorChanged: false // Reset change flag
+      }));
+
+      console.log(`✅ Editor content analysis complete: ${issues.length} issues`);
+      
+      return { 
+        success: true, 
+        issueCount: issues.length,
+        score: analysisScore,
+        breakdown: { criticalCount, majorCount, minorCount }
+      };
+
+    } catch (error) {
+      console.error('❌ Error analyzing editor content:', error);
+      
+      set(state => ({
+        processingState: {
+          ...state.processingState,
+          isAnalyzing: false,
+          isAiAnalyzing: false,
+          lastError: error.message || 'Editor content analysis failed',
+          stage: null
+        }
+      }));
+
+      return { success: false, error: error.message };
+    }
   },
 
   // Export document

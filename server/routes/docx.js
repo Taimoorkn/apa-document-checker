@@ -5,7 +5,6 @@ const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
 const LibreOfficeProcessor = require('../processors/LibreOfficeProcessor');
-const DocxProcessor = require('../processors/DocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
 
 // Create router instance - IMPORTANT: This must be the default export
@@ -50,9 +49,8 @@ const upload = multer({
   }
 });
 
-// Initialize processors - LibreOffice first, Mammoth as fallback
+// Initialize processors - LibreOffice only
 const libreOfficeProcessor = new LibreOfficeProcessor();
-const docxProcessor = new DocxProcessor();
 const docxModifier = new DocxModifier();
 
 /**
@@ -75,8 +73,7 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     filePath = req.file.path;
     console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
     
-    // Check if user wants to force Mammoth processor
-    const forceMammoth = req.body.forceMammoth === 'true' || req.query.forceMammoth === 'true';
+    // LibreOffice is the only processor available
     
     // Validate file exists and is readable
     try {
@@ -91,39 +88,13 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       throw new Error('File is not a valid DOCX document');
     }
     
-    // Process the document - try LibreOffice first, fallback to Mammoth
+    // Process the document using LibreOffice
     console.log('Starting document processing...');
     const startTime = Date.now();
     
-    let result;
-    let processorUsed = 'LibreOffice';
-    
-    if (forceMammoth) {
-      console.log('Using Mammoth processor (forced by request)');
-      result = await docxProcessor.processDocument(filePath);
-      processorUsed = 'Mammoth (forced)';
-    } else {
-      try {
-        console.log('Attempting LibreOffice processing...');
-        result = await libreOfficeProcessor.processDocument(filePath);
-        processorUsed = result.processingInfo?.processor || 'LibreOffice';
-      } catch (libreOfficeError) {
-        console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
-        result = await docxProcessor.processDocument(filePath);
-        processorUsed = 'Mammoth (LibreOffice fallback)';
-        
-        // Add fallback information to the result
-        result.processingInfo = result.processingInfo || {};
-        result.processingInfo.processor = processorUsed;
-        result.processingInfo.fallback = true;
-        result.processingInfo.fallbackReason = libreOfficeError.message;
-        result.messages = result.messages || [];
-        result.messages.push({
-          type: 'warning',
-          message: `LibreOffice processing failed (${libreOfficeError.message}), used Mammoth as fallback`
-        });
-      }
-    }
+    console.log('Processing with LibreOffice...');
+    const result = await libreOfficeProcessor.processDocument(filePath);
+    const processorUsed = result.processingInfo?.processor || 'LibreOffice';
     
     const processingTime = Date.now() - startTime;
     console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
@@ -260,21 +231,11 @@ router.post('/apply-fix', async (req, res) => {
     
     console.log(`✅ Fix applied successfully, reprocessing document...`);
     
-    // Reprocess the modified document buffer
-    let reprocessingResult;
+    // Reprocess the modified document buffer using LibreOffice
+    console.log('Reprocessing with LibreOffice...');
     const startTime = Date.now();
     
-    try {
-      // Try LibreOffice first, fallback to Mammoth
-      console.log('Reprocessing with LibreOffice...');
-      reprocessingResult = await libreOfficeProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
-    } catch (libreOfficeError) {
-      console.log('LibreOffice failed, falling back to Mammoth:', libreOfficeError.message);
-      reprocessingResult = await docxProcessor.processDocumentBuffer(modificationResult.buffer);
-      reprocessingResult.processingInfo = reprocessingResult.processingInfo || {};
-      reprocessingResult.processingInfo.processor = 'Mammoth (LibreOffice fallback)';
-      reprocessingResult.processingInfo.fallback = true;
-    }
+    const reprocessingResult = await libreOfficeProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
     
     const processingTime = Date.now() - startTime;
     console.log(`Document reprocessing completed in ${processingTime}ms`);
@@ -329,23 +290,18 @@ router.get('/processing-status', async (req, res) => {
     success: true,
     status: 'operational',
     capabilities: {
-      docxProcessing: true,
+      docxProcessing: libreOfficeAvailable,
       libreOfficeProcessing: libreOfficeAvailable,
-      mammothFallback: true,
-      formattingExtraction: true,
-      structureAnalysis: true,
-      apaCompliance: true
+      formattingExtraction: libreOfficeAvailable,
+      structureAnalysis: libreOfficeAvailable,
+      apaCompliance: libreOfficeAvailable
     },
     processors: {
       libreOffice: {
         available: libreOfficeAvailable,
         error: libreOfficeError,
-        primary: libreOfficeAvailable
-      },
-      mammoth: {
-        available: true,
-        primary: !libreOfficeAvailable,
-        fallback: true
+        primary: true,
+        required: true
       }
     },
     limits: {

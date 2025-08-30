@@ -112,35 +112,15 @@ class LibreOfficeProcessor {
           timestamp: new Date().toISOString(),
           fileSize: buffer.length,
           wordCount: textResult.split(/\s+/).filter(Boolean).length,
-          processor: 'LibreOffice',
-          fallback: libreOfficeResult.fallback || false
+          processor: 'LibreOffice'
         }
       };
       
     } catch (error) {
       console.error('Error processing DOCX with LibreOffice:', error);
       
-      // Fallback to Mammoth if LibreOffice fails
-      console.log('Falling back to Mammoth processor...');
-      try {
-        const MammothProcessor = require('./DocxProcessor');
-        const mammothProcessor = new MammothProcessor();
-        const result = await mammothProcessor.processDocument(filePath);
-        
-        // Mark as fallback
-        result.processingInfo.processor = 'Mammoth (LibreOffice fallback)';
-        result.processingInfo.fallback = true;
-        result.messages = result.messages || [];
-        result.messages.push({
-          type: 'warning',
-          message: 'LibreOffice processing failed, used Mammoth as fallback'
-        });
-        
-        return result;
-      } catch (fallbackError) {
-        console.error('Both LibreOffice and Mammoth processing failed:', fallbackError);
-        throw new Error(`Document processing failed: ${error.message}. Fallback also failed: ${fallbackError.message}`);
-      }
+      // Re-throw the LibreOffice error since no fallback is available
+      throw new Error(`LibreOffice document processing failed: ${error.message}`);
     }
   }
   
@@ -182,7 +162,7 @@ class LibreOfficeProcessor {
         html: htmlString,
         messages: [{
           type: 'info',
-          message: 'Document converted using LibreOffice for better formatting preservation'
+          message: 'Document converted using LibreOffice for accurate formatting preservation'
         }]
       };
       
@@ -191,7 +171,7 @@ class LibreOfficeProcessor {
       
       // Provide more specific error messages
       if (error.message.includes('ENOENT') || error.message.includes('spawn')) {
-        throw new Error('LibreOffice not found on system. Please install LibreOffice or use Mammoth fallback.');
+        throw new Error('LibreOffice not found on system. Please install LibreOffice.');
       }
       
       throw error;
@@ -282,7 +262,7 @@ class LibreOfficeProcessor {
   }
   
   /**
-   * Extract plain text from DOCX (reused from DocxProcessor)
+   * Extract plain text from DOCX
    */
   async extractPlainText(buffer) {
     try {
@@ -318,7 +298,7 @@ class LibreOfficeProcessor {
   }
   
   /**
-   * Extract detailed formatting information from DOCX XML (reused from DocxProcessor)
+   * Extract detailed formatting information from DOCX XML
    */
   async extractFormattingDetails(buffer) {
     try {
@@ -345,7 +325,7 @@ class LibreOfficeProcessor {
   }
   
   /**
-   * Parse formatting information from XML data (reused from DocxProcessor with minor modifications)
+   * Parse formatting information from XML data
    */
   parseFormattingFromXML(documentData, settingsData) {
     const formatting = {
@@ -549,7 +529,7 @@ class LibreOfficeProcessor {
   }
   
   /**
-   * Extract document structure (reused from DocxProcessor)
+   * Extract document structure
    */
   async extractDocumentStructure(buffer) {
     try {
@@ -692,7 +672,7 @@ class LibreOfficeProcessor {
   }
   
   /**
-   * Extract styles information (reused from DocxProcessor)
+   * Extract styles information
    */
   async extractStyles(buffer) {
     try {
@@ -829,7 +809,7 @@ class LibreOfficeProcessor {
     }
   }
   
-  // Helper functions (reused from DocxProcessor)
+  // Helper functions
   twipsToInches(twips) {
     return twips / 1440;
   }

@@ -18,20 +18,26 @@ A professional web application that validates academic documents against APA 7th
 - **Styling**: Tailwind CSS with Typography plugin
 - **Rendering**: Client-side for real-time document analysis
 - **State Management**: Zustand
-- **Document Processing**: Mammoth.js for .docx parsing
+- **Document Processing**: LibreOffice for .docx parsing and formatting extraction
 
 ## Setup Instructions
 
 1. Clone the repository
-2. Install dependencies:
+2. **Install LibreOffice** (Required):
+   - **Windows**: Download from https://www.libreoffice.org/download/
+   - **macOS**: Download from https://www.libreoffice.org/download/
+   - **Linux**: `sudo apt install libreoffice` (Ubuntu/Debian) or `sudo yum install libreoffice` (RHEL/CentOS)
+3. Install dependencies:
    ```
    npm install
    ```
-3. Run the development server:
+4. Run the development server:
    ```
    npm run dev
    ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+**Note**: LibreOffice is required for document processing. The application will not function without it.
 
 ## Component Architecture
 

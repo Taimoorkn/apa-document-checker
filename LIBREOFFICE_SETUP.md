@@ -2,7 +2,7 @@
 
 ## Overview
 
-The APA Document Checker now supports LibreOffice for better DOCX styling extraction accuracy. LibreOffice provides superior formatting preservation compared to Mammoth.js, especially for:
+The APA Document Checker requires LibreOffice for DOCX styling extraction and processing. LibreOffice provides accurate formatting preservation for:
 
 - Font family and size accuracy
 - Line spacing preservation  
@@ -35,15 +35,12 @@ sudo yum install libreoffice
 
 ## Current Status
 
-**Without LibreOffice Installation:**
-- The application automatically falls back to Mammoth.js
-- Document processing still works but with reduced styling accuracy
-- You'll see a "LibreOffice fallback" message in processing info
-
-**With LibreOffice Installation:**
-- Superior DOCX styling extraction
-- Better APA formatting preservation
-- More accurate font and spacing detection
+**LibreOffice Installation Required:**
+- LibreOffice is the only document processor
+- The application will not function without LibreOffice
+- Provides accurate DOCX styling extraction
+- Delivers precise APA formatting preservation
+- Ensures accurate font and spacing detection
 
 ## Testing LibreOffice Integration
 
@@ -52,10 +49,7 @@ sudo yum install libreoffice
    GET http://localhost:3001/api/processing-status
    ```
    
-2. Force Mammoth processor (for comparison):
-   ```
-   POST http://localhost:3001/api/upload-docx?forceMammoth=true
-   ```
+2. The application now uses only LibreOffice for processing
 
 ## Benefits of LibreOffice Integration
 
@@ -70,18 +64,17 @@ sudo yum install libreoffice
 - Better detection of formatting violations
 - Improved paragraph-level analysis
 
-### Robust Fallback System
-- Automatic fallback to Mammoth.js if LibreOffice fails
-- No interruption to user workflow
-- Clear indication of which processor was used
+### Simplified Architecture
+- Single processor system using LibreOffice only
+- Consistent processing results
+- Clear error messages when LibreOffice is unavailable
 
 ## Configuration Options
 
-The system supports several configuration options:
+The system configuration:
 
-1. **Automatic Mode** (default): Try LibreOffice first, fallback to Mammoth
-2. **Force Mammoth**: Skip LibreOffice entirely (`?forceMammoth=true`)
-3. **LibreOffice Only**: Fail if LibreOffice unavailable (can be configured)
+1. **LibreOffice Only**: The application requires LibreOffice to be installed and available
+2. **No Fallback**: If LibreOffice is unavailable, processing will fail with a clear error message
 
 ## Troubleshooting
 
@@ -101,17 +94,17 @@ The system supports several configuration options:
 
 ## Performance Considerations
 
-- LibreOffice processing is slower than Mammoth (~2-3x)
-- LibreOffice is not thread-safe (processes one document at a time)
-- Memory usage is higher with LibreOffice
-- Consider using Mammoth for batch processing scenarios
+- LibreOffice processes one document at a time (not thread-safe)
+- Memory usage varies based on document complexity
+- Processing time depends on document size and system resources
+- Ensure adequate system memory for large documents
 
 ## Development Notes
 
 The LibreOffice integration:
-- Maintains the same API interface as Mammoth
+- Provides comprehensive document processing
 - Preserves all existing APA analysis functionality  
-- Adds enhanced formatting data extraction
-- Provides graceful degradation when LibreOffice unavailable
+- Delivers enhanced formatting data extraction
+- Requires LibreOffice installation for operation
 
-No frontend changes are required - the improved formatting data is automatically used by the existing DocumentViewer component.
+No frontend changes are required - LibreOffice formatting data is automatically used by the existing DocumentViewer component.

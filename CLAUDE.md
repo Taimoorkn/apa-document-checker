@@ -18,11 +18,11 @@ This is a full-stack document analysis application that validates academic docum
 - **Framework**: Next.js 15 with React 19, using JavaScript (not TypeScript)
 - **Styling**: Tailwind CSS with custom components
 - **State Management**: Zustand stores for document and UI state
-- **Document Processing**: Client-side analysis with Mammoth.js for .docx parsing
+- **Document Processing**: Client-side analysis with server-side LibreOffice processing
 
 ### Backend (Express)
 - **Server**: Express.js with security middleware (helmet, cors)
-- **Document Processing**: Server-side .docx processing with rich formatting extraction
+- **Document Processing**: LibreOffice-based .docx processing with rich formatting extraction
 - **File Handling**: Multer for file uploads with 10MB limit and security validation
 - **API Endpoints**: RESTful API under `/api` prefix
 
@@ -44,13 +44,13 @@ This is a full-stack document analysis application that validates academic docum
 **Backend Services** (`server/`):
 - `index.js`: Main Express server with middleware configuration
 - `routes/docx.js`: Document upload and processing endpoints
-- `processors/DocxProcessor.js`: Rich document format extraction
+- `processors/LibreOfficeProcessor.js`: LibreOffice-based document format extraction
 
 ### Document Processing Flow
 
 1. Client uploads .docx file via `DocumentViewer`
 2. File sent to `/api/upload-docx` endpoint with validation
-3. Server extracts rich formatting data (fonts, spacing, structure)
+3. Server processes document using LibreOffice to extract rich formatting data
 4. Client receives processed document data and stores in Zustand
 5. `EnhancedAPAAnalyzer` analyzes document against APA standards
 6. Issues displayed in categorized panels with fix suggestions

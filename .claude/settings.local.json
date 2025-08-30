@@ -10,7 +10,8 @@
       "Bash(npx eslint:*)",
       "Bash(node:*)",
       "Bash(find:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

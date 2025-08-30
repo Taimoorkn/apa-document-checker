@@ -189,99 +189,66 @@ mark[data-issue-id]:hover::after {
   animation: spin 1s linear infinite;
 }
 
-/* LibreOffice document styling */
-.libreoffice-compatible .libreoffice-document {
+/* APA Document Base Styling */
+.apa-document {
   max-width: 100%;
   overflow-wrap: break-word;
+  font-family: "Times New Roman", serif;
+  font-size: 12pt;
+  line-height: 2;
 }
 
-/* Force exact font rendering - override Tailwind completely */
-.libreoffice-compatible[data-font-override] {
-  font-family: var(--document-font-family) !important;
-  font-size: var(--document-font-size) !important;
-  line-height: var(--document-line-height) !important;
-}
-
-.libreoffice-compatible[data-font-override] *,
-.libreoffice-compatible[data-font-override] p,
-.libreoffice-compatible[data-font-override] div,
-.libreoffice-compatible[data-font-override] span,
-.libreoffice-compatible[data-font-override] h1,
-.libreoffice-compatible[data-font-override] h2,
-.libreoffice-compatible[data-font-override] h3 {
-  font-size: inherit !important;
-  font-family: inherit !important;
-  line-height: inherit !important;
-}
-
-.libreoffice-compatible .libreoffice-document p {
-  margin-bottom: 16px; /* 12pt = 16px */
+.apa-document p {
+  margin-bottom: 0;
   text-align: left;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-}
-
-.libreoffice-compatible .libreoffice-document h1,
-.libreoffice-compatible .libreoffice-document h2,
-.libreoffice-compatible .libreoffice-document h3,
-.libreoffice-compatible .libreoffice-document h4,
-.libreoffice-compatible .libreoffice-document h5,
-.libreoffice-compatible .libreoffice-document h6 {
-  font-weight: bold;
-  text-align: center;
-  margin: 16px 0; /* 12pt = 16px */
-  font-family: inherit;
-}
-
-.libreoffice-compatible .libreoffice-document strong,
-.libreoffice-compatible .libreoffice-document b {
-  font-weight: bold;
-}
-
-.libreoffice-compatible .libreoffice-document em,
-.libreoffice-compatible .libreoffice-document i {
-  font-style: italic;
-}
-
-.libreoffice-compatible .libreoffice-document u {
-  text-decoration: underline;
-}
-
-/* Override any LibreOffice inline styles that conflict with APA */
-.libreoffice-compatible .libreoffice-document * {
-  max-width: 100%;
-}
-
-/* Ensure proper paragraph indentation */
-.libreoffice-compatible .libreoffice-document p.indented {
   text-indent: 0.5in;
 }
 
-.libreoffice-compatible .libreoffice-document p.hanging {
+.apa-document h1,
+.apa-document h2,
+.apa-document h3,
+.apa-document h4,
+.apa-document h5,
+.apa-document h6 {
+  font-weight: bold;
+  text-align: center;
+  margin: 0;
+  text-indent: 0;
+}
+
+.apa-document strong,
+.apa-document b {
+  font-weight: bold;
+}
+
+.apa-document em,
+.apa-document i {
+  font-style: italic;
+}
+
+.apa-document u {
+  text-decoration: underline;
+}
+
+/* References section specific styling */
+.apa-document .hanging-indent {
   padding-left: 0.5in;
   text-indent: -0.5in;
 }
 
-/* Document Editor Styles */
+/* Consolidate all APA styling into base class */
 .apa-paragraph {
-  font-family: "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 2;
-  text-indent: 0.5in;
+  @apply apa-document;
   margin-bottom: 1em;
 }
 
 .docx-preview-container {
-  font-family: "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 2;
+  @apply apa-document;
   color: #000;
 }
 
 .docx-preview-container p {
   margin-bottom: 1em;
-  text-indent: 0.5in;
 }
 
 .docx-preview-container h1, 
@@ -289,16 +256,12 @@ mark[data-issue-id]:hover::after {
 .docx-preview-container h3, 
 .docx-preview-container h4, 
 .docx-preview-container h5 {
-  font-weight: bold;
   margin-bottom: 0.5em;
-  text-align: center;
 }
 
 /* Slate.js Editor Enhancements */
 .slate-editor {
-  font-family: "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 2;
+  @apply apa-document;
   color: #000;
 }
 
@@ -359,9 +322,7 @@ mark[data-issue-id]:hover {
 
 /* Fallback preview styles */
 .fallback-preview {
-  font-family: "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 2;
+  @apply apa-document;
   color: #000;
 }
 
@@ -371,7 +332,6 @@ mark[data-issue-id]:hover {
 
 .fallback-preview .document-content p {
   margin-bottom: 1em;
-  text-indent: 0.5in;
 }
 
 .fallback-preview .document-content h1,

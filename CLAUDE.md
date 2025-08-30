@@ -18,25 +18,24 @@ This is a full-stack document analysis application that validates academic docum
 - **Framework**: Next.js 15 with React 19, using JavaScript (not TypeScript)
 - **Styling**: Tailwind CSS with custom components
 - **State Management**: Zustand stores for document and UI state
-- **Document Processing**: Client-side analysis with server-side LibreOffice processing
+- **Document Processing**: Client-side Slate.js editing with server-side XML processing
 
 ### Backend (Express)
 - **Server**: Express.js with security middleware (helmet, cors)
-- **Document Processing**: LibreOffice-based .docx processing with rich formatting extraction
+- **Document Processing**: XML-based .docx processing with rich formatting extraction
 - **File Handling**: Multer for file uploads with 10MB limit and security validation
 - **API Endpoints**: RESTful API under `/api` prefix
 
 ### Key Components
 
 **Frontend Components** (`src/components/`):
-- `DocumentViewer.js`: Displays uploaded documents with highlighted issues
+- `DocumentEditor.js`: Slate.js editor for real-time document editing with highlighting
 - `IssuesPanel.js`: Shows categorized APA issues with fix suggestions
-- `AnalysisSettings.js`: Configuration options for analysis
 - `Header.js`: Upload controls and document statistics
+- `ErrorBoundary.js`: Error handling wrapper component
 
 **State Management** (`src/store/`):
 - `enhancedDocumentStore.js`: Main Zustand store for document state, issues, and server integration
-- `documentStore.js`: Legacy store (may be deprecated)
 
 **Analysis Engine** (`src/utils/`):
 - `enhancedApaAnalyzer.js`: Core APA 7th edition validation logic with formatting analysis
@@ -44,16 +43,18 @@ This is a full-stack document analysis application that validates academic docum
 **Backend Services** (`server/`):
 - `index.js`: Main Express server with middleware configuration
 - `routes/docx.js`: Document upload and processing endpoints
-- `processors/LibreOfficeProcessor.js`: LibreOffice-based document format extraction
+- `processors/XmlDocxProcessor.js`: XML-based document format extraction
+- `processors/DocxModifier.js`: Document modification for formatting fixes
 
 ### Document Processing Flow
 
-1. Client uploads .docx file via `DocumentViewer`
+1. Client uploads .docx file via `DocumentEditor`
 2. File sent to `/api/upload-docx` endpoint with validation
-3. Server processes document using LibreOffice to extract rich formatting data
+3. Server processes document using XML parsing to extract rich formatting data
 4. Client receives processed document data and stores in Zustand
 5. `EnhancedAPAAnalyzer` analyzes document against APA standards
 6. Issues displayed in categorized panels with fix suggestions
+7. User can edit document in real-time using Slate.js editor with live highlighting
 
 ### APA Analysis Categories
 

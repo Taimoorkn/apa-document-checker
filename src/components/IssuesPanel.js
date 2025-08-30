@@ -14,8 +14,7 @@ import {
   FileText,
   Sparkles,
   Lightbulb,
-  ExternalLink,
-  BookOpen
+  ExternalLink
 } from 'lucide-react';
 
 export default function IssuesPanel() {

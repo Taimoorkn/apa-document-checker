@@ -3,7 +3,6 @@ import './globals.css';
 import { useState } from 'react'; 
 import IssuesPanel from '@/components/IssuesPanel';
 import Header from '@/components/Header'; 
-import { BookOpen } from 'lucide-react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import DocumentEditor from '@/components/DocumentEditor';
 

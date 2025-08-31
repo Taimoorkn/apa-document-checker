@@ -463,6 +463,79 @@ export default function DocumentEditor() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleManualAnalysis]);
 
+  // Listen for text replacement events from store
+  useEffect(() => {
+    const handleTextReplacement = (event) => {
+      const { originalText, replacementText, issueId } = event.detail;
+      
+      console.log(`🔧 DocumentEditor received text replacement request:`, {
+        originalText,
+        replacementText,
+        issueId
+      });
+      
+      // Apply the text replacement directly in the Slate editor
+      applyTextReplacementToEditor(originalText, replacementText);
+    };
+
+    window.addEventListener('applyTextReplacement', handleTextReplacement);
+    return () => window.removeEventListener('applyTextReplacement', handleTextReplacement);
+  }, []);
+
+  // Apply text replacement directly in Slate editor
+  const applyTextReplacementToEditor = useCallback((originalText, replacementText) => {
+    try {
+      console.log(`🔍 Searching for text in editor: "${originalText}"`);
+      
+      // Search through all text nodes in the editor
+      const textNodes = Array.from(Editor.nodes(editor, {
+        at: [],
+        match: n => Text.isText(n) && n.text.includes(originalText),
+        mode: 'all'
+      }));
+
+      console.log(`🔍 Found ${textNodes.length} matching text nodes`);
+
+      if (textNodes.length > 0) {
+        Editor.withoutNormalizing(editor, () => {
+          // Replace text in each matching node (process in reverse order to avoid path conflicts)
+          textNodes.reverse().forEach(([node, path]) => {
+            if (Text.isText(node) && node.text.includes(originalText)) {
+              const nodeText = node.text;
+              const startIndex = nodeText.indexOf(originalText);
+              
+              if (startIndex !== -1) {
+                const endIndex = startIndex + originalText.length;
+                
+                // Create range for the specific text to replace
+                const startPoint = { path, offset: startIndex };
+                const endPoint = { path, offset: endIndex };
+                const range = { anchor: startPoint, focus: endPoint };
+                
+                // Select the range and replace the text
+                Transforms.select(editor, range);
+                Transforms.insertText(editor, replacementText);
+                
+                console.log(`✅ Replaced "${originalText}" with "${replacementText}" at path:`, path);
+                console.log(`📍 Range: ${startIndex}-${endIndex} in text: "${nodeText}"`);
+              }
+            }
+          });
+        });
+        
+        // Force re-render by updating value
+        const currentValue = editor.children;
+        setValue([...currentValue]);
+        
+      } else {
+        console.warn(`⚠️ Could not find text "${originalText}" in editor`);
+      }
+      
+    } catch (error) {
+      console.error('Error applying text replacement to editor:', error);
+    }
+  }, [editor]);
+
   // Custom rendering for different element types
   const renderElement = useCallback((props) => {
     const { attributes, children, element } = props;

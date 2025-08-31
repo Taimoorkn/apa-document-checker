@@ -340,16 +340,25 @@ export const useDocumentStore = create((set, get) => ({
     }));
     
     try {
-      // Check if this is a fix that requires document regeneration via DocxModifier
-      const docxModifierFixes = [
-        // Formatting fixes
-        'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
-        // Content fixes
+      // Separate formatting fixes (server-side) from content fixes (client-side)
+      const serverFormattingFixes = [
+        'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation'
+      ];
+      
+      const clientContentFixes = [
         'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting', 
         'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
       ];
       
-      if (docxModifierFixes.includes(issue.fixAction)) {
+      if (clientContentFixes.includes(issue.fixAction)) {
+        console.log(`🔧 Applying client-side content fix: ${issue.fixAction}`);
+        
+        // Apply fix directly to current editor content (no server involved)
+        const success = await get().applyClientSideFix(issue, issueId);
+        
+        return success;
+        
+      } else if (serverFormattingFixes.includes(issue.fixAction)) {
         console.log(`🔄 Regenerating document with fix: ${issue.fixAction}`);
         
         // Apply the fix to the formatting data and regenerate HTML
@@ -477,6 +486,111 @@ export const useDocumentStore = create((set, get) => ({
           stage: null
         }
       }));
+      
+      return false;
+    }
+  },
+
+  // Apply client-side fix directly to editor content (no server involved)
+  applyClientSideFix: async (issue, issueId) => {
+    const { issues } = get();
+    
+    try {
+      console.log(`🔧 Applying client-side fix: ${issue.fixAction} for issue: ${issue.title}`);
+      console.log(`📝 Original text: "${issue.text}"`);
+      
+      // Calculate the replacement text
+      let replacementText = '';
+      
+      switch (issue.fixAction) {
+        case 'addCitationComma':
+          replacementText = issue.text.replace(/\(([^,)]+)\s+(\d{4})\)/g, '($1, $2)');
+          break;
+        case 'fixParentheticalConnector':
+          replacementText = issue.text.replace(' and ', ' & ');
+          break;
+        case 'fixEtAlFormatting':
+          replacementText = issue.text.replace(/\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, '($1, et al., $2)');
+          break;
+        case 'fixReferenceConnector':
+          replacementText = issue.text.replace(/, and /g, ', & ');
+          break;
+        case 'fixAllCapsHeading':
+          replacementText = issue.text.toLowerCase()
+            .split(' ')
+            .map((word, index) => {
+              const smallWords = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'];
+              if (index === 0 || !smallWords.includes(word)) {
+                return word.charAt(0).toUpperCase() + word.slice(1);
+              }
+              return word;
+            })
+            .join(' ');
+          break;
+        case 'addPageNumber':
+          if (issue.text.includes('(') && issue.text.includes(')')) {
+            replacementText = issue.text.replace(/\)$/, ', p. 1)');
+          }
+          break;
+        default:
+          console.warn(`Unsupported client-side fix: ${issue.fixAction}`);
+          return false;
+      }
+      
+      if (replacementText && replacementText !== issue.text) {
+        console.log(`📝 Replacement text: "${replacementText}"`);
+        
+        // Signal to DocumentEditor to apply the text replacement
+        // We'll use a custom event or store method to communicate with the editor
+        window.dispatchEvent(new CustomEvent('applyTextReplacement', {
+          detail: {
+            originalText: issue.text,
+            replacementText: replacementText,
+            issueId: issueId
+          }
+        }));
+        
+        // Remove the issue from the list
+        const updatedIssues = issues.filter(i => i.id !== issueId);
+        
+        // Recalculate score
+        const criticalCount = updatedIssues.filter(i => i.severity === 'Critical').length;
+        const majorCount = updatedIssues.filter(i => i.severity === 'Major').length;
+        const minorCount = updatedIssues.filter(i => i.severity === 'Minor').length;
+        
+        const newScore = updatedIssues.length === 0 ? 100 : 
+          Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
+        
+        set({
+          issues: updatedIssues,
+          analysisScore: newScore,
+          activeIssueId: null,
+          processingState: {
+            ...get().processingState,
+            isApplyingFix: false,
+            currentFixId: null,
+            stage: null
+          }
+        });
+        
+        return true;
+      }
+      
+      return false;
+      
+    } catch (error) {
+      console.error('Error applying client-side fix:', error);
+      
+      set({
+        activeIssueId: null,
+        processingState: {
+          ...get().processingState,
+          isApplyingFix: false,
+          currentFixId: null,
+          lastError: `Failed to apply fix: ${error.message}`,
+          stage: null
+        }
+      });
       
       return false;
     }

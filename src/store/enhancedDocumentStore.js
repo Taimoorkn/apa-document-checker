@@ -172,10 +172,7 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
-      // Automatically analyze document after upload
-      setTimeout(() => {
-        get().analyzeDocument();
-      }, 500);
+      // No automatic analysis - user must click "Run Check" button
       
       return true;
       
@@ -876,10 +873,13 @@ export const useDocumentStore = create((set, get) => ({
   },
 
   // Real-time analysis for editor changes
-  analyzeEditorContent: async (editorContent) => {
+  analyzeEditorContent: async (editorContent, preservedFormatting = null) => {
     if (!editorContent) return { success: false, error: 'No editor content' };
     
     const { documentHtml, documentFormatting, documentStructure, documentStyles } = get();
+    
+    // Use preserved formatting if provided, otherwise fall back to stored formatting
+    const formattingToUse = preservedFormatting || documentFormatting;
     
     try {
       set(state => ({
@@ -911,10 +911,16 @@ export const useDocumentStore = create((set, get) => ({
       const documentData = {
         text: text,
         html: documentHtml,
-        formatting: documentFormatting,
+        formatting: formattingToUse, // Use preserved formatting
         structure: documentStructure,
         styles: documentStyles
       };
+
+      console.log('📊 Analysis using formatting data:', {
+        hasFormatting: !!formattingToUse,
+        formattingSource: preservedFormatting ? 'preserved' : 'stored',
+        paragraphCount: formattingToUse?.paragraphs?.length || 0
+      });
 
       // Use enhanced analyzer with rich document data
       const analysisResults = await new Promise((resolve, reject) => {
@@ -951,10 +957,10 @@ export const useDocumentStore = create((set, get) => ({
       const minorCount = issues.filter(i => i.severity === 'Minor').length;
 
       let analysisScore;
-      if (documentFormatting?.compliance?.overall !== undefined) {
+      if (formattingToUse?.compliance?.overall !== undefined) {
         const contentPenalty = criticalCount * 10 + majorCount * 5 + minorCount * 2;
         analysisScore = Math.max(0, Math.min(100, 
-          Math.round(documentFormatting.compliance.overall - contentPenalty)
+          Math.round(formattingToUse.compliance.overall - contentPenalty)
         ));
       } else {
         analysisScore = Math.max(0, Math.min(100, 
@@ -968,7 +974,7 @@ export const useDocumentStore = create((set, get) => ({
       const paragraphs = text.split('\n').filter(p => p.trim().length > 0).length;
 
       set(state => ({
-        documentText: text, // Update document text with editor content
+        // Don't update documentText to avoid triggering editor regeneration
         issues,
         analysisScore,
         documentStats: {

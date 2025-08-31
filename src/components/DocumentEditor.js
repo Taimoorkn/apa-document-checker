@@ -45,70 +45,47 @@ export default function DocumentEditor() {
   
   // Editor state
   const [editor] = useState(() => withHistory(withReact(createEditor())));
-  const [value, setValue] = useState([]);
+  const [value, setValue] = useState([{
+    type: 'paragraph',
+    children: [{ text: '' }]
+  }]); // Default empty paragraph to prevent Slate errors
   
   // Refs for components
   const editorRef = useRef(null);
   
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
 
-  // Initialize editor content from document data
+  // Initialize editor content from document data - ONLY for server updates
   useEffect(() => {
     if (documentText && documentFormatting) {
-      // Always regenerate when documentFormatting changes (including after fixes)
       if (process.env.NODE_ENV === 'development') {
         console.log('=== DOCUMENT FORMATTING DEBUG ===');
         console.log('Raw document formatting from server:', documentFormatting);
         console.log('lastFixAppliedAt:', lastFixAppliedAt);
-        
-        // Debug first few paragraphs
-        if (documentFormatting.paragraphs) {
-          console.log('First 3 paragraphs formatting:');
-          documentFormatting.paragraphs.slice(0, 3).forEach((para, i) => {
-            console.log(`Paragraph ${i}:`, {
-              text: para.text?.substring(0, 50) + '...',
-              font: para.font,
-              spacing: para.spacing,
-              runs: para.runs?.map(run => ({
-                text: run.text?.substring(0, 20),
-                font: run.font
-              }))
-            });
-          });
-        }
       }
       
       const newValue = convertTextToSlateNodes(documentText, documentFormatting);
       
       // Update in these cases:
-      // 1. Initial load (value is empty)
-      // 2. Document text has changed
-      // 3. A fix was recently applied (lastFixAppliedAt changed)
-      const shouldUpdate = value.length === 0 || 
-                          lastFixAppliedAt || 
-                          (value.length > 0 && 
-                           value.map(node => 
-                             node.children?.map(child => child.text || '').join('') || ''
-                           ).join('\n') !== documentText);
+      // 1. Initial load (value has only empty paragraph)
+      // 2. A fix was recently applied (lastFixAppliedAt changed)
+      const isInitialState = value.length === 1 && 
+        value[0]?.type === 'paragraph' && 
+        value[0]?.children?.length === 1 && 
+        value[0]?.children[0]?.text === '';
+      
+      const shouldUpdate = isInitialState || lastFixAppliedAt;
       
       if (shouldUpdate) {
-        console.log('🔄 Updating Slate editor with new formatting data');
+        console.log('🔄 Updating Slate editor with server data');
         console.log('Reasons:', {
-          initialLoad: value.length === 0,
-          fixApplied: !!lastFixAppliedAt,
-          textChanged: value.length > 0 && value.map(node => 
-            node.children?.map(child => child.text || '').join('') || ''
-          ).join('\n') !== documentText
+          initialLoad: isInitialState,
+          fixApplied: !!lastFixAppliedAt
         });
         
         // Force Slate to re-render by creating completely new value
         const freshValue = JSON.parse(JSON.stringify(newValue));
         setValue(freshValue);
-        
-        // Force re-render of the editor component
-        if (editorRef.current) {
-          console.log('🔄 Forcing editor re-render');
-        }
       }
     }
   }, [documentText, documentFormatting, lastFixAppliedAt]);
@@ -117,13 +94,21 @@ export default function DocumentEditor() {
 
   // Convert document with rich formatting data to Slate nodes
   const convertTextToSlateNodes = useCallback((text, formatting) => {
+    console.log('🔄 convertTextToSlateNodes called with:', {
+      hasText: !!text,
+      hasFormatting: !!formatting,
+      paragraphCount: formatting?.paragraphs?.length || 0
+    });
+
     if (!formatting?.paragraphs?.length) {
-      return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
+      const fallback = [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
+      console.log('📄 Using fallback Slate nodes:', fallback);
+      return fallback;
     }
 
 
     // Use ONLY the paragraph text from formatting data - ignore the raw text parameter
-    return formatting.paragraphs.map((paraFormatting, index) => {
+    const result = formatting.paragraphs.map((paraFormatting, index) => {
       
       // Determine paragraph type based on style and content
       const paraType = determineParagraphType(paraFormatting.text, paraFormatting);
@@ -219,6 +204,15 @@ export default function DocumentEditor() {
         }
       };
     });
+    
+    // Safety check to ensure we never return undefined or empty array
+    if (!Array.isArray(result) || result.length === 0) {
+      console.warn('⚠️ convertTextToSlateNodes produced invalid result, using fallback');
+      return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
+    }
+    
+    console.log('✅ convertTextToSlateNodes produced', result.length, 'nodes');
+    return result;
   }, []);
 
   // Determine paragraph type based on content and formatting
@@ -328,20 +322,34 @@ export default function DocumentEditor() {
         setValue(newValue);
       }
     }
-  }, [editor, documentText, documentFormatting, convertTextToSlateNodes]);
+  }, [editor, convertTextToSlateNodes]); // Remove documentText, documentFormatting from deps
 
   // Apply or remove issue highlighting when state changes
   useEffect(() => {
+    // Skip highlighting during loading
+    if (isLoading) {
+      console.log('🎨 Skipping issue highlighting - loading');
+      return;
+    }
+
+    // Apply highlighting when toggled or after fixes are applied
     if (value.length > 0) {
       if (showIssueHighlighting) {
         console.log('🎨 Applying issue highlighting to Slate editor');
-        applyIssueHighlighting();
+        setTimeout(() => applyIssueHighlighting(), 100); // Delayed to prevent render conflicts
       } else {
         console.log('🎨 Removing issue highlighting from Slate editor');
-        removeIssueHighlighting();
+        setTimeout(() => removeIssueHighlighting(), 100);
       }
     }
-  }, [issues, activeIssueId, showIssueHighlighting, value, applyIssueHighlighting, removeIssueHighlighting]);
+  }, [showIssueHighlighting, lastFixAppliedAt, isLoading, applyIssueHighlighting, removeIssueHighlighting]);
+
+  // Cleanup function (no timeouts to clean up now)
+  useEffect(() => {
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
   // Get CSS class for issue highlighting
   const getIssueClass = useCallback((severity) => {
@@ -358,25 +366,102 @@ export default function DocumentEditor() {
     }
   }, []);
 
-  // Handle editor value changes
-  const handleEditorChange = useCallback((newValue) => {
-    setValue(newValue);
-    
-    // Trigger analysis with debounce using editor content analyzer
+  // Extract current formatting from Slate editor
+  const extractCurrentFormatting = useCallback((slateValue) => {
+    // Create a fresh formatting object based on current Slate content
+    const paragraphs = slateValue.map((node, index) => {
+      const paragraphText = node.children?.map(child => child.text || '').join('') || '';
+      
+      // Extract formatting from Slate node
+      const formatting = node.formatting || {};
+      const firstChild = node.children?.[0] || {};
+      
+      return {
+        text: paragraphText,
+        index: index,
+        font: {
+          family: firstChild.fontFamily || formatting.font?.family || 'Times New Roman',
+          size: firstChild.fontSize || formatting.font?.size || 12
+        },
+        spacing: formatting.spacing || { line: 2.0 },
+        indentation: formatting.indentation || { firstLine: 0.5 },
+        alignment: formatting.alignment || 'left',
+        style: formatting.style || 'Normal',
+        runs: node.children?.map(child => ({
+          text: child.text || '',
+          font: {
+            family: child.fontFamily || 'Times New Roman',
+            size: child.fontSize || 12,
+            bold: child.bold || false,
+            italic: child.italic || false,
+            underline: child.underline || false
+          },
+          color: child.color || null
+        })) || []
+      };
+    });
+
+    return {
+      document: {
+        font: { family: 'Times New Roman', size: 12 },
+        spacing: { line: 2.0 },
+        margins: { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 },
+        indentation: { firstLine: 0.5 }
+      },
+      paragraphs: paragraphs,
+      compliance: {
+        overall: 85, // Base score, will be adjusted by analysis
+        font: { family: true, size: true },
+        spacing: { line: true },
+        margins: { compliant: true }
+      }
+    };
+  }, []);
+
+  // Handle manual analysis trigger
+  const handleManualAnalysis = useCallback(async () => {
     const { analyzeEditorContent } = useDocumentStore.getState();
     
-    if (analyzeEditorContent && !isLoading) {
-      // Clear existing timeout
-      if (window.editorAnalysisTimeout) {
-        clearTimeout(window.editorAnalysisTimeout);
-      }
+    if (analyzeEditorContent && !isLoading && value.length > 0) {
+      console.log('🔍 Running manual analysis on current editor content');
       
-      // Set new timeout for analysis
-      window.editorAnalysisTimeout = setTimeout(() => {
-        analyzeEditorContent(newValue);
-      }, 1500); // Increased debounce time for better performance
+      try {
+        // Extract current formatting from Slate editor
+        const currentFormatting = extractCurrentFormatting(value);
+        console.log('📊 Extracted current formatting:', {
+          paragraphCount: currentFormatting.paragraphs.length,
+          hasFormatting: true,
+          source: 'current-editor'
+        });
+
+        // Analyze current editor state with its current formatting
+        await analyzeEditorContent(value, currentFormatting);
+        console.log('✅ Manual analysis completed');
+      } catch (error) {
+        console.error('❌ Manual analysis failed:', error);
+      }
     }
-  }, [isLoading]);
+  }, [value, isLoading, extractCurrentFormatting]);
+
+  // Handle editor value changes (NO automatic analysis)
+  const handleEditorChange = useCallback((newValue) => {
+    setValue(newValue);
+    // NO automatic analysis, NO isUserEditing flag changes
+    // Keep it simple - just update the editor content
+  }, []);
+
+  // Keyboard shortcut for Run Check (Ctrl/Cmd + Shift + C)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'C') {
+        event.preventDefault();
+        handleManualAnalysis();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleManualAnalysis]);
 
   // Custom rendering for different element types
   const renderElement = useCallback((props) => {
@@ -552,6 +637,12 @@ export default function DocumentEditor() {
   }, [getIssueClass, setActiveIssue]);
 
 
+  // Ensure we have valid Slate value
+  const safeValue = Array.isArray(value) && value.length > 0 ? value : [{
+    type: 'paragraph',
+    children: [{ text: '' }]
+  }];
+
   if (!documentText) {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50 p-8">
@@ -613,6 +704,34 @@ export default function DocumentEditor() {
               <div className="flex items-center space-x-3">
                 
                 <button 
+                  onClick={handleManualAnalysis}
+                  disabled={isLoading || processingState.isAnalyzing}
+                  title="Run APA analysis on current document (Ctrl+Shift+C)"
+                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isLoading || processingState.isAnalyzing
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-md'
+                  }`}
+                >
+                  {processingState.isAnalyzing ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Checking...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Run Check
+                    </>
+                  )}
+                </button>
+                
+                <button 
                   onClick={() => {
                     console.log('🔄 Toggle button clicked, current state:', showIssueHighlighting);
                     toggleIssueHighlighting();
@@ -628,7 +747,10 @@ export default function DocumentEditor() {
                 
                 <div className="h-4 w-px bg-gray-300"></div>
                 <div className="text-xs text-gray-500">
-                  {issues.length} {issues.length === 1 ? 'issue' : 'issues'} found
+                  {issues.length > 0 
+                    ? `${issues.length} ${issues.length === 1 ? 'issue' : 'issues'} found`
+                    : 'Click "Run Check" to analyze document'
+                  }
                 </div>
               </div>
             </div>
@@ -648,7 +770,7 @@ export default function DocumentEditor() {
                     <Slate 
                       key={`slate-editor-${lastFixAppliedAt || 'initial'}`}
                       editor={editor} 
-                      initialValue={value} 
+                      initialValue={safeValue}
                       onValueChange={handleEditorChange}
                     >
                       <Editable

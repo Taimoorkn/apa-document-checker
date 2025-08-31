@@ -5,7 +5,22 @@ import { createEditor, Editor, Transforms, Text, Element as SlateElement, Range 
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { FileText, InfoIcon, CheckCircle2, Play, Eye, EyeOff, FileSearch, Sparkles, AlertCircle } from 'lucide-react';
+import { 
+  FileText, 
+  InfoIcon, 
+  CheckCircle2, 
+  Play, 
+  Eye, 
+  EyeOff, 
+  FileSearch, 
+  Sparkles, 
+  AlertCircle,
+  Bold,
+  Italic,
+  Underline,
+  Undo,
+  Redo
+} from 'lucide-react';
 
 // Custom Slate.js element types for APA document structure
 const ELEMENT_TYPES = {
@@ -905,68 +920,152 @@ export default function DocumentEditor() {
       ) : (
         <div className="h-full flex flex-col">
           {/* Document Controls - Fixed Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <h3 className="text-lg font-semibold text-gray-900">Document Editor</h3>
-                {lastFixAppliedAt && (
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
-                    Recently Updated
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center space-x-3">
-                
-                <button 
-                  onClick={handleManualAnalysis}
-                  disabled={isLoading || processingState.isAnalyzing}
-                  title="Run APA analysis on current document (Ctrl+Shift+C)"
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isLoading || processingState.isAnalyzing
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-md'
-                  }`}
-                >
-                  {processingState.isAnalyzing ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Checking...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Run Check
-                    </>
+          <div className="bg-white border-b border-gray-200 flex-shrink-0">
+            {/* Top Bar with Title and Actions */}
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Document Editor</h3>
+                  {lastFixAppliedAt && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+                      Recently Updated
+                    </span>
                   )}
-                </button>
-                
-                <button 
-                  onClick={() => {
-                    console.log('🔄 Toggle button clicked, current state:', showIssueHighlighting);
-                    toggleIssueHighlighting();
-                  }}
-                  className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    showIssueHighlighting 
-                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {showIssueHighlighting ? 'Hide Issues' : 'Show Issues'}
-                </button>
-                
-                <div className="h-4 w-px bg-gray-300"></div>
-                <div className="text-xs text-gray-500">
-                  {issues.length > 0 
-                    ? `${issues.length} ${issues.length === 1 ? 'issue' : 'issues'} found`
-                    : 'Click "Run Check" to analyze document'
-                  }
                 </div>
+                <div className="flex items-center space-x-3">
+                  {/* Run APA Check Button */}
+                  <button 
+                    onClick={handleManualAnalysis}
+                    disabled={isLoading || processingState.isAnalyzing}
+                    title="Run APA analysis on current document (Ctrl+Shift+C)"
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isLoading || processingState.isAnalyzing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
+                  >
+                    {processingState.isAnalyzing ? (
+                      <>
+                        <div className="loading-spinner w-4 h-4"></div>
+                        <span>Checking...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Run Check</span>
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Show/Hide Issues Button */}
+                  <button 
+                    onClick={() => toggleIssueHighlighting()}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      showIssueHighlighting 
+                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' 
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {showIssueHighlighting ? (
+                      <>
+                        <EyeOff className="h-4 w-4" />
+                        <span>Hide Issues</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4" />
+                        <span>Show Issues</span>
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Issue Count */}
+                  {issues.length > 0 && (
+                    <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
+                      <AlertCircle className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-600">
+                        {issues.length} {issues.length === 1 ? 'issue' : 'issues'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Formatting Toolbar */}
+            <div className="px-6 py-2 flex items-center space-x-1 bg-gray-50">
+              {/* Undo/Redo */}
+              <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+                <button 
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Undo"
+                  onClick={() => console.log('Undo clicked - not implemented')}
+                >
+                  <Undo className="h-4 w-4" />
+                </button>
+                <button 
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Redo"
+                  onClick={() => console.log('Redo clicked - not implemented')}
+                >
+                  <Redo className="h-4 w-4" />
+                </button>
+              </div>
+              
+              {/* Text Formatting */}
+              <div className="flex items-center space-x-1 px-3">
+                <button 
+                  className={`p-2 rounded transition-colors ${
+                    editor.marks?.bold ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Bold"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const isActive = editor.marks?.bold;
+                    if (isActive) {
+                      Editor.removeMark(editor, 'bold');
+                    } else {
+                      Editor.addMark(editor, 'bold', true);
+                    }
+                  }}
+                >
+                  <Bold className="h-4 w-4" />
+                </button>
+                <button 
+                  className={`p-2 rounded transition-colors ${
+                    editor.marks?.italic ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Italic"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const isActive = editor.marks?.italic;
+                    if (isActive) {
+                      Editor.removeMark(editor, 'italic');
+                    } else {
+                      Editor.addMark(editor, 'italic', true);
+                    }
+                  }}
+                >
+                  <Italic className="h-4 w-4" />
+                </button>
+                <button 
+                  className={`p-2 rounded transition-colors ${
+                    editor.marks?.underline ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Underline"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const isActive = editor.marks?.underline;
+                    if (isActive) {
+                      Editor.removeMark(editor, 'underline');
+                    } else {
+                      Editor.addMark(editor, 'underline', true);
+                    }
+                  }}
+                >
+                  <Underline className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -974,7 +1073,7 @@ export default function DocumentEditor() {
           {/* Document Content - Scrollable Area */}
           <div className="flex-1 overflow-auto bg-gray-50">
             <div className="p-6">
-              <div className="max-w-4xl mx-auto">
+              <div className="mx-auto">
                 {/* Document Editor */}
                 <div 
                   className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[500px]"

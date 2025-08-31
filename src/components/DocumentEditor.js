@@ -284,13 +284,64 @@ export default function DocumentEditor() {
     Transforms.deselect(editor);
   }, [editor, issues, activeIssueId]);
 
-  // Apply issue highlighting when issues or active issue changes
-  useEffect(() => {
-    if (showIssueHighlighting && value.length > 0) {
-      console.log('🎨 Applying issue highlighting to Slate editor');
-      applyIssueHighlighting();
+  // Remove all issue highlighting from Slate editor
+  const removeIssueHighlighting = useCallback(() => {
+    if (!editor) return;
+
+    console.log('🧹 Removing all issue highlights from editor');
+    
+    try {
+      // Use Editor.withoutNormalizing to batch all operations
+      Editor.withoutNormalizing(editor, () => {
+        // Get all nodes with APA_ISSUE marks
+        const allNodes = Array.from(Editor.nodes(editor, {
+          at: [],
+          match: n => Text.isText(n) && n[MARKS.APA_ISSUE],
+          mode: 'all'
+        }));
+
+        console.log(`🧹 Found ${allNodes.length} nodes with issue highlighting`);
+
+        // Remove marks in reverse order to avoid path conflicts
+        allNodes.reverse().forEach(([node, path]) => {
+          try {
+            // Check if path still exists before trying to unset
+            if (Editor.hasPath(editor, path) && Text.isText(node) && node[MARKS.APA_ISSUE]) {
+              Transforms.unsetNodes(editor, MARKS.APA_ISSUE, {
+                at: path,
+                match: n => Text.isText(n)
+              });
+            }
+          } catch (error) {
+            console.warn('Error removing highlight at path:', path, error);
+          }
+        });
+      });
+
+      console.log(`🧹 Successfully removed all issue highlighting`);
+    } catch (error) {
+      console.error('Error in removeIssueHighlighting:', error);
+      // If all else fails, regenerate the editor content without highlights
+      console.log('🔄 Regenerating editor content to clear highlights');
+      if (documentText && documentFormatting) {
+        const newValue = convertTextToSlateNodes(documentText, documentFormatting);
+        setValue(newValue);
+      }
     }
-  }, [issues, activeIssueId, showIssueHighlighting, value, applyIssueHighlighting]);
+  }, [editor, documentText, documentFormatting, convertTextToSlateNodes]);
+
+  // Apply or remove issue highlighting when state changes
+  useEffect(() => {
+    if (value.length > 0) {
+      if (showIssueHighlighting) {
+        console.log('🎨 Applying issue highlighting to Slate editor');
+        applyIssueHighlighting();
+      } else {
+        console.log('🎨 Removing issue highlighting from Slate editor');
+        removeIssueHighlighting();
+      }
+    }
+  }, [issues, activeIssueId, showIssueHighlighting, value, applyIssueHighlighting, removeIssueHighlighting]);
 
   // Get CSS class for issue highlighting
   const getIssueClass = useCallback((severity) => {
@@ -562,7 +613,10 @@ export default function DocumentEditor() {
               <div className="flex items-center space-x-3">
                 
                 <button 
-                  onClick={toggleIssueHighlighting}
+                  onClick={() => {
+                    console.log('🔄 Toggle button clicked, current state:', showIssueHighlighting);
+                    toggleIssueHighlighting();
+                  }}
                   className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     showIssueHighlighting 
                       ? 'bg-red-100 text-red-700 hover:bg-red-200' 

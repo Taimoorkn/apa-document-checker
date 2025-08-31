@@ -812,9 +812,11 @@ export const useDocumentStore = create((set, get) => ({
 
   // Toggle issue highlighting
   toggleIssueHighlighting: () => {
-    set(state => ({ 
-      showIssueHighlighting: !state.showIssueHighlighting 
-    }));
+    set(state => {
+      const newState = !state.showIssueHighlighting;
+      console.log('🔄 Store: Toggling issue highlighting from', state.showIssueHighlighting, 'to', newState);
+      return { showIssueHighlighting: newState };
+    });
   },
 
   

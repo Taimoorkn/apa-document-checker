@@ -405,20 +405,31 @@ class XmlDocxProcessor {
   extractRunText(run) {
     let text = '';
     
-    if (run['w:t']) {
-      const textElements = this.ensureArray(run['w:t']);
-      textElements.forEach(t => {
-        if (typeof t === 'string') {
-          text += t;
-        } else if (t._ !== undefined) {
-          text += t._;
+    // Process all child elements in order
+    if (run) {
+      const children = Object.keys(run);
+      children.forEach(key => {
+        if (key === 'w:t') {
+          // Text content
+          const textElements = this.ensureArray(run['w:t']);
+          textElements.forEach(t => {
+            if (typeof t === 'string') {
+              text += t;
+            } else if (t._ !== undefined) {
+              text += t._;
+            }
+          });
+        } else if (key === 'w:br') {
+          // Line breaks - preserve them as actual breaks
+          text += '\n';
+        } else if (key === 'w:cr') {
+          // Carriage returns
+          text += '\n';
+        } else if (key === 'w:tab') {
+          // Tabs
+          text += '\t';
         }
       });
-    }
-    
-    // Handle breaks
-    if (run['w:br']) {
-      text += '\n';
     }
     
     return text;
@@ -598,9 +609,10 @@ class XmlDocxProcessor {
   }
 
   extractParagraphFormatting(para, index) {
+    const paraText = this.extractParagraphText(para);
     const paraFormatting = {
       index,
-      text: this.extractParagraphText(para),
+      text: paraText,
       font: { family: null, size: null, bold: false, italic: false },
       spacing: { line: null, before: null, after: null },
       indentation: { firstLine: null, hanging: null, left: null, right: null },
@@ -608,6 +620,11 @@ class XmlDocxProcessor {
       style: null,
       runs: []
     };
+
+    // Debug paragraph extraction
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Paragraph ${index}: "${paraText?.substring(0, 60)}..."`);
+    }
 
     // Extract paragraph properties
     const pPr = para['w:pPr'];

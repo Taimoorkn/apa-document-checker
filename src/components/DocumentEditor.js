@@ -95,14 +95,18 @@ export default function DocumentEditor() {
 
   // Convert document with rich formatting data to Slate nodes
   const convertTextToSlateNodes = useCallback((text, formatting) => {
-    if (!text || !formatting?.paragraphs) {
+    if (!formatting?.paragraphs?.length) {
       return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
     }
 
     console.log('Converting to Slate nodes with formatting data:', formatting.paragraphs.length, 'paragraphs');
     console.log('Raw text from server:', JSON.stringify(text.substring(0, 200)));
+    console.log('First 5 paragraph texts from formatting:');
+    formatting.paragraphs.slice(0, 5).forEach((para, i) => {
+      console.log(`  ${i}: "${para.text?.substring(0, 80)}..."`);
+    });
 
-    // Use the detailed paragraph formatting data instead of just splitting text
+    // Use ONLY the paragraph text from formatting data - ignore the raw text parameter
     return formatting.paragraphs.map((paraFormatting, index) => {
       console.log(`Paragraph ${index}: "${paraFormatting.text?.substring(0, 50)}...", style: ${paraFormatting.style}`, {
         hasRuns: !!paraFormatting.runs?.length,
@@ -118,27 +122,70 @@ export default function DocumentEditor() {
       
       if (paraFormatting.runs && paraFormatting.runs.length > 0) {
         // Use run-level formatting for precise text formatting
-        children = paraFormatting.runs.map((run, runIndex) => {
+        children = [];
+        paraFormatting.runs.forEach((run, runIndex) => {
           console.log(`  Run ${runIndex}: text="${run.text}", font size=${run.font?.size}pt, family="${run.font?.family}"`);
-          return {
-            text: run.text || '',
-            // Apply run-level formatting as Slate marks
-            bold: run.font?.bold || false,
-            italic: run.font?.italic || false,
-            underline: run.font?.underline || false,
-            fontFamily: run.font?.family || null,
-            fontSize: run.font?.size || null,
-            color: run.color || null
-          };
+          
+          const runText = run.text || '';
+          
+          // Handle line breaks within runs by splitting into multiple text nodes
+          if (runText.includes('\n')) {
+            const parts = runText.split('\n');
+            parts.forEach((part, partIndex) => {
+              if (partIndex > 0) {
+                // Add line break between parts
+                children.push({ text: '\n' });
+              }
+              if (part) {
+                children.push({
+                  text: part,
+                  bold: run.font?.bold || false,
+                  italic: run.font?.italic || false,
+                  underline: run.font?.underline || false,
+                  fontFamily: run.font?.family || null,
+                  fontSize: run.font?.size || null,
+                  color: run.color || null
+                });
+              }
+            });
+          } else {
+            children.push({
+              text: runText,
+              bold: run.font?.bold || false,
+              italic: run.font?.italic || false,
+              underline: run.font?.underline || false,
+              fontFamily: run.font?.family || null,
+              fontSize: run.font?.size || null,
+              color: run.color || null
+            });
+          }
         });
       } else {
         // Fallback to paragraph text if no runs
-        children = [{ 
-          text: paraFormatting.text || '',
-          // Use paragraph-level font info if no runs
-          fontFamily: paraFormatting.font?.family || null,
-          fontSize: paraFormatting.font?.size || null
-        }];
+        const paraText = paraFormatting.text || '';
+        if (paraText.includes('\n')) {
+          // Handle line breaks in paragraph text
+          const parts = paraText.split('\n');
+          children = [];
+          parts.forEach((part, partIndex) => {
+            if (partIndex > 0) {
+              children.push({ text: '\n' });
+            }
+            if (part) {
+              children.push({ 
+                text: part,
+                fontFamily: paraFormatting.font?.family || null,
+                fontSize: paraFormatting.font?.size || null
+              });
+            }
+          });
+        } else {
+          children = [{ 
+            text: paraText,
+            fontFamily: paraFormatting.font?.family || null,
+            fontSize: paraFormatting.font?.size || null
+          }];
+        }
       }
       
       // Ensure we have at least one child

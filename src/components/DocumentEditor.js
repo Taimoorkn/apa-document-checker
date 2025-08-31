@@ -368,30 +368,60 @@ export default function DocumentEditor() {
 
   // Extract current formatting from Slate editor
   const extractCurrentFormatting = useCallback((slateValue) => {
+    console.log('📊 Extracting current formatting from Slate editor...');
+    
+    // Analyze the actual formatting in the editor to detect issues
+    let detectedFontFamily = null;
+    let detectedFontSize = null;
+    let detectedSpacing = null;
+    let fontFamilyConsistent = true;
+    let fontSizeConsistent = true;
+    
     // Create a fresh formatting object based on current Slate content
     const paragraphs = slateValue.map((node, index) => {
       const paragraphText = node.children?.map(child => child.text || '').join('') || '';
       
-      // Extract formatting from Slate node
+      // Extract formatting from Slate node - DON'T use defaults, use actual values
       const formatting = node.formatting || {};
       const firstChild = node.children?.[0] || {};
+      
+      // Extract actual font properties from the node
+      const actualFontFamily = firstChild.fontFamily || formatting.font?.family || null;
+      const actualFontSize = firstChild.fontSize || formatting.font?.size || null;
+      
+      // Track detected fonts across document
+      if (actualFontFamily) {
+        if (!detectedFontFamily) {
+          detectedFontFamily = actualFontFamily;
+        } else if (detectedFontFamily !== actualFontFamily) {
+          fontFamilyConsistent = false;
+        }
+      }
+      
+      if (actualFontSize) {
+        if (!detectedFontSize) {
+          detectedFontSize = actualFontSize;
+        } else if (detectedFontSize !== actualFontSize) {
+          fontSizeConsistent = false;
+        }
+      }
       
       return {
         text: paragraphText,
         index: index,
         font: {
-          family: firstChild.fontFamily || formatting.font?.family || 'Times New Roman',
-          size: firstChild.fontSize || formatting.font?.size || 12
+          family: actualFontFamily, // Use actual font, not default
+          size: actualFontSize      // Use actual size, not default
         },
-        spacing: formatting.spacing || { line: 2.0 },
-        indentation: formatting.indentation || { firstLine: 0.5 },
+        spacing: formatting.spacing || { line: detectedSpacing || 1.0 }, // Don't assume double spacing
+        indentation: formatting.indentation || { firstLine: 0 }, // Don't assume correct indentation
         alignment: formatting.alignment || 'left',
         style: formatting.style || 'Normal',
         runs: node.children?.map(child => ({
           text: child.text || '',
           font: {
-            family: child.fontFamily || 'Times New Roman',
-            size: child.fontSize || 12,
+            family: child.fontFamily || actualFontFamily, // Use detected font
+            size: child.fontSize || actualFontSize,       // Use detected size
             bold: child.bold || false,
             italic: child.italic || false,
             underline: child.underline || false
@@ -401,40 +431,99 @@ export default function DocumentEditor() {
       };
     });
 
-    return {
+    console.log('📊 Detected formatting:', {
+      fontFamily: detectedFontFamily,
+      fontSize: detectedFontSize,
+      fontFamilyConsistent,
+      fontSizeConsistent
+    });
+
+    // Create document-level formatting based on detected values (not assumptions)
+    const documentFormatting = {
       document: {
-        font: { family: 'Times New Roman', size: 12 },
-        spacing: { line: 2.0 },
-        margins: { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 },
-        indentation: { firstLine: 0.5 }
+        font: { 
+          family: detectedFontFamily,  // Use detected, not assumed
+          size: detectedFontSize       // Use detected, not assumed
+        },
+        spacing: { line: detectedSpacing || 1.0 }, // Don't assume double spacing
+        margins: { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 }, // These we can assume
+        indentation: { firstLine: 0.0 } // Don't assume correct indentation
       },
       paragraphs: paragraphs,
       compliance: {
-        overall: 85, // Base score, will be adjusted by analysis
-        font: { family: true, size: true },
-        spacing: { line: true },
-        margins: { compliant: true }
+        overall: 50, // Lower base score to allow issues to be detected
+        font: { 
+          family: detectedFontFamily === 'Times New Roman',
+          size: detectedFontSize === 12
+        },
+        spacing: { line: detectedSpacing === 2.0 },
+        margins: { compliant: true } // Assume margins are correct for now
       }
     };
+
+    console.log('📊 Generated formatting object for analysis:', {
+      documentFont: documentFormatting.document.font,
+      compliance: documentFormatting.compliance,
+      paragraphCount: paragraphs.length
+    });
+
+    return documentFormatting;
   }, []);
 
   // Handle manual analysis trigger
   const handleManualAnalysis = useCallback(async () => {
-    const { analyzeEditorContent } = useDocumentStore.getState();
+    const { analyzeEditorContent, documentFormatting } = useDocumentStore.getState();
     
     if (analyzeEditorContent && !isLoading && value.length > 0) {
       console.log('🔍 Running manual analysis on current editor content');
       
       try {
-        // Extract current formatting from Slate editor
-        const currentFormatting = extractCurrentFormatting(value);
-        console.log('📊 Extracted current formatting:', {
-          paragraphCount: currentFormatting.paragraphs.length,
-          hasFormatting: true,
-          source: 'current-editor'
+        // Try to extract current formatting from Slate editor
+        const extractedFormatting = extractCurrentFormatting(value);
+        
+        // Merge extracted formatting with original document formatting
+        // This preserves original formatting (like spacing) while allowing font changes to be detected
+        let currentFormatting = documentFormatting;
+        
+        if (extractedFormatting.document.font.family || extractedFormatting.document.font.size) {
+          // User has made font changes, use hybrid approach
+          currentFormatting = {
+            ...documentFormatting,
+            document: {
+              ...documentFormatting.document,
+              font: {
+                family: extractedFormatting.document.font.family || documentFormatting.document?.font?.family,
+                size: extractedFormatting.document.font.size || documentFormatting.document?.font?.size
+              }
+            },
+            paragraphs: extractedFormatting.paragraphs.map((extractedPara, index) => {
+              const originalPara = documentFormatting.paragraphs?.[index] || {};
+              return {
+                ...originalPara,
+                text: extractedPara.text, // Use current text
+                font: {
+                  family: extractedPara.font.family || originalPara.font?.family,
+                  size: extractedPara.font.size || originalPara.font?.size
+                },
+                // Preserve original spacing, margins, etc.
+                spacing: originalPara.spacing || { line: 2.0 },
+                indentation: originalPara.indentation || { firstLine: 0.5 },
+                alignment: originalPara.alignment || 'left'
+              };
+            })
+          };
+        }
+        
+        console.log('📊 Using formatting for analysis:', {
+          paragraphCount: currentFormatting.paragraphs?.length || 0,
+          hasFormatting: !!currentFormatting,
+          source: 'hybrid-current-original',
+          fontFamily: currentFormatting.document?.font?.family,
+          fontSize: currentFormatting.document?.font?.size,
+          spacing: currentFormatting.document?.spacing?.line
         });
 
-        // Analyze current editor state with its current formatting
+        // Analyze current editor state with the hybrid formatting
         await analyzeEditorContent(value, currentFormatting);
         console.log('✅ Manual analysis completed');
       } catch (error) {

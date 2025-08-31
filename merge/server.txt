@@ -115,7 +115,13 @@ const PizZip = require('pizzip');
 
 class DocxModifier {
   constructor() {
-    this.supportedFixes = ['fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation'];
+    this.supportedFixes = [
+      // Formatting fixes (DOCX modification)
+      'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
+      // Content fixes (text replacement in XML)
+      'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting', 
+      'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
+    ];
   }
 
   /**
@@ -123,10 +129,21 @@ class DocxModifier {
    */
   async applyFormattingFix(inputBuffer, fixAction, fixValue) {
     try {
-      console.log(`🔧 Applying ${fixAction} to DOCX buffer (${inputBuffer.length} bytes)`);
+      console.log(`🔧 DocxModifier.applyFormattingFix called with:`, {
+        bufferSize: inputBuffer?.length,
+        fixAction,
+        fixValueType: typeof fixValue,
+        fixValueKeys: typeof fixValue === 'object' ? Object.keys(fixValue || {}) : 'N/A'
+      });
+      
+      if (!inputBuffer || inputBuffer.length === 0) {
+        throw new Error('Invalid or empty input buffer provided');
+      }
       
       // Create zip from buffer
+      console.log('📦 Creating PizZip from buffer...');
       const zip = new PizZip(inputBuffer);
+      console.log('✅ PizZip created successfully');
       
       // Apply the specific fix by modifying document XML
       const modifiedZip = await this.modifyDocumentXML(zip, fixAction, fixValue);
@@ -137,7 +154,6 @@ class DocxModifier {
         compression: 'DEFLATE'
       });
       
-      console.log(`✅ DOCX modification complete: ${outputBuffer.length} bytes`);
       return { success: true, buffer: outputBuffer };
       
     } catch (error) {
@@ -151,14 +167,18 @@ class DocxModifier {
    */
   async modifyDocumentXML(zip, fixAction, fixValue) {
     try {
+      console.log(`🔄 ModifyDocumentXML called with fixAction: ${fixAction}`);
+      
       // Get the main document XML
       const docXmlFile = zip.file('word/document.xml');
       if (!docXmlFile) {
         throw new Error('Could not find document.xml in DOCX file');
       }
       
+      console.log('📄 Found document.xml, reading content...');
       // Read document content using the correct PizZip API
       let documentContent = docXmlFile.asText();
+      console.log(`📄 Document XML content length: ${documentContent.length} characters`);
       
       // Apply specific formatting fixes
       switch (fixAction) {
@@ -172,6 +192,31 @@ class DocxModifier {
           
         case 'fixLineSpacing':
           documentContent = this.fixLineSpacing(documentContent, fixValue || 480); // 480 = double spacing
+          break;
+
+        // Text-based content fixes
+        case 'addCitationComma':
+          documentContent = this.fixTextContent(documentContent, fixValue);
+          break;
+          
+        case 'fixParentheticalConnector':
+          documentContent = this.fixTextContent(documentContent, fixValue);
+          break;
+          
+        case 'fixEtAlFormatting':
+          documentContent = this.fixTextContent(documentContent, fixValue);
+          break;
+          
+        case 'fixReferenceConnector':
+          documentContent = this.fixTextContent(documentContent, fixValue);
+          break;
+          
+        case 'fixAllCapsHeading':
+          documentContent = this.fixTextContent(documentContent, fixValue);
+          break;
+          
+        case 'addPageNumber':
+          documentContent = this.fixTextContent(documentContent, fixValue);
           break;
           
         default:
@@ -202,7 +247,6 @@ class DocxModifier {
    * Fix font family in document XML
    */
   fixFontFamily(xmlContent, fontFamily) {
-    console.log(`🎨 Changing font family to: ${fontFamily}`);
     
     // Replace all font family references in run properties
     // Pattern matches: <w:rFonts w:ascii="..." w:hAnsi="..." ... />
@@ -229,7 +273,6 @@ class DocxModifier {
    * Fix font size in document XML
    */
   fixFontSize(xmlContent, halfPoints) {
-    console.log(`📏 Changing font size to: ${halfPoints / 2}pt (${halfPoints} half-points)`);
     
     // Replace existing font size declarations
     xmlContent = xmlContent.replace(
@@ -266,7 +309,6 @@ class DocxModifier {
    * Fix line spacing in document XML
    */
   fixLineSpacing(xmlContent, spacing) {
-    console.log(`📐 Changing line spacing to: ${spacing / 240} (${spacing} twips)`);
     
     // Replace existing spacing declarations in paragraph properties
     xmlContent = xmlContent.replace(
@@ -287,7 +329,6 @@ class DocxModifier {
    * Modify styles.xml for document-wide formatting changes
    */
   modifyStyles(stylesContent, fixAction, fixValue) {
-    console.log(`🎭 Modifying document styles for: ${fixAction}`);
     
     try {
       switch (fixAction) {
@@ -330,6 +371,82 @@ class DocxModifier {
       console.error('Error modifying styles:', error);
       return stylesContent; // Return unchanged if error
     }
+  }
+
+  /**
+   * Fix text content in document XML (for citation and content fixes)
+   */
+  fixTextContent(xmlContent, fixValue) {
+    try {
+      if (!fixValue || !fixValue.originalText || !fixValue.replacementText) {
+        console.warn('Invalid fixValue for text content fix:', fixValue);
+        return xmlContent;
+      }
+
+      const { originalText, replacementText } = fixValue;
+      
+      console.log(`🔄 Replacing text in XML: "${originalText}" → "${replacementText}"`);
+      
+      // Simple and safe text replacement approach
+      let modifiedContent = xmlContent;
+      
+      // Method 1: Replace the exact text as it appears in the XML
+      // This handles most cases where text is within single w:t elements
+      if (modifiedContent.includes(originalText)) {
+        // IMPORTANT: Escape the replacement text for XML
+        const xmlSafeReplacement = this.escapeXml(replacementText);
+        modifiedContent = modifiedContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), xmlSafeReplacement);
+        console.log('✅ Direct text replacement successful with XML escaping');
+        console.log(`📝 Replaced: "${originalText}" → "${xmlSafeReplacement}"`);
+        return modifiedContent;
+      }
+      
+      // Method 2: Replace text within w:t tags (handling XML structure)
+      const escapedReplacement = this.escapeXml(replacementText);
+      
+      const replaced = modifiedContent.replace(
+        new RegExp(`(<w:t[^>]*>)([^<]*${this.escapeRegex(originalText)}[^<]*)(</w:t>)`, 'g'),
+        (match, openTag, textContent, closeTag) => {
+          const newTextContent = textContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), escapedReplacement);
+          return openTag + newTextContent + closeTag;
+        }
+      );
+      
+      if (replaced !== modifiedContent) {
+        console.log('✅ XML-aware text replacement successful with XML escaping');
+        console.log(`📝 Replaced within tags: "${originalText}" → "${escapedReplacement}"`);
+        return replaced;
+      }
+      
+      console.warn('⚠️ No text replacement occurred - text might span multiple elements');
+      return modifiedContent;
+      
+    } catch (error) {
+      console.error('Error in fixTextContent:', error);
+      return xmlContent; // Return original content on error
+    }
+  }
+
+  /**
+   * Escape special regex characters
+   */
+  escapeRegex(text) {
+    if (!text || typeof text !== 'string') {
+      return '';
+    }
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
+   * Escape XML special characters
+   */
+  escapeXml(text) {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   /**
@@ -750,20 +867,31 @@ class XmlDocxProcessor {
   extractRunText(run) {
     let text = '';
     
-    if (run['w:t']) {
-      const textElements = this.ensureArray(run['w:t']);
-      textElements.forEach(t => {
-        if (typeof t === 'string') {
-          text += t;
-        } else if (t._ !== undefined) {
-          text += t._;
+    // Process all child elements in order
+    if (run) {
+      const children = Object.keys(run);
+      children.forEach(key => {
+        if (key === 'w:t') {
+          // Text content
+          const textElements = this.ensureArray(run['w:t']);
+          textElements.forEach(t => {
+            if (typeof t === 'string') {
+              text += t;
+            } else if (t._ !== undefined) {
+              text += t._;
+            }
+          });
+        } else if (key === 'w:br') {
+          // Line breaks - preserve them as actual breaks
+          text += '\n';
+        } else if (key === 'w:cr') {
+          // Carriage returns
+          text += '\n';
+        } else if (key === 'w:tab') {
+          // Tabs
+          text += '\t';
         }
       });
-    }
-    
-    // Handle breaks
-    if (run['w:br']) {
-      text += '\n';
     }
     
     return text;
@@ -943,9 +1071,10 @@ class XmlDocxProcessor {
   }
 
   extractParagraphFormatting(para, index) {
+    const paraText = this.extractParagraphText(para);
     const paraFormatting = {
       index,
-      text: this.extractParagraphText(para),
+      text: paraText,
       font: { family: null, size: null, bold: false, italic: false },
       spacing: { line: null, before: null, after: null },
       indentation: { firstLine: null, hanging: null, left: null, right: null },
@@ -953,6 +1082,10 @@ class XmlDocxProcessor {
       style: null,
       runs: []
     };
+
+    // Debug paragraph extraction
+    if (process.env.NODE_ENV === 'development') {
+    }
 
     // Extract paragraph properties
     const pPr = para['w:pPr'];
@@ -1009,16 +1142,18 @@ class XmlDocxProcessor {
           runFormatting.font.family = rFonts.$['w:ascii'] || rFonts.$['w:hAnsi'] || null;
         }
 
-        // Size
+        // Size - convert from Word's half-points to points
         const sz = rPr['w:sz'];
         if (sz && sz.$) {
-          runFormatting.font.size = parseInt(sz.$['w:val']) / 2;
+          const rawValue = parseInt(sz.$['w:val']);
+          runFormatting.font.size = rawValue / 2; // Convert from half-points to points
         }
 
-        // Formatting
-        runFormatting.font.bold = !!rPr['w:b'];
-        runFormatting.font.italic = !!rPr['w:i'];
-        runFormatting.font.underline = !!rPr['w:u'];
+        // Formatting - check for existence of elements, not their values
+        runFormatting.font.bold = 'w:b' in rPr;
+        runFormatting.font.italic = 'w:i' in rPr;
+        runFormatting.font.underline = 'w:u' in rPr;
+        
 
         // Color
         const color = rPr['w:color'];
@@ -1280,7 +1415,6 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     console.log('Starting XML-based document processing...');
     const startTime = Date.now();
     
-    console.log('Processing with XML parser...');
     const result = await xmlDocxProcessor.processDocument(filePath);
     const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
     
@@ -1357,10 +1491,23 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
  * Apply a formatting fix to a DOCX document (Memory-based processing)
  */
 router.post('/apply-fix', async (req, res) => {
+  console.log('🎯 /api/apply-fix endpoint called');
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.keys(req.headers));
+  console.log('Request content-type:', req.get('content-type'));
+  console.log('Request body exists:', !!req.body);
+  console.log('Request body size:', JSON.stringify(req.body || {}).length);
+  
   try {
     // Parse JSON body manually if needed
     let requestData;
+    
+    console.log('Request body keys:', Object.keys(req.body || {}));
+    console.log('Request body type:', typeof req.body);
+    console.log('Is multipart:', req.is('multipart/form-data'));
+    
     if (req.is('multipart/form-data')) {
+      console.log('📦 Processing multipart form data');
       // Handle multipart data (document buffer + metadata)
       requestData = {
         fixAction: req.body.fixAction,
@@ -1368,9 +1515,12 @@ router.post('/apply-fix', async (req, res) => {
         originalFilename: req.body.originalFilename
       };
     } else {
+      console.log('📦 Processing JSON data');
       // Handle JSON data with base64 document
       requestData = req.body;
     }
+    
+    console.log('Parsed requestData keys:', Object.keys(requestData || {}));
     
     const { documentBuffer, fixAction, fixValue, originalFilename } = requestData;
     
@@ -1393,27 +1543,49 @@ router.post('/apply-fix', async (req, res) => {
     }
     
     console.log(`🔧 Applying fix: ${fixAction} to document buffer`);
+    console.log('Fix value:', JSON.stringify(fixValue, null, 2));
     
     // Convert base64 to buffer if needed
     let docxBuffer;
     if (typeof documentBuffer === 'string') {
-      docxBuffer = Buffer.from(documentBuffer, 'base64');
+      try {
+        docxBuffer = Buffer.from(documentBuffer, 'base64');
+        console.log(`✅ Buffer conversion successful, size: ${docxBuffer.length} bytes`);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid base64 document buffer: ${error.message}`,
+          code: 'INVALID_BUFFER'
+        });
+      }
     } else {
       docxBuffer = Buffer.from(documentBuffer);
     }
     
     // Apply the fix using DocxModifier (memory-based)
+    console.log('🔄 Calling DocxModifier.applyFormattingFix...');
     const modificationResult = await docxModifier.applyFormattingFix(
       docxBuffer,
       fixAction, 
       fixValue
     );
     
+    console.log('DocxModifier result:', {
+      success: modificationResult.success,
+      error: modificationResult.error,
+      bufferSize: modificationResult.buffer?.length
+    });
+    
     if (!modificationResult.success) {
       return res.status(500).json({
         success: false,
         error: `Failed to apply fix: ${modificationResult.error}`,
-        code: 'FIX_APPLICATION_FAILED'
+        code: 'FIX_APPLICATION_FAILED',
+        details: {
+          fixAction,
+          fixValue,
+          originalError: modificationResult.error
+        }
       });
     }
     
@@ -1447,14 +1619,30 @@ router.post('/apply-fix', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in apply-fix route:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to apply fix to document',
-      code: 'APPLY_FIX_ERROR',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error('❌ Critical error in apply-fix route:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
     });
+    
+    // Ensure we always send a JSON response
+    try {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to apply fix to document',
+        code: 'APPLY_FIX_ERROR',
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : undefined
+      });
+    } catch (responseError) {
+      console.error('❌ Failed to send error response:', responseError);
+      res.status(500).end('Internal server error');
+    }
   }
 });
 

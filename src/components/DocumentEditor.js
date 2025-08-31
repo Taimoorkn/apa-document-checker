@@ -53,8 +53,13 @@ export default function DocumentEditor() {
 
   // Initialize editor content from document data
   useEffect(() => {
-    if (documentText && value.length === 0) {
+    if (documentText && documentFormatting && value.length === 0) {
+      console.log('Initializing editor with rich formatting data...');
+      console.log('Document formatting:', documentFormatting);
+      
       const initialValue = convertTextToSlateNodes(documentText, documentFormatting);
+      console.log('Generated Slate nodes:', initialValue);
+      
       setValue(initialValue);
     }
   }, [documentText, documentFormatting]);
@@ -67,43 +72,73 @@ export default function DocumentEditor() {
   }, [issues, activeIssueId, showIssues]);
 
 
-  // Convert plain text and formatting data to Slate nodes
+  // Convert document with rich formatting data to Slate nodes
   const convertTextToSlateNodes = useCallback((text, formatting) => {
-    if (!text) return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: '' }] }];
+    if (!text || !formatting?.paragraphs) {
+      return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
+    }
 
-    const paragraphs = text.split('\n');
-    
-    return paragraphs.map((paragraph, index) => {
-      // Determine paragraph type based on content and formatting
-      const paraType = determineParagraphType(paragraph, formatting?.paragraphs?.[index]);
+    // Use the detailed paragraph formatting data instead of just splitting text
+    return formatting.paragraphs.map((paraFormatting, index) => {
+      // Determine paragraph type based on style and content
+      const paraType = determineParagraphType(paraFormatting.text, paraFormatting);
       
-      // Create children with potential formatting
-      // Handle empty paragraphs to preserve document spacing
-      const children = [{ text: paragraph || '' }];
+      // Create children with rich formatting from runs
+      let children = [];
+      
+      if (paraFormatting.runs && paraFormatting.runs.length > 0) {
+        // Use run-level formatting for precise text formatting
+        children = paraFormatting.runs.map(run => ({
+          text: run.text || '',
+          // Apply run-level formatting as Slate marks
+          bold: run.font?.bold || false,
+          italic: run.font?.italic || false,
+          underline: run.font?.underline || false,
+          fontFamily: run.font?.family || null,
+          fontSize: run.font?.size || null,
+          color: run.color || null
+        }));
+      } else {
+        // Fallback to paragraph text if no runs
+        children = [{ text: paraFormatting.text || '' }];
+      }
+      
+      // Ensure we have at least one child
+      if (children.length === 0) {
+        children = [{ text: '' }];
+      }
       
       return {
         type: paraType,
         children: children,
         paraIndex: index,
-        // Preserve original formatting data
-        formatting: formatting?.paragraphs?.[index] || {}
+        // Preserve complete formatting data including spacing, indentation, alignment
+        formatting: {
+          font: paraFormatting.font,
+          spacing: paraFormatting.spacing,
+          indentation: paraFormatting.indentation,
+          alignment: paraFormatting.alignment,
+          style: paraFormatting.style
+        }
       };
     });
   }, []);
 
   // Determine paragraph type based on content and formatting
   const determineParagraphType = useCallback((text, formatting) => {
-    // Only check for headings based on formatting or style, not content
+    // Check for headings based on Word styles first (most reliable)
     if (formatting?.style) {
       const style = formatting.style.toLowerCase();
       if (style.includes('title')) return ELEMENT_TYPES.TITLE;
-      if (style.includes('heading1')) return ELEMENT_TYPES.HEADING_1;
-      if (style.includes('heading2')) return ELEMENT_TYPES.HEADING_2;
-      if (style.includes('heading3')) return ELEMENT_TYPES.HEADING_3;
-      if (style.includes('heading4')) return ELEMENT_TYPES.HEADING_4;
-      if (style.includes('heading5')) return ELEMENT_TYPES.HEADING_5;
+      if (style.includes('heading1') || style === 'heading 1') return ELEMENT_TYPES.HEADING_1;
+      if (style.includes('heading2') || style === 'heading 2') return ELEMENT_TYPES.HEADING_2;
+      if (style.includes('heading3') || style === 'heading 3') return ELEMENT_TYPES.HEADING_3;
+      if (style.includes('heading4') || style === 'heading 4') return ELEMENT_TYPES.HEADING_4;
+      if (style.includes('heading5') || style === 'heading 5') return ELEMENT_TYPES.HEADING_5;
+      if (style.includes('heading6') || style === 'heading 6') return ELEMENT_TYPES.HEADING_5; // Map H6 to H5
     }
     
+    // All other content is treated as regular paragraphs
     return ELEMENT_TYPES.PARAGRAPH;
   }, []);
 
@@ -195,26 +230,57 @@ export default function DocumentEditor() {
     
     // Extract formatting from element when available
     const formatting = element.formatting || {};
-    const fontFamily = formatting.font?.family || '"Times New Roman", serif';
-    const fontSize = formatting.font?.size ? `${formatting.font.size}pt` : undefined;
-    const lineHeight = formatting.spacing?.line || undefined;
-    const textIndent = formatting.indentation?.firstLine ? `${formatting.indentation.firstLine}in` : undefined;
-    const alignment = formatting.alignment || undefined;
-    const marginBefore = formatting.spacing?.before ? `${formatting.spacing.before}pt` : undefined;
-    const marginAfter = formatting.spacing?.after ? `${formatting.spacing.after}pt` : undefined;
     
-    // Base style that respects original formatting
-    const baseStyle = {
-      fontFamily
-    };
+    // Build comprehensive style object from extracted formatting
+    const baseStyle = {};
     
-    // Only add properties if they have values from the document
-    if (fontSize) baseStyle.fontSize = fontSize;
-    if (lineHeight) baseStyle.lineHeight = `${lineHeight}`;
-    if (textIndent) baseStyle.textIndent = textIndent;
-    if (alignment) baseStyle.textAlign = alignment;
-    if (marginBefore) baseStyle.marginTop = marginBefore;
-    if (marginAfter) baseStyle.marginBottom = marginAfter;
+    // Font properties (paragraph-level defaults)
+    if (formatting.font?.family) {
+      baseStyle.fontFamily = `"${formatting.font.family}", serif`;
+    }
+    if (formatting.font?.size) {
+      baseStyle.fontSize = `${formatting.font.size}pt`;
+    }
+    
+    // Line spacing
+    if (formatting.spacing?.line) {
+      baseStyle.lineHeight = formatting.spacing.line;
+    }
+    
+    // Paragraph spacing (before/after)
+    if (formatting.spacing?.before) {
+      baseStyle.marginTop = `${formatting.spacing.before}pt`;
+    }
+    if (formatting.spacing?.after) {
+      baseStyle.marginBottom = `${formatting.spacing.after}pt`;
+    }
+    
+    // Text indentation
+    if (formatting.indentation?.firstLine) {
+      baseStyle.textIndent = `${formatting.indentation.firstLine}in`;
+    }
+    if (formatting.indentation?.left) {
+      baseStyle.paddingLeft = `${formatting.indentation.left}in`;
+    }
+    if (formatting.indentation?.right) {
+      baseStyle.paddingRight = `${formatting.indentation.right}in`;
+    }
+    if (formatting.indentation?.hanging) {
+      baseStyle.textIndent = `-${formatting.indentation.hanging}in`;
+      baseStyle.paddingLeft = `${formatting.indentation.hanging}in`;
+    }
+    
+    // Text alignment
+    if (formatting.alignment) {
+      const alignmentMap = {
+        'left': 'left',
+        'center': 'center', 
+        'right': 'right',
+        'both': 'justify',
+        'justify': 'justify'
+      };
+      baseStyle.textAlign = alignmentMap[formatting.alignment] || formatting.alignment;
+    }
     
     switch (element.type) {
       case ELEMENT_TYPES.TITLE:
@@ -265,19 +331,32 @@ export default function DocumentEditor() {
     }
   }, []);
 
-  // Custom rendering for text marks
+  // Custom rendering for text marks with rich formatting support
   const renderLeaf = useCallback((props) => {
     const { attributes, children, leaf } = props;
-    let element = <span {...attributes}>{children}</span>;
+    
+    // Build inline styles for font properties
+    const leafStyle = {};
+    if (leaf.fontFamily) {
+      leafStyle.fontFamily = `"${leaf.fontFamily}", serif`;
+    }
+    if (leaf.fontSize) {
+      leafStyle.fontSize = `${leaf.fontSize}pt`;
+    }
+    if (leaf.color) {
+      leafStyle.color = leaf.color.startsWith('#') ? leaf.color : `#${leaf.color}`;
+    }
+    
+    let element = <span {...attributes} style={leafStyle}>{children}</span>;
 
     if (leaf.bold) {
-      element = <strong>{element}</strong>;
+      element = <strong style={leafStyle}>{element}</strong>;
     }
     if (leaf.italic) {
-      element = <em>{element}</em>;
+      element = <em style={leafStyle}>{element}</em>;
     }
     if (leaf.underline) {
-      element = <u>{element}</u>;
+      element = <u style={leafStyle}>{element}</u>;
     }
     if (leaf[MARKS.APA_ISSUE]) {
       const issueData = leaf[MARKS.APA_ISSUE];
@@ -287,6 +366,7 @@ export default function DocumentEditor() {
           data-issue-id={issueData.issueId}
           onClick={() => setActiveIssue(issueData.issueId)}
           title="APA issue detected - click for details"
+          style={leafStyle}
         >
           {element}
         </mark>

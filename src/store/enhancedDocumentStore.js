@@ -19,7 +19,6 @@ export const useDocumentStore = create((set, get) => ({
   
   // Editor state
   editorContent: null,      // Slate.js editor content
-  isEditorMode: false,      // Toggle between editor and preview
   editorChanged: false,     // Track if editor content has changed
   documentStats: {
     wordCount: 0,
@@ -706,9 +705,6 @@ export const useDocumentStore = create((set, get) => ({
     });
   },
 
-  setEditorMode: (isEditorMode) => {
-    set({ isEditorMode });
-  },
 
   // Convert editor content back to text for analysis
   getTextFromEditorContent: (editorContent) => {

@@ -5,7 +5,7 @@ import { createEditor, Editor, Transforms, Text, Element as SlateElement, Range 
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { FileText, InfoIcon, Edit, Eye } from 'lucide-react';
+import { FileText, InfoIcon } from 'lucide-react';
 
 // Custom Slate.js element types for APA document structure
 const ELEMENT_TYPES = {
@@ -47,11 +47,9 @@ export default function DocumentEditor() {
   const [editor] = useState(() => withHistory(withReact(createEditor())));
   const [value, setValue] = useState([]);
   const [showIssues, setShowIssues] = useState(true);
-  const [viewMode, setViewMode] = useState('edit'); // 'edit' or 'preview'
   
   // Refs for components
   const editorRef = useRef(null);
-  const htmlPreviewRef = useRef(null);
   
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
 
@@ -66,23 +64,10 @@ export default function DocumentEditor() {
   // Apply issue highlighting when issues or active issue changes
   useEffect(() => {
     if (showIssues) {
-      if (viewMode === 'edit') {
-        applyIssueHighlighting();
-      } else {
-        applyHtmlIssueHighlighting();
-      }
+      applyIssueHighlighting();
     }
-  }, [issues, activeIssueId, showIssues, viewMode]);
+  }, [issues, activeIssueId, showIssues]);
 
-  // Scroll to active issue
-  useEffect(() => {
-    if (activeIssueId && viewMode === 'preview' && htmlPreviewRef.current) {
-      const activeElement = htmlPreviewRef.current.querySelector(`[data-issue-id="${activeIssueId}"]`);
-      if (activeElement) {
-        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  }, [activeIssueId, viewMode]);
 
   // Convert plain text and formatting data to Slate nodes
   const convertTextToSlateNodes = useCallback((text, formatting) => {
@@ -179,73 +164,6 @@ export default function DocumentEditor() {
     Transforms.deselect(editor);
   }, [editor, issues, activeIssueId]);
 
-  // Apply issue highlighting to HTML preview
-  const applyHtmlIssueHighlighting = useCallback(() => {
-    if (!issues.length || !htmlPreviewRef.current) return;
-
-    // First, remove all existing highlights
-    const existingHighlights = htmlPreviewRef.current.querySelectorAll('[data-issue-id]');
-    existingHighlights.forEach(el => {
-      const parent = el.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(el.textContent || ''), el);
-        parent.normalize(); // Merge adjacent text nodes
-      }
-    });
-
-    // Then add new highlights
-    issues.forEach(issue => {
-      if (!issue.text) return;
-
-      const walker = document.createTreeWalker(
-        htmlPreviewRef.current,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-      );
-
-      let node;
-      while (node = walker.nextNode()) {
-        const content = node.textContent;
-        const index = content.indexOf(issue.text);
-        
-        if (index !== -1) {
-          // Split the text node and insert highlight
-          const before = content.substring(0, index);
-          const highlight = content.substring(index, index + issue.text.length);
-          const after = content.substring(index + issue.text.length);
-          
-          const parent = node.parentNode;
-          
-          // Create highlight element
-          const highlightEl = document.createElement('mark');
-          highlightEl.textContent = highlight;
-          highlightEl.setAttribute('data-issue-id', issue.id);
-          highlightEl.className = getIssueClass(issue.severity);
-          
-          if (issue.id === activeIssueId) {
-            highlightEl.classList.add('active-issue');
-          }
-          
-          highlightEl.addEventListener('click', () => setActiveIssue(issue.id));
-          
-          // Replace the text node with the three new nodes
-          if (before) {
-            parent.insertBefore(document.createTextNode(before), node);
-          }
-          
-          parent.insertBefore(highlightEl, node);
-          
-          if (after) {
-            parent.insertBefore(document.createTextNode(after), node);
-          }
-          
-          parent.removeChild(node);
-          break; // Only highlight the first occurrence to avoid infinite loop
-        }
-      }
-    });
-  }, [issues, activeIssueId, setActiveIssue]);
 
   // Get CSS class for issue highlighting
   const getIssueClass = useCallback((severity) => {
@@ -403,26 +321,6 @@ export default function DocumentEditor() {
     return element;
   }, [getIssueClass, setActiveIssue]);
 
-  // HTML Preview with proper formatting and issue highlighting
-  const renderHtmlPreview = useCallback(() => {
-    if (!documentHtml) return null;
-    
-    return (
-      <div 
-        ref={htmlPreviewRef}
-        className="docx-preview-container apa-document p-8 max-w-4xl mx-auto"
-        dangerouslySetInnerHTML={{ __html: documentHtml }}
-        onClick={(e) => {
-          // Handle clicks on issue highlights
-          const issueElement = e.target.closest('[data-issue-id]');
-          if (issueElement) {
-            const issueId = issueElement.getAttribute('data-issue-id');
-            setActiveIssue(issueId);
-          }
-        }}
-      />
-    );
-  }, [documentHtml, setActiveIssue]);
 
   if (!documentText) {
     return (
@@ -483,31 +381,6 @@ export default function DocumentEditor() {
                 )}
               </div>
               <div className="flex items-center space-x-3">
-                {/* View Mode Toggle */}
-                <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                  <button
-                    onClick={() => setViewMode('edit')}
-                    className={`flex items-center px-4 py-2 text-sm font-medium ${
-                      viewMode === 'edit' 
-                        ? 'bg-blue-50 text-blue-700 border-r border-gray-200' 
-                        : 'bg-white text-gray-500 hover:bg-gray-50 border-r border-gray-200'
-                    }`}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setViewMode('preview')}
-                    className={`flex items-center px-4 py-2 text-sm font-medium ${
-                      viewMode === 'preview' 
-                        ? 'bg-blue-50 text-blue-700' 
-                        : 'bg-white text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </button>
-                </div>
                 
                 <button 
                   onClick={() => setShowIssues(!showIssues)}
@@ -532,41 +405,37 @@ export default function DocumentEditor() {
           <div className="flex-1 overflow-auto bg-gray-50">
             <div className="p-6">
               <div className="max-w-4xl mx-auto">
-                {/* Document Editor or Preview */}
+                {/* Document Editor */}
                 <div 
                   className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[500px]"
                 >
-                  {viewMode === 'edit' ? (
-                    <div
-                      ref={editorRef}
-                      style={{
-                        fontFamily: '"Times New Roman", serif',
-                        fontSize: '12pt',
-                        lineHeight: '2'
-                      }}
+                  <div
+                    ref={editorRef}
+                    style={{
+                      fontFamily: '"Times New Roman", serif',
+                      fontSize: '12pt',
+                      lineHeight: '2'
+                    }}
+                  >
+                    <Slate 
+                      editor={editor} 
+                      initialValue={value} 
+                      onValueChange={handleEditorChange}
                     >
-                      <Slate 
-                        editor={editor} 
-                        initialValue={value} 
-                        onValueChange={handleEditorChange}
-                      >
-                        <Editable
-                          renderElement={renderElement}
-                          renderLeaf={renderLeaf}
-                          placeholder="Start writing your APA document..."
-                          className="min-h-96 outline-none"
-                          style={{
-                            fontFamily: '"Times New Roman", serif',
-                            fontSize: '12pt',
-                            lineHeight: '2'
-                          }}
-                          data-slate-editor="true"
-                        />
-                      </Slate>
-                    </div>
-                  ) : (
-                    renderHtmlPreview()
-                  )}
+                      <Editable
+                        renderElement={renderElement}
+                        renderLeaf={renderLeaf}
+                        placeholder="Start writing your APA document..."
+                        className="min-h-96 outline-none"
+                        style={{
+                          fontFamily: '"Times New Roman", serif',
+                          fontSize: '12pt',
+                          lineHeight: '2'
+                        }}
+                        data-slate-editor="true"
+                      />
+                    </Slate>
+                  </div>
                 </div>
               </div>
             </div>

@@ -242,22 +242,6 @@ mark[data-issue-id]:hover::after {
   margin-bottom: 1em;
 }
 
-.docx-preview-container {
-  @apply apa-document;
-  color: #000;
-}
-
-.docx-preview-container p {
-  margin-bottom: 1em;
-}
-
-.docx-preview-container h1, 
-.docx-preview-container h2, 
-.docx-preview-container h3, 
-.docx-preview-container h4, 
-.docx-preview-container h5 {
-  margin-bottom: 0.5em;
-}
 
 /* Slate.js Editor Enhancements */
 .slate-editor {
@@ -291,24 +275,6 @@ mark[data-issue-id]:hover {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Document preview scrollbar */
-.docx-preview-container::-webkit-scrollbar {
-  width: 8px;
-}
-
-.docx-preview-container::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.docx-preview-container::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.docx-preview-container::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
 
 /* Editor focus styles */
 [data-slate-editor="true"] {
@@ -320,32 +286,3 @@ mark[data-issue-id]:hover {
   border-radius: 4px;
 }
 
-/* Fallback preview styles */
-.fallback-preview {
-  @apply apa-document;
-  color: #000;
-}
-
-.fallback-preview .document-content {
-  margin-top: 1rem;
-}
-
-.fallback-preview .document-content p {
-  margin-bottom: 1em;
-}
-
-.fallback-preview .document-content h1,
-.fallback-preview .document-content h2,
-.fallback-preview .document-content h3,
-.fallback-preview .document-content h4,
-.fallback-preview .document-content h5 {
-  font-weight: bold;
-  text-align: center;
-  margin: 1em 0;
-}
-
-.fallback-preview .document-content h1 { font-size: 18pt; }
-.fallback-preview .document-content h2 { font-size: 16pt; }
-.fallback-preview .document-content h3 { font-size: 14pt; }
-.fallback-preview .document-content h4 { font-size: 12pt; }
-.fallback-preview .document-content h5 { font-size: 12pt; }

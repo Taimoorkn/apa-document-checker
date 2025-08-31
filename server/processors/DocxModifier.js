@@ -281,25 +281,28 @@ class DocxModifier {
       // Method 1: Replace the exact text as it appears in the XML
       // This handles most cases where text is within single w:t elements
       if (modifiedContent.includes(originalText)) {
-        modifiedContent = modifiedContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), replacementText);
-        console.log('✅ Direct text replacement successful');
+        // IMPORTANT: Escape the replacement text for XML
+        const xmlSafeReplacement = this.escapeXml(replacementText);
+        modifiedContent = modifiedContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), xmlSafeReplacement);
+        console.log('✅ Direct text replacement successful with XML escaping');
+        console.log(`📝 Replaced: "${originalText}" → "${xmlSafeReplacement}"`);
         return modifiedContent;
       }
       
       // Method 2: Replace text within w:t tags (handling XML structure)
-      const escapedOriginal = this.escapeXml(originalText);
       const escapedReplacement = this.escapeXml(replacementText);
       
       const replaced = modifiedContent.replace(
-        new RegExp(`(<w:t[^>]*>)([^<]*${this.escapeRegex(escapedOriginal)}[^<]*)(</w:t>)`, 'g'),
+        new RegExp(`(<w:t[^>]*>)([^<]*${this.escapeRegex(originalText)}[^<]*)(</w:t>)`, 'g'),
         (match, openTag, textContent, closeTag) => {
-          const newTextContent = textContent.replace(new RegExp(this.escapeRegex(escapedOriginal), 'g'), escapedReplacement);
+          const newTextContent = textContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), escapedReplacement);
           return openTag + newTextContent + closeTag;
         }
       );
       
       if (replaced !== modifiedContent) {
-        console.log('✅ XML-aware text replacement successful');
+        console.log('✅ XML-aware text replacement successful with XML escaping');
+        console.log(`📝 Replaced within tags: "${originalText}" → "${escapedReplacement}"`);
         return replaced;
       }
       

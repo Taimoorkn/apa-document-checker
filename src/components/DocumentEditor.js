@@ -516,8 +516,19 @@ export default function DocumentEditor() {
                 Transforms.select(editor, range);
                 Transforms.insertText(editor, replacementText);
                 
+                // Clear any issue highlighting marks from the replaced text
+                const newEndPoint = { path, offset: startIndex + replacementText.length };
+                const newRange = { anchor: startPoint, focus: newEndPoint };
+                
+                // Remove issue highlighting marks from the new text
+                Transforms.unsetNodes(editor, [MARKS.APA_ISSUE], {
+                  at: newRange,
+                  match: n => Text.isText(n)
+                });
+                
                 console.log(`✅ Replaced "${originalText}" with "${replacementText}" at path:`, path);
                 console.log(`📍 Range: ${startIndex}-${endIndex} in text: "${nodeText}"`);
+                console.log(`🧹 Cleared highlighting from new text range`);
               }
             }
           });
@@ -527,6 +538,18 @@ export default function DocumentEditor() {
         const currentValue = editor.children;
         setValue([...currentValue]);
         
+        // Also trigger a full highlighting refresh after a short delay
+        // This ensures any stale highlighting is cleaned up
+        setTimeout(() => {
+          console.log('🧹 Refreshing issue highlighting after fix');
+          removeIssueHighlighting();
+          setTimeout(() => {
+            if (showIssueHighlighting) {
+              applyIssueHighlighting();
+            }
+          }, 100);
+        }, 50);
+        
       } else {
         console.warn(`⚠️ Could not find text "${originalText}" in editor`);
       }
@@ -534,7 +557,7 @@ export default function DocumentEditor() {
     } catch (error) {
       console.error('Error applying text replacement to editor:', error);
     }
-  }, [editor]);
+  }, [editor, showIssueHighlighting, removeIssueHighlighting, applyIssueHighlighting]);
 
   // Custom rendering for different element types
   const renderElement = useCallback((props) => {

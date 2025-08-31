@@ -125,6 +125,12 @@ export default function DocumentEditor() {
         children = [];
         paraFormatting.runs.forEach((run, runIndex) => {
           console.log(`  Run ${runIndex}: text="${run.text}", font size=${run.font?.size}pt, family="${run.font?.family}"`);
+          console.log(`    🔍 Font formatting in run:`, {
+            bold: run.font?.bold,
+            italic: run.font?.italic,
+            underline: run.font?.underline,
+            fullFontObject: run.font
+          });
           
           const runText = run.text || '';
           
@@ -137,27 +143,49 @@ export default function DocumentEditor() {
                 children.push({ text: '\n' });
               }
               if (part) {
-                children.push({
+                const leafNode = {
                   text: part,
-                  bold: run.font?.bold || false,
-                  italic: run.font?.italic || false,
-                  underline: run.font?.underline || false,
+                  bold: run.font?.bold === true,
+                  italic: run.font?.italic === true,
+                  underline: run.font?.underline === true,
                   fontFamily: run.font?.family || null,
                   fontSize: run.font?.size || null,
                   color: run.color || null
-                });
+                };
+                console.log(`    📝 Creating leaf node:`, leafNode);
+                if (part.toLowerCase().includes('running') || part.toLowerCase().includes('department')) {
+                  console.log(`🎯 SPECIAL DEBUG for "${part}":`, {
+                    originalBold: run.font?.bold,
+                    originalItalic: run.font?.italic,
+                    leafBold: leafNode.bold,
+                    leafItalic: leafNode.italic,
+                    fullRunFont: run.font
+                  });
+                }
+                children.push(leafNode);
               }
             });
           } else {
-            children.push({
+            const leafNode = {
               text: runText,
-              bold: run.font?.bold || false,
-              italic: run.font?.italic || false,
-              underline: run.font?.underline || false,
+              bold: run.font?.bold === true,
+              italic: run.font?.italic === true,
+              underline: run.font?.underline === true,
               fontFamily: run.font?.family || null,
               fontSize: run.font?.size || null,
               color: run.color || null
-            });
+            };
+            console.log(`    📝 Creating leaf node:`, leafNode);
+            if (runText.toLowerCase().includes('running') || runText.toLowerCase().includes('department')) {
+              console.log(`🎯 SPECIAL DEBUG for "${runText}":`, {
+                originalBold: run.font?.bold,
+                originalItalic: run.font?.italic,
+                leafBold: leafNode.bold,
+                leafItalic: leafNode.italic,
+                fullRunFont: run.font
+              });
+            }
+            children.push(leafNode);
           }
         });
       } else {
@@ -465,12 +493,36 @@ export default function DocumentEditor() {
       leafProps['data-debug-font-family'] = leaf.fontFamily || 'none';
     }
     
+    // Debug bold/italic formatting
+    if (leaf.bold || leaf.italic || leaf.underline) {
+      console.log(`🔍 Text formatting DEBUG for "${leaf.text?.substring(0, 20)}...":`, {
+        bold: leaf.bold,
+        italic: leaf.italic,
+        underline: leaf.underline,
+        leafKeys: Object.keys(leaf)
+      });
+    }
+    
+    // Special debugging for specific words
+    if (leaf.text && (leaf.text.toLowerCase().includes('running') || leaf.text.toLowerCase().includes('department'))) {
+      console.log(`🎯 RENDER LEAF DEBUG for "${leaf.text}":`, {
+        bold: leaf.bold,
+        italic: leaf.italic,
+        boldType: typeof leaf.bold,
+        italicType: typeof leaf.italic,
+        willApplyBold: !!leaf.bold,
+        willApplyItalic: !!leaf.italic
+      });
+    }
+    
     let element = <span {...leafProps} style={leafStyle}>{children}</span>;
 
     if (leaf.bold) {
+      console.log(`✅ Applying BOLD to: "${leaf.text?.substring(0, 20)}..."`);
       element = <strong style={leafStyle}>{element}</strong>;
     }
     if (leaf.italic) {
+      console.log(`✅ Applying ITALIC to: "${leaf.text?.substring(0, 20)}..."`);
       element = <em style={leafStyle}>{element}</em>;
     }
     if (leaf.underline) {

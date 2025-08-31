@@ -692,10 +692,28 @@ class XmlDocxProcessor {
           }
         }
 
-        // Formatting
-        runFormatting.font.bold = !!rPr['w:b'];
-        runFormatting.font.italic = !!rPr['w:i'];
-        runFormatting.font.underline = !!rPr['w:u'];
+        // Formatting - check for existence of elements, not their values
+        runFormatting.font.bold = 'w:b' in rPr;
+        runFormatting.font.italic = 'w:i' in rPr;
+        runFormatting.font.underline = 'w:u' in rPr;
+        
+        // Debug formatting extraction for specific words
+        const runText = this.extractRunText(run);
+        if (runText && (runText.toLowerCase().includes('running') || runText.toLowerCase().includes('department'))) {
+          console.log(`🔍 SERVER DEBUG for "${runText}":`, {
+            hasRPr: !!rPr,
+            rPrKeys: rPr ? Object.keys(rPr) : [],
+            boldElement: rPr ? rPr['w:b'] : 'no rPr',
+            italicElement: rPr ? rPr['w:i'] : 'no rPr',
+            underlineElement: rPr ? rPr['w:u'] : 'no rPr',
+            fullRPr: rPr
+          });
+          console.log(`🔍 Extracted formatting:`, {
+            bold: runFormatting.font.bold,
+            italic: runFormatting.font.italic,
+            underline: runFormatting.font.underline
+          });
+        }
 
         // Color
         const color = rPr['w:color'];

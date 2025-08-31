@@ -5,7 +5,7 @@ import { createEditor, Editor, Transforms, Text, Element as SlateElement, Range 
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { FileText, InfoIcon } from 'lucide-react';
+import { FileText, InfoIcon, Edit, Eye } from 'lucide-react';
 
 // Custom Slate.js element types for APA document structure
 const ELEMENT_TYPES = {
@@ -47,9 +47,11 @@ export default function DocumentEditor() {
   const [editor] = useState(() => withHistory(withReact(createEditor())));
   const [value, setValue] = useState([]);
   const [showIssues, setShowIssues] = useState(true);
+  const [viewMode, setViewMode] = useState('edit'); // 'edit' or 'preview'
   
   // Refs for components
   const editorRef = useRef(null);
+  const htmlPreviewRef = useRef(null);
   
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
 
@@ -64,9 +66,23 @@ export default function DocumentEditor() {
   // Apply issue highlighting when issues or active issue changes
   useEffect(() => {
     if (showIssues) {
-      applyIssueHighlighting();
+      if (viewMode === 'edit') {
+        applyIssueHighlighting();
+      } else {
+        applyHtmlIssueHighlighting();
+      }
     }
-  }, [issues, activeIssueId, showIssues]);
+  }, [issues, activeIssueId, showIssues, viewMode]);
+
+  // Scroll to active issue
+  useEffect(() => {
+    if (activeIssueId && viewMode === 'preview' && htmlPreviewRef.current) {
+      const activeElement = htmlPreviewRef.current.querySelector(`[data-issue-id="${activeIssueId}"]`);
+      if (activeElement) {
+        activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [activeIssueId, viewMode]);
 
   // Convert plain text and formatting data to Slate nodes
   const convertTextToSlateNodes = useCallback((text, formatting) => {
@@ -118,10 +134,9 @@ export default function DocumentEditor() {
     return ELEMENT_TYPES.PARAGRAPH;
   }, []);
 
-
   // Apply issue highlighting to Slate editor
   const applyIssueHighlighting = useCallback(() => {
-    if (!issues.length) return;
+    if (!issues.length || !editor) return;
 
     // Remove existing highlights
     Editor.removeMark(editor, MARKS.APA_ISSUE);
@@ -130,31 +145,107 @@ export default function DocumentEditor() {
       if (!issue.text) return;
 
       // Find text in editor and apply highlighting
-      const [match] = Editor.nodes(editor, {
-        at: [],
-        match: n => Text.isText(n) && n.text.includes(issue.text)
-      });
+      try {
+        const [match] = Editor.nodes(editor, {
+          at: [],
+          match: n => Text.isText(n) && n.text && n.text.includes(issue.text)
+        });
 
-      if (match) {
-        const [node, path] = match;
-        const text = node.text;
-        const index = text.indexOf(issue.text);
+        if (match) {
+          const [node, path] = match;
+          const text = node.text;
+          const index = text.indexOf(issue.text);
 
+          if (index !== -1) {
+            const range = {
+              anchor: { path, offset: index },
+              focus: { path, offset: index + issue.text.length }
+            };
+
+            Transforms.select(editor, range);
+            Editor.addMark(editor, MARKS.APA_ISSUE, {
+              issueId: issue.id,
+              severity: issue.severity,
+              active: issue.id === activeIssueId
+            });
+          }
+        }
+      } catch (error) {
+        console.warn('Error highlighting issue in editor:', error);
+      }
+    });
+
+    // Deselect after highlighting
+    Transforms.deselect(editor);
+  }, [editor, issues, activeIssueId]);
+
+  // Apply issue highlighting to HTML preview
+  const applyHtmlIssueHighlighting = useCallback(() => {
+    if (!issues.length || !htmlPreviewRef.current) return;
+
+    // First, remove all existing highlights
+    const existingHighlights = htmlPreviewRef.current.querySelectorAll('[data-issue-id]');
+    existingHighlights.forEach(el => {
+      const parent = el.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+        parent.normalize(); // Merge adjacent text nodes
+      }
+    });
+
+    // Then add new highlights
+    issues.forEach(issue => {
+      if (!issue.text) return;
+
+      const walker = document.createTreeWalker(
+        htmlPreviewRef.current,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+
+      let node;
+      while (node = walker.nextNode()) {
+        const content = node.textContent;
+        const index = content.indexOf(issue.text);
+        
         if (index !== -1) {
-          const range = {
-            anchor: { path, offset: index },
-            focus: { path, offset: index + issue.text.length }
-          };
-
-          Editor.addMark(editor, MARKS.APA_ISSUE, {
-            issueId: issue.id,
-            severity: issue.severity,
-            active: issue.id === activeIssueId
-          });
+          // Split the text node and insert highlight
+          const before = content.substring(0, index);
+          const highlight = content.substring(index, index + issue.text.length);
+          const after = content.substring(index + issue.text.length);
+          
+          const parent = node.parentNode;
+          
+          // Create highlight element
+          const highlightEl = document.createElement('mark');
+          highlightEl.textContent = highlight;
+          highlightEl.setAttribute('data-issue-id', issue.id);
+          highlightEl.className = getIssueClass(issue.severity);
+          
+          if (issue.id === activeIssueId) {
+            highlightEl.classList.add('active-issue');
+          }
+          
+          highlightEl.addEventListener('click', () => setActiveIssue(issue.id));
+          
+          // Replace the text node with the three new nodes
+          if (before) {
+            parent.insertBefore(document.createTextNode(before), node);
+          }
+          
+          parent.insertBefore(highlightEl, node);
+          
+          if (after) {
+            parent.insertBefore(document.createTextNode(after), node);
+          }
+          
+          parent.removeChild(node);
+          break; // Only highlight the first occurrence to avoid infinite loop
         }
       }
     });
-  }, [editor, issues, activeIssueId]);
+  }, [issues, activeIssueId, setActiveIssue]);
 
   // Get CSS class for issue highlighting
   const getIssueClass = useCallback((severity) => {
@@ -196,13 +287,30 @@ export default function DocumentEditor() {
   const renderElement = useCallback((props) => {
     const { attributes, children, element } = props;
     
+    // Extract formatting from element when available
+    const formatting = element.formatting || {};
+    const fontFamily = formatting.font?.family || '"Times New Roman", serif';
+    const fontSize = formatting.font?.size ? `${formatting.font.size}pt` : '12pt';
+    const lineHeight = formatting.spacing?.line || 2;
+    const textIndent = element.type === ELEMENT_TYPES.PARAGRAPH ? '0.5in' : '0';
+    const alignment = formatting.alignment || 'left';
+    
+    // Base style that respects original formatting
+    const baseStyle = {
+      fontFamily,
+      fontSize,
+      lineHeight: `${lineHeight}`,
+      textIndent,
+      textAlign: alignment
+    };
+    
     switch (element.type) {
       case ELEMENT_TYPES.TITLE:
         return (
           <h1 
             {...attributes} 
             className="text-2xl font-bold text-center mb-6"
-            style={{ fontFamily: '"Times New Roman", serif' }}
+            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
           >
             {children}
           </h1>
@@ -212,7 +320,7 @@ export default function DocumentEditor() {
           <h1 
             {...attributes} 
             className="text-xl font-bold text-center mb-4"
-            style={{ fontFamily: '"Times New Roman", serif' }}
+            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
           >
             {children}
           </h1>
@@ -222,7 +330,7 @@ export default function DocumentEditor() {
           <h2 
             {...attributes} 
             className="text-lg font-bold text-center mb-3"
-            style={{ fontFamily: '"Times New Roman", serif' }}
+            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
           >
             {children}
           </h2>
@@ -232,22 +340,22 @@ export default function DocumentEditor() {
           <h3 
             {...attributes} 
             className="text-base font-bold mb-3"
-            style={{ fontFamily: '"Times New Roman", serif' }}
+            style={{ ...baseStyle, fontWeight: 'bold' }}
           >
             {children}
           </h3>
         );
       case ELEMENT_TYPES.ABSTRACT:
         return (
-          <div {...attributes} className="mb-6">
-            <h2 className="text-lg font-bold text-center mb-2">Abstract</h2>
-            <p className="apa-paragraph">{children}</p>
+          <div {...attributes} className="mb-6" style={baseStyle}>
+            <h2 className="text-lg font-bold text-center mb-2" style={{ textAlign: 'center', fontWeight: 'bold' }}>Abstract</h2>
+            <p className="apa-paragraph" style={{ textIndent: '0.5in' }}>{children}</p>
           </div>
         );
       case ELEMENT_TYPES.REFERENCES:
         return (
-          <div {...attributes} className="mb-6">
-            <h2 className="text-lg font-bold text-center mb-4">References</h2>
+          <div {...attributes} className="mb-6" style={{ ...baseStyle, textIndent: '0' }}>
+            <h2 className="text-lg font-bold text-center mb-4" style={{ textAlign: 'center', fontWeight: 'bold' }}>References</h2>
             <p className="apa-paragraph">{children}</p>
           </div>
         );
@@ -256,12 +364,7 @@ export default function DocumentEditor() {
           <p 
             {...attributes} 
             className="apa-paragraph mb-4"
-            style={{
-              fontFamily: '"Times New Roman", serif',
-              fontSize: '12pt',
-              lineHeight: '2',
-              textIndent: element.type === ELEMENT_TYPES.PARAGRAPH ? '0.5in' : '0'
-            }}
+            style={baseStyle}
           >
             {children}
           </p>
@@ -300,6 +403,26 @@ export default function DocumentEditor() {
     return element;
   }, [getIssueClass, setActiveIssue]);
 
+  // HTML Preview with proper formatting and issue highlighting
+  const renderHtmlPreview = useCallback(() => {
+    if (!documentHtml) return null;
+    
+    return (
+      <div 
+        ref={htmlPreviewRef}
+        className="docx-preview-container apa-document p-8 max-w-4xl mx-auto"
+        dangerouslySetInnerHTML={{ __html: documentHtml }}
+        onClick={(e) => {
+          // Handle clicks on issue highlights
+          const issueElement = e.target.closest('[data-issue-id]');
+          if (issueElement) {
+            const issueId = issueElement.getAttribute('data-issue-id');
+            setActiveIssue(issueId);
+          }
+        }}
+      />
+    );
+  }, [documentHtml, setActiveIssue]);
 
   if (!documentText) {
     return (
@@ -360,6 +483,32 @@ export default function DocumentEditor() {
                 )}
               </div>
               <div className="flex items-center space-x-3">
+                {/* View Mode Toggle */}
+                <div className="flex rounded-lg overflow-hidden border border-gray-200">
+                  <button
+                    onClick={() => setViewMode('edit')}
+                    className={`flex items-center px-4 py-2 text-sm font-medium ${
+                      viewMode === 'edit' 
+                        ? 'bg-blue-50 text-blue-700 border-r border-gray-200' 
+                        : 'bg-white text-gray-500 hover:bg-gray-50 border-r border-gray-200'
+                    }`}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setViewMode('preview')}
+                    className={`flex items-center px-4 py-2 text-sm font-medium ${
+                      viewMode === 'preview' 
+                        ? 'bg-blue-50 text-blue-700' 
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview
+                  </button>
+                </div>
+                
                 <button 
                   onClick={() => setShowIssues(!showIssues)}
                   className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -383,34 +532,41 @@ export default function DocumentEditor() {
           <div className="flex-1 overflow-auto bg-gray-50">
             <div className="p-6">
               <div className="max-w-4xl mx-auto">
-                {/* Slate.js Document Editor */}
+                {/* Document Editor or Preview */}
                 <div 
-                  ref={editorRef}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-8"
-                  style={{
-                    fontFamily: '"Times New Roman", serif',
-                    fontSize: '12pt',
-                    lineHeight: '2'
-                  }}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 min-h-[500px]"
                 >
-                  <Slate 
-                    editor={editor} 
-                    initialValue={value} 
-                    onValueChange={handleEditorChange}
-                  >
-                    <Editable
-                      renderElement={renderElement}
-                      renderLeaf={renderLeaf}
-                      placeholder="Start writing your APA document..."
-                      className="min-h-96 outline-none"
+                  {viewMode === 'edit' ? (
+                    <div
+                      ref={editorRef}
                       style={{
                         fontFamily: '"Times New Roman", serif',
                         fontSize: '12pt',
                         lineHeight: '2'
                       }}
-                      data-slate-editor="true"
-                    />
-                  </Slate>
+                    >
+                      <Slate 
+                        editor={editor} 
+                        initialValue={value} 
+                        onValueChange={handleEditorChange}
+                      >
+                        <Editable
+                          renderElement={renderElement}
+                          renderLeaf={renderLeaf}
+                          placeholder="Start writing your APA document..."
+                          className="min-h-96 outline-none"
+                          style={{
+                            fontFamily: '"Times New Roman", serif',
+                            fontSize: '12pt',
+                            lineHeight: '2'
+                          }}
+                          data-slate-editor="true"
+                        />
+                      </Slate>
+                    </div>
+                  ) : (
+                    renderHtmlPreview()
+                  )}
                 </div>
               </div>
             </div>

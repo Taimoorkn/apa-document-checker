@@ -12,17 +12,26 @@ import {
   Check,
   ChevronDown,
   FileText,
-  ExternalLink
+  ExternalLink,
+  Info,
+  Zap
 } from 'lucide-react';
 
 export default function IssuesPanel() {
-  const { issues, activeIssueId, setActiveIssue, applyFix, processingState } = useDocumentStore();
+  const { 
+    issues, 
+    activeIssueId, 
+    setActiveIssue, 
+    applyFix, 
+    processingState,
+    documentFormatting,
+    documentStats
+  } = useDocumentStore();
   const [expandedCategories, setExpandedCategories] = useState({
     Critical: true,
     Major: true,
     Minor: false
   });
-  
   
   // Group issues by severity (memoized to prevent recalculation on re-renders)
   const groupedIssues = useMemo(() => {
@@ -50,15 +59,25 @@ export default function IssuesPanel() {
     }));
   }, []);
   
-  
   // Calculate compliance score (memoized)
   const { totalIssues, weightedScore } = useMemo(() => {
     const total = issueCounts.Critical + issueCounts.Major + issueCounts.Minor;
-    const score = total > 0 
-      ? Math.max(0, 100 - (issueCounts.Critical * 5 + issueCounts.Major * 3 + issueCounts.Minor)) 
-      : null;
+    
+    // Use server-side compliance data if available
+    let score;
+    if (documentFormatting?.compliance?.overall !== undefined) {
+      const contentPenalty = issueCounts.Critical * 10 + issueCounts.Major * 5 + issueCounts.Minor * 2;
+      score = Math.max(0, Math.min(100, 
+        Math.round(documentFormatting.compliance.overall - contentPenalty)
+      ));
+    } else {
+      score = total > 0 
+        ? Math.max(0, 100 - (issueCounts.Critical * 5 + issueCounts.Major * 3 + issueCounts.Minor)) 
+        : 100;
+    }
+    
     return { totalIssues: total, weightedScore: score };
-  }, [issueCounts]);
+  }, [issueCounts, documentFormatting]);
   
   return (
     <div className="h-full bg-white flex flex-col">
@@ -87,6 +106,34 @@ export default function IssuesPanel() {
       
       {totalIssues > 0 ? (
         <div className="space-y-5">
+          {/* Document format overview */}
+          {documentFormatting && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <div className="flex items-start">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mr-3">
+                  <Info className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800 mb-1">Document Format Details</h3>
+                  <div className="text-xs text-blue-700 grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div>
+                      <span className="font-medium">Font:</span> {documentFormatting.document?.font?.family || 'Unknown'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Font Size:</span> {documentFormatting.document?.font?.size || 'Unknown'}pt
+                    </div>
+                    <div>
+                      <span className="font-medium">Line Spacing:</span> {documentFormatting.document?.spacing?.line || 'Unknown'}
+                    </div>
+                    <div>
+                      <span className="font-medium">Margins:</span> {documentFormatting.document?.margins?.top || 'Unknown'}in
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        
           {/* Critical Issues */}
           {issueCounts.Critical > 0 && (
             <IssueCategory 
@@ -248,6 +295,30 @@ export default function IssuesPanel() {
               </div>
             </div>
           </div>
+          
+          {/* Additional Document Stats */}
+          {documentStats && (
+            <div className="mt-4 bg-white p-4 rounded-xl border border-gray-200">
+              <div className="flex items-center mb-2">
+                <Zap className="h-3.5 w-3.5 text-blue-500 mr-1.5" />
+                <p className="text-xs font-medium text-gray-500">Document Details</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-gray-50 p-2 rounded-lg text-center">
+                  <p className="text-xs text-gray-500">Words</p>
+                  <p className="text-sm font-semibold text-gray-800">{documentStats.wordCount}</p>
+                </div>
+                <div className="bg-gray-50 p-2 rounded-lg text-center">
+                  <p className="text-xs text-gray-500">Paragraphs</p>
+                  <p className="text-sm font-semibold text-gray-800">{documentStats.paragraphCount}</p>
+                </div>
+                <div className="bg-gray-50 p-2 rounded-lg text-center">
+                  <p className="text-xs text-gray-500">Characters</p>
+                  <p className="text-sm font-semibold text-gray-800">{documentStats.charCount}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -399,6 +470,12 @@ const IssueItem = React.memo(function IssueItem({
             </div>
           )}
           
+          {/* Explanation/Guidance */}
+          {issue.explanation && (
+            <div className="mt-3 text-xs text-gray-500 italic">
+              <p>{issue.explanation}</p>
+            </div>
+          )}
         </div>
         
         {/* Action Buttons */}

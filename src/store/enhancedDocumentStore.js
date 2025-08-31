@@ -1,4 +1,3 @@
-// src/store/enhancedDocumentStore.js - Updated store with server integration
 'use client';
 
 import { create } from 'zustand';
@@ -173,6 +172,10 @@ export const useDocumentStore = create((set, get) => ({
         }
       }));
       
+      // Automatically analyze document after upload
+      setTimeout(() => {
+        get().analyzeDocument();
+      }, 500);
       
       return true;
       
@@ -301,11 +304,12 @@ export const useDocumentStore = create((set, get) => ({
       console.error('Error details:', error.message, error.stack);
       
       set(state => ({
+        issues,
+        analysisScore,
         processingState: {
           ...state.processingState,
           isAnalyzing: false,
           isSchedulingAnalysis: false,
-          lastError: error.message || 'Analysis failed',
           stage: null
         }
       }));
@@ -592,7 +596,7 @@ export const useDocumentStore = create((set, get) => ({
           throw new Error(`Unknown fix action: ${issue.fixAction}`);
       }
       
-      console.log(`📡 Sending fix request to server: ${issue.fixAction} = ${JSON.stringify(fixValue)}`);
+      console.log(`💡 Sending fix request to server: ${issue.fixAction} = ${JSON.stringify(fixValue)}`);
       
       // Convert Uint8Array to base64 for JSON transport
       const base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
@@ -855,7 +859,7 @@ export const useDocumentStore = create((set, get) => ({
 
   // Export document
   exportDocument: async (format) => {
-    const { documentHtml, documentName } = get();
+    const { documentHtml, documentName, currentDocumentBuffer } = get();
     
     if (!documentHtml) {
       alert('No document to export');
@@ -863,41 +867,76 @@ export const useDocumentStore = create((set, get) => ({
     }
     
     try {
-      // Simple HTML export
-      const fullHtml = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <title>APA Formatted Document</title>
-          <style>
-            body { 
-              font-family: "Times New Roman", Times, serif; 
-              font-size: 12pt; 
-              line-height: 2; 
-              margin: 1in; 
-            }
-          </style>
-        </head>
-        <body>${documentHtml}</body>
-        </html>
-      `;
-      
-      const blob = new Blob([fullHtml], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = documentName ? 
-        documentName.replace('.docx', '_APA_formatted.html') : 
-        'apa_formatted_document.html';
-      
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      return true;
+      if (format === 'html') {
+        // HTML export
+        const fullHtml = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>APA Formatted Document</title>
+            <style>
+              body { 
+                font-family: "Times New Roman", Times, serif; 
+                font-size: 12pt; 
+                line-height: 2; 
+                margin: 1in; 
+              }
+              p {
+                text-indent: 0.5in;
+                margin-bottom: 0;
+              }
+              h1, h2, h3, h4, h5, h6 {
+                text-align: center;
+                font-weight: bold;
+              }
+              .references p {
+                text-indent: -0.5in;
+                padding-left: 0.5in;
+              }
+            </style>
+          </head>
+          <body>${documentHtml}</body>
+          </html>
+        `;
+        
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = documentName ? 
+          documentName.replace('.docx', '_APA_formatted.html') : 
+          'apa_formatted_document.html';
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        return true;
+      } else if (format === 'docx' && currentDocumentBuffer) {
+        // DOCX export - use the modified buffer
+        const blob = new Blob([currentDocumentBuffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = documentName ? 
+          documentName.replace('.docx', '_APA_fixed.docx') : 
+          'apa_fixed_document.docx';
+        
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        return true;
+      } else {
+        throw new Error('Unsupported export format or missing document buffer');
+      }
     } catch (error) {
       console.error('Export failed:', error);
       throw error;

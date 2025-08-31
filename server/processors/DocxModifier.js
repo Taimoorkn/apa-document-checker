@@ -11,7 +11,6 @@ class DocxModifier {
    */
   async applyFormattingFix(inputBuffer, fixAction, fixValue) {
     try {
-      console.log(`🔧 Applying ${fixAction} to DOCX buffer (${inputBuffer.length} bytes)`);
       
       // Create zip from buffer
       const zip = new PizZip(inputBuffer);
@@ -25,7 +24,6 @@ class DocxModifier {
         compression: 'DEFLATE'
       });
       
-      console.log(`✅ DOCX modification complete: ${outputBuffer.length} bytes`);
       return { success: true, buffer: outputBuffer };
       
     } catch (error) {
@@ -90,7 +88,6 @@ class DocxModifier {
    * Fix font family in document XML
    */
   fixFontFamily(xmlContent, fontFamily) {
-    console.log(`🎨 Changing font family to: ${fontFamily}`);
     
     // Replace all font family references in run properties
     // Pattern matches: <w:rFonts w:ascii="..." w:hAnsi="..." ... />
@@ -117,7 +114,6 @@ class DocxModifier {
    * Fix font size in document XML
    */
   fixFontSize(xmlContent, halfPoints) {
-    console.log(`📏 Changing font size to: ${halfPoints / 2}pt (${halfPoints} half-points)`);
     
     // Replace existing font size declarations
     xmlContent = xmlContent.replace(
@@ -154,7 +150,6 @@ class DocxModifier {
    * Fix line spacing in document XML
    */
   fixLineSpacing(xmlContent, spacing) {
-    console.log(`📐 Changing line spacing to: ${spacing / 240} (${spacing} twips)`);
     
     // Replace existing spacing declarations in paragraph properties
     xmlContent = xmlContent.replace(
@@ -175,7 +170,6 @@ class DocxModifier {
    * Modify styles.xml for document-wide formatting changes
    */
   modifyStyles(stylesContent, fixAction, fixValue) {
-    console.log(`🎭 Modifying document styles for: ${fixAction}`);
     
     try {
       switch (fixAction) {

@@ -92,7 +92,6 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
     console.log('Starting XML-based document processing...');
     const startTime = Date.now();
     
-    console.log('Processing with XML parser...');
     const result = await xmlDocxProcessor.processDocument(filePath);
     const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
     

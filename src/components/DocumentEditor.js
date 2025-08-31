@@ -77,10 +77,6 @@ export default function DocumentEditor() {
       
       const initialValue = convertTextToSlateNodes(documentText, documentFormatting);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Generated Slate nodes (first 2):', initialValue.slice(0, 2));
-      }
-      
       setValue(initialValue);
     }
   }, [documentText, documentFormatting]);
@@ -99,20 +95,9 @@ export default function DocumentEditor() {
       return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
     }
 
-    console.log('Converting to Slate nodes with formatting data:', formatting.paragraphs.length, 'paragraphs');
-    console.log('Raw text from server:', JSON.stringify(text.substring(0, 200)));
-    console.log('First 5 paragraph texts from formatting:');
-    formatting.paragraphs.slice(0, 5).forEach((para, i) => {
-      console.log(`  ${i}: "${para.text?.substring(0, 80)}..."`);
-    });
 
     // Use ONLY the paragraph text from formatting data - ignore the raw text parameter
     return formatting.paragraphs.map((paraFormatting, index) => {
-      console.log(`Paragraph ${index}: "${paraFormatting.text?.substring(0, 50)}...", style: ${paraFormatting.style}`, {
-        hasRuns: !!paraFormatting.runs?.length,
-        runsCount: paraFormatting.runs?.length || 0,
-        spacing: paraFormatting.spacing
-      });
       
       // Determine paragraph type based on style and content
       const paraType = determineParagraphType(paraFormatting.text, paraFormatting);
@@ -124,13 +109,6 @@ export default function DocumentEditor() {
         // Use run-level formatting for precise text formatting
         children = [];
         paraFormatting.runs.forEach((run, runIndex) => {
-          console.log(`  Run ${runIndex}: text="${run.text}", font size=${run.font?.size}pt, family="${run.font?.family}"`);
-          console.log(`    🔍 Font formatting in run:`, {
-            bold: run.font?.bold,
-            italic: run.font?.italic,
-            underline: run.font?.underline,
-            fullFontObject: run.font
-          });
           
           const runText = run.text || '';
           
@@ -152,16 +130,6 @@ export default function DocumentEditor() {
                   fontSize: run.font?.size || null,
                   color: run.color || null
                 };
-                console.log(`    📝 Creating leaf node:`, leafNode);
-                if (part.toLowerCase().includes('running') || part.toLowerCase().includes('department')) {
-                  console.log(`🎯 SPECIAL DEBUG for "${part}":`, {
-                    originalBold: run.font?.bold,
-                    originalItalic: run.font?.italic,
-                    leafBold: leafNode.bold,
-                    leafItalic: leafNode.italic,
-                    fullRunFont: run.font
-                  });
-                }
                 children.push(leafNode);
               }
             });
@@ -175,16 +143,6 @@ export default function DocumentEditor() {
               fontSize: run.font?.size || null,
               color: run.color || null
             };
-            console.log(`    📝 Creating leaf node:`, leafNode);
-            if (runText.toLowerCase().includes('running') || runText.toLowerCase().includes('department')) {
-              console.log(`🎯 SPECIAL DEBUG for "${runText}":`, {
-                originalBold: run.font?.bold,
-                originalItalic: run.font?.italic,
-                leafBold: leafNode.bold,
-                leafItalic: leafNode.italic,
-                fullRunFont: run.font
-              });
-            }
             children.push(leafNode);
           }
         });
@@ -331,7 +289,6 @@ export default function DocumentEditor() {
       
       // Set new timeout for analysis
       window.editorAnalysisTimeout = setTimeout(() => {
-        console.log('🔄 Analyzing editor content changes...');
         analyzeEditorContent(newValue);
       }, 1500); // Increased debounce time for better performance
     }
@@ -350,19 +307,16 @@ export default function DocumentEditor() {
     // Font properties (paragraph-level defaults)
     if (formatting.font?.family) {
       baseStyle.fontFamily = `"${formatting.font.family}", serif`;
-      console.log(`Paragraph font family: ${formatting.font.family}`);
     }
     if (formatting.font?.size) {
       // Force exact pixel size to match Word display
       baseStyle.fontSize = `${formatting.font.size}px`;
-      console.log(`Forcing paragraph size: ${formatting.font.size}px (matching Word ${formatting.font.size}pt)`);
     }
     
     // Line spacing - use the exact value from the server
     if (formatting.spacing?.line) {
       // Use the line height value directly as the server should have converted it properly
       baseStyle.lineHeight = formatting.spacing.line;
-      console.log(`Line height: ${formatting.spacing.line} (direct from server)`);
     }
     
     // Paragraph spacing (before/after)
@@ -479,50 +433,17 @@ export default function DocumentEditor() {
       // Force exact pixel size to match Word display (28pt should display as 28px equivalent)
       leafStyle.fontSize = `${leaf.fontSize}px`;
       leafProps.className = `${leafProps.className || ''} docx-original-formatting`.trim();
-      console.log(`Forcing exact display size: ${leaf.fontSize}px (matching Word ${leaf.fontSize}pt) for text: "${leaf.text?.substring(0, 20)}..."`);
     }
     if (leaf.color) {
       leafStyle.color = leaf.color.startsWith('#') ? leaf.color : `#${leaf.color}`;
     }
     
-    // Debug: Log the complete style being applied and add data attributes for debugging
-    if (Object.keys(leafStyle).length > 0) {
-      console.log('Leaf style being applied:', leafStyle, 'to text:', leaf.text?.substring(0, 30));
-      // Add debug attributes to inspect in browser
-      leafProps['data-debug-font-size'] = leaf.fontSize || 'none';
-      leafProps['data-debug-font-family'] = leaf.fontFamily || 'none';
-    }
-    
-    // Debug bold/italic formatting
-    if (leaf.bold || leaf.italic || leaf.underline) {
-      console.log(`🔍 Text formatting DEBUG for "${leaf.text?.substring(0, 20)}...":`, {
-        bold: leaf.bold,
-        italic: leaf.italic,
-        underline: leaf.underline,
-        leafKeys: Object.keys(leaf)
-      });
-    }
-    
-    // Special debugging for specific words
-    if (leaf.text && (leaf.text.toLowerCase().includes('running') || leaf.text.toLowerCase().includes('department'))) {
-      console.log(`🎯 RENDER LEAF DEBUG for "${leaf.text}":`, {
-        bold: leaf.bold,
-        italic: leaf.italic,
-        boldType: typeof leaf.bold,
-        italicType: typeof leaf.italic,
-        willApplyBold: !!leaf.bold,
-        willApplyItalic: !!leaf.italic
-      });
-    }
-    
     let element = <span {...leafProps} style={leafStyle}>{children}</span>;
 
     if (leaf.bold) {
-      console.log(`✅ Applying BOLD to: "${leaf.text?.substring(0, 20)}..."`);
       element = <strong style={leafStyle}>{element}</strong>;
     }
     if (leaf.italic) {
-      console.log(`✅ Applying ITALIC to: "${leaf.text?.substring(0, 20)}..."`);
       element = <em style={leafStyle}>{element}</em>;
     }
     if (leaf.underline) {

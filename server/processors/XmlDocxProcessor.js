@@ -623,7 +623,6 @@ class XmlDocxProcessor {
 
     // Debug paragraph extraction
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Paragraph ${index}: "${paraText?.substring(0, 60)}..."`);
     }
 
     // Extract paragraph properties
@@ -686,10 +685,6 @@ class XmlDocxProcessor {
         if (sz && sz.$) {
           const rawValue = parseInt(sz.$['w:val']);
           runFormatting.font.size = rawValue / 2; // Convert from half-points to points
-          // Optional: Keep raw value for debugging
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`Font size extraction: ${rawValue} half-points → ${runFormatting.font.size}pt`);
-          }
         }
 
         // Formatting - check for existence of elements, not their values
@@ -697,23 +692,6 @@ class XmlDocxProcessor {
         runFormatting.font.italic = 'w:i' in rPr;
         runFormatting.font.underline = 'w:u' in rPr;
         
-        // Debug formatting extraction for specific words
-        const runText = this.extractRunText(run);
-        if (runText && (runText.toLowerCase().includes('running') || runText.toLowerCase().includes('department'))) {
-          console.log(`🔍 SERVER DEBUG for "${runText}":`, {
-            hasRPr: !!rPr,
-            rPrKeys: rPr ? Object.keys(rPr) : [],
-            boldElement: rPr ? rPr['w:b'] : 'no rPr',
-            italicElement: rPr ? rPr['w:i'] : 'no rPr',
-            underlineElement: rPr ? rPr['w:u'] : 'no rPr',
-            fullRPr: rPr
-          });
-          console.log(`🔍 Extracted formatting:`, {
-            bold: runFormatting.font.bold,
-            italic: runFormatting.font.italic,
-            underline: runFormatting.font.underline
-          });
-        }
 
         // Color
         const color = rPr['w:color'];

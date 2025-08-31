@@ -664,10 +664,15 @@ class XmlDocxProcessor {
           runFormatting.font.family = rFonts.$['w:ascii'] || rFonts.$['w:hAnsi'] || null;
         }
 
-        // Size
+        // Size - convert from Word's half-points to points
         const sz = rPr['w:sz'];
         if (sz && sz.$) {
-          runFormatting.font.size = parseInt(sz.$['w:val']) / 2;
+          const rawValue = parseInt(sz.$['w:val']);
+          runFormatting.font.size = rawValue / 2; // Convert from half-points to points
+          // Optional: Keep raw value for debugging
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Font size extraction: ${rawValue} half-points → ${runFormatting.font.size}pt`);
+          }
         }
 
         // Formatting

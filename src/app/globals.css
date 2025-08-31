@@ -191,7 +191,7 @@ mark[data-issue-id]:hover::after {
 .apa-document {
   max-width: 100%;
   overflow-wrap: break-word;
-  font-family: "Times New Roman", serif;
+  /* font-family removed to preserve original document fonts */
 }
 
 .apa-document h1,
@@ -229,6 +229,24 @@ mark[data-issue-id]:hover::after {
 .slate-editor {
   @apply apa-document;
   color: #000;
+}
+
+/* Force exact pt values without browser conversion */
+.slate-editor * {
+  font-family: unset;
+  font-size: unset !important;
+}
+
+/* Ensure pt units are preserved exactly as specified */
+.slate-editor [style*="font-size"] {
+  font-size: inherit !important;
+}
+
+/* Force 1:1 pt rendering */
+.slate-editor {
+  font-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
 }
 
 /* APA Issue Highlighting in Editor */

@@ -54,11 +54,32 @@ export default function DocumentEditor() {
   // Initialize editor content from document data
   useEffect(() => {
     if (documentText && documentFormatting && value.length === 0) {
-      console.log('Initializing editor with rich formatting data...');
-      console.log('Document formatting:', documentFormatting);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('=== DOCUMENT FORMATTING DEBUG ===');
+        console.log('Raw document formatting from server:', documentFormatting);
+        
+        // Debug first few paragraphs
+        if (documentFormatting.paragraphs) {
+          console.log('First 3 paragraphs formatting:');
+          documentFormatting.paragraphs.slice(0, 3).forEach((para, i) => {
+            console.log(`Paragraph ${i}:`, {
+              text: para.text?.substring(0, 50) + '...',
+              font: para.font,
+              spacing: para.spacing,
+              runs: para.runs?.map(run => ({
+                text: run.text?.substring(0, 20),
+                font: run.font
+              }))
+            });
+          });
+        }
+      }
       
       const initialValue = convertTextToSlateNodes(documentText, documentFormatting);
-      console.log('Generated Slate nodes:', initialValue);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Generated Slate nodes (first 2):', initialValue.slice(0, 2));
+      }
       
       setValue(initialValue);
     }
@@ -78,8 +99,17 @@ export default function DocumentEditor() {
       return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: text || '' }] }];
     }
 
+    console.log('Converting to Slate nodes with formatting data:', formatting.paragraphs.length, 'paragraphs');
+    console.log('Raw text from server:', JSON.stringify(text.substring(0, 200)));
+
     // Use the detailed paragraph formatting data instead of just splitting text
     return formatting.paragraphs.map((paraFormatting, index) => {
+      console.log(`Paragraph ${index}: "${paraFormatting.text?.substring(0, 50)}...", style: ${paraFormatting.style}`, {
+        hasRuns: !!paraFormatting.runs?.length,
+        runsCount: paraFormatting.runs?.length || 0,
+        spacing: paraFormatting.spacing
+      });
+      
       // Determine paragraph type based on style and content
       const paraType = determineParagraphType(paraFormatting.text, paraFormatting);
       
@@ -88,19 +118,27 @@ export default function DocumentEditor() {
       
       if (paraFormatting.runs && paraFormatting.runs.length > 0) {
         // Use run-level formatting for precise text formatting
-        children = paraFormatting.runs.map(run => ({
-          text: run.text || '',
-          // Apply run-level formatting as Slate marks
-          bold: run.font?.bold || false,
-          italic: run.font?.italic || false,
-          underline: run.font?.underline || false,
-          fontFamily: run.font?.family || null,
-          fontSize: run.font?.size || null,
-          color: run.color || null
-        }));
+        children = paraFormatting.runs.map((run, runIndex) => {
+          console.log(`  Run ${runIndex}: text="${run.text}", font size=${run.font?.size}pt, family="${run.font?.family}"`);
+          return {
+            text: run.text || '',
+            // Apply run-level formatting as Slate marks
+            bold: run.font?.bold || false,
+            italic: run.font?.italic || false,
+            underline: run.font?.underline || false,
+            fontFamily: run.font?.family || null,
+            fontSize: run.font?.size || null,
+            color: run.color || null
+          };
+        });
       } else {
         // Fallback to paragraph text if no runs
-        children = [{ text: paraFormatting.text || '' }];
+        children = [{ 
+          text: paraFormatting.text || '',
+          // Use paragraph-level font info if no runs
+          fontFamily: paraFormatting.font?.family || null,
+          fontSize: paraFormatting.font?.size || null
+        }];
       }
       
       // Ensure we have at least one child
@@ -237,14 +275,19 @@ export default function DocumentEditor() {
     // Font properties (paragraph-level defaults)
     if (formatting.font?.family) {
       baseStyle.fontFamily = `"${formatting.font.family}", serif`;
+      console.log(`Paragraph font family: ${formatting.font.family}`);
     }
     if (formatting.font?.size) {
-      baseStyle.fontSize = `${formatting.font.size}pt`;
+      // Force exact pixel size to match Word display
+      baseStyle.fontSize = `${formatting.font.size}px`;
+      console.log(`Forcing paragraph size: ${formatting.font.size}px (matching Word ${formatting.font.size}pt)`);
     }
     
-    // Line spacing
+    // Line spacing - use the exact value from the server
     if (formatting.spacing?.line) {
+      // Use the line height value directly as the server should have converted it properly
       baseStyle.lineHeight = formatting.spacing.line;
+      console.log(`Line height: ${formatting.spacing.line} (direct from server)`);
     }
     
     // Paragraph spacing (before/after)
@@ -282,11 +325,21 @@ export default function DocumentEditor() {
       baseStyle.textAlign = alignmentMap[formatting.alignment] || formatting.alignment;
     }
     
+    // Debug: Add data attributes to paragraphs for inspection
+    const debugAttrs = {};
+    if (formatting.font?.size) {
+      debugAttrs['data-debug-para-font-size'] = formatting.font.size;
+    }
+    if (formatting.font?.family) {
+      debugAttrs['data-debug-para-font-family'] = formatting.font.family;
+    }
+    
     switch (element.type) {
       case ELEMENT_TYPES.TITLE:
         return (
           <h1 
             {...attributes} 
+            {...debugAttrs}
             style={baseStyle}
           >
             {children}
@@ -296,6 +349,7 @@ export default function DocumentEditor() {
         return (
           <h1 
             {...attributes} 
+            {...debugAttrs}
             style={baseStyle}
           >
             {children}
@@ -305,6 +359,7 @@ export default function DocumentEditor() {
         return (
           <h2 
             {...attributes} 
+            {...debugAttrs}
             style={baseStyle}
           >
             {children}
@@ -314,6 +369,7 @@ export default function DocumentEditor() {
         return (
           <h3 
             {...attributes} 
+            {...debugAttrs}
             style={baseStyle}
           >
             {children}
@@ -323,6 +379,7 @@ export default function DocumentEditor() {
         return (
           <p 
             {...attributes} 
+            {...debugAttrs}
             style={baseStyle}
           >
             {children}
@@ -337,17 +394,31 @@ export default function DocumentEditor() {
     
     // Build inline styles for font properties
     const leafStyle = {};
+    const leafProps = { ...attributes };
+    
+    // Use a combination of inline styles and CSS class for better specificity
     if (leaf.fontFamily) {
       leafStyle.fontFamily = `"${leaf.fontFamily}", serif`;
     }
     if (leaf.fontSize) {
-      leafStyle.fontSize = `${leaf.fontSize}pt`;
+      // Force exact pixel size to match Word display (28pt should display as 28px equivalent)
+      leafStyle.fontSize = `${leaf.fontSize}px`;
+      leafProps.className = `${leafProps.className || ''} docx-original-formatting`.trim();
+      console.log(`Forcing exact display size: ${leaf.fontSize}px (matching Word ${leaf.fontSize}pt) for text: "${leaf.text?.substring(0, 20)}..."`);
     }
     if (leaf.color) {
       leafStyle.color = leaf.color.startsWith('#') ? leaf.color : `#${leaf.color}`;
     }
     
-    let element = <span {...attributes} style={leafStyle}>{children}</span>;
+    // Debug: Log the complete style being applied and add data attributes for debugging
+    if (Object.keys(leafStyle).length > 0) {
+      console.log('Leaf style being applied:', leafStyle, 'to text:', leaf.text?.substring(0, 30));
+      // Add debug attributes to inspect in browser
+      leafProps['data-debug-font-size'] = leaf.fontSize || 'none';
+      leafProps['data-debug-font-family'] = leaf.fontFamily || 'none';
+    }
+    
+    let element = <span {...leafProps} style={leafStyle}>{children}</span>;
 
     if (leaf.bold) {
       element = <strong style={leafStyle}>{element}</strong>;

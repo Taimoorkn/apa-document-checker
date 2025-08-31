@@ -30,8 +30,6 @@ body {
 /* APA styling for document viewer */
 .prose {
   font-family: 'Times New Roman', Times, serif;
-  font-size: 12pt;
-  line-height: 2;
   max-width: none;
 }
 
@@ -194,14 +192,6 @@ mark[data-issue-id]:hover::after {
   max-width: 100%;
   overflow-wrap: break-word;
   font-family: "Times New Roman", serif;
-  font-size: 12pt;
-  line-height: 2;
-}
-
-.apa-document p {
-  margin-bottom: 0;
-  text-align: left;
-  text-indent: 0.5in;
 }
 
 .apa-document h1,
@@ -210,7 +200,6 @@ mark[data-issue-id]:hover::after {
 .apa-document h4,
 .apa-document h5,
 .apa-document h6 {
-  margin: 0;
   text-indent: 0;
 }
 
@@ -234,11 +223,6 @@ mark[data-issue-id]:hover::after {
   text-indent: -0.5in;
 }
 
-/* Consolidate all APA styling into base class */
-.apa-paragraph {
-  @apply apa-document;
-  margin-bottom: 1em;
-}
 
 
 /* Slate.js Editor Enhancements */

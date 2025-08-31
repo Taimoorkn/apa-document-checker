@@ -71,14 +71,15 @@ export default function DocumentEditor() {
   const convertTextToSlateNodes = useCallback((text, formatting) => {
     if (!text) return [{ type: ELEMENT_TYPES.PARAGRAPH, children: [{ text: '' }] }];
 
-    const paragraphs = text.split('\n').filter(p => p.trim() !== '');
+    const paragraphs = text.split('\n');
     
     return paragraphs.map((paragraph, index) => {
       // Determine paragraph type based on content and formatting
       const paraType = determineParagraphType(paragraph, formatting?.paragraphs?.[index]);
       
       // Create children with potential formatting
-      const children = [{ text: paragraph }];
+      // Handle empty paragraphs to preserve document spacing
+      const children = [{ text: paragraph || '' }];
       
       return {
         type: paraType,
@@ -195,26 +196,31 @@ export default function DocumentEditor() {
     // Extract formatting from element when available
     const formatting = element.formatting || {};
     const fontFamily = formatting.font?.family || '"Times New Roman", serif';
-    const fontSize = formatting.font?.size ? `${formatting.font.size}pt` : '12pt';
-    const lineHeight = formatting.spacing?.line || 2;
-    const textIndent = element.type === ELEMENT_TYPES.PARAGRAPH ? '0.5in' : '0';
-    const alignment = formatting.alignment || 'left';
+    const fontSize = formatting.font?.size ? `${formatting.font.size}pt` : undefined;
+    const lineHeight = formatting.spacing?.line || undefined;
+    const textIndent = formatting.indentation?.firstLine ? `${formatting.indentation.firstLine}in` : undefined;
+    const alignment = formatting.alignment || undefined;
+    const marginBefore = formatting.spacing?.before ? `${formatting.spacing.before}pt` : undefined;
+    const marginAfter = formatting.spacing?.after ? `${formatting.spacing.after}pt` : undefined;
     
     // Base style that respects original formatting
     const baseStyle = {
-      fontFamily,
-      fontSize,
-      lineHeight: `${lineHeight}`,
-      textIndent,
-      textAlign: alignment
+      fontFamily
     };
+    
+    // Only add properties if they have values from the document
+    if (fontSize) baseStyle.fontSize = fontSize;
+    if (lineHeight) baseStyle.lineHeight = `${lineHeight}`;
+    if (textIndent) baseStyle.textIndent = textIndent;
+    if (alignment) baseStyle.textAlign = alignment;
+    if (marginBefore) baseStyle.marginTop = marginBefore;
+    if (marginAfter) baseStyle.marginBottom = marginAfter;
     
     switch (element.type) {
       case ELEMENT_TYPES.TITLE:
         return (
           <h1 
             {...attributes} 
-            className="text-2xl mb-6"
             style={baseStyle}
           >
             {children}
@@ -224,7 +230,6 @@ export default function DocumentEditor() {
         return (
           <h1 
             {...attributes} 
-            className="text-xl mb-4"
             style={baseStyle}
           >
             {children}
@@ -234,7 +239,6 @@ export default function DocumentEditor() {
         return (
           <h2 
             {...attributes} 
-            className="text-lg mb-3"
             style={baseStyle}
           >
             {children}
@@ -244,7 +248,6 @@ export default function DocumentEditor() {
         return (
           <h3 
             {...attributes} 
-            className="text-base mb-3"
             style={baseStyle}
           >
             {children}
@@ -254,7 +257,6 @@ export default function DocumentEditor() {
         return (
           <p 
             {...attributes} 
-            className="apa-paragraph mb-4"
             style={baseStyle}
           >
             {children}
@@ -384,11 +386,6 @@ export default function DocumentEditor() {
                 >
                   <div
                     ref={editorRef}
-                    style={{
-                      fontFamily: '"Times New Roman", serif',
-                      fontSize: '12pt',
-                      lineHeight: '2'
-                    }}
                   >
                     <Slate 
                       editor={editor} 
@@ -400,11 +397,6 @@ export default function DocumentEditor() {
                         renderLeaf={renderLeaf}
                         placeholder="Start writing your APA document..."
                         className="min-h-96 outline-none"
-                        style={{
-                          fontFamily: '"Times New Roman", serif',
-                          fontSize: '12pt',
-                          lineHeight: '2'
-                        }}
                         data-slate-editor="true"
                       />
                     </Slate>

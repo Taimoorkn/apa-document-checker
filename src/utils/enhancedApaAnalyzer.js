@@ -40,13 +40,6 @@ export class EnhancedAPAAnalyzer {
       structure = null 
     } = documentData || {};
     
-    console.log('🔍 Enhanced APA Analyzer starting...');
-    console.log('📊 Data received:', {
-      hasText: !!text,
-      hasHtml: !!html,
-      hasFormatting: !!formatting,
-      hasStructure: !!structure
-    });
     
     // 1. Analyze formatting with precise data (if available)
     if (formatting) {
@@ -80,7 +73,6 @@ export class EnhancedAPAAnalyzer {
       issues.push(...this.analyzeContent(text));
     }
     
-    console.log(`✅ Analysis complete: ${issues.length} issues found`);
     
     return this.prioritizeAndDeduplicateIssues(issues);
   }
@@ -91,7 +83,6 @@ export class EnhancedAPAAnalyzer {
   analyzeFormatting(formatting) {
     const issues = [];
     
-    console.log('🎨 Analyzing formatting with rich data...');
     
     // Safely access formatting properties
     const documentFormatting = formatting?.document || {};
@@ -223,7 +214,6 @@ export class EnhancedAPAAnalyzer {
   analyzeBasicFormatting(html) {
     const issues = [];
     
-    console.log('📝 Using basic formatting analysis (no rich data)...');
     
     if (!html) return issues;
     
@@ -251,7 +241,6 @@ export class EnhancedAPAAnalyzer {
   analyzeStructure(structure, text) {
     const issues = [];
     
-    console.log('🏗️ Analyzing document structure...');
     
     if (!structure || !text) return issues;
     
@@ -324,13 +313,10 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
-    console.log('🏗️ Basic structure analysis starting...');
     
     const hasReferences = text.toLowerCase().includes('references');
     const hasCitations = /\([^)]+,\s*\d{4}\)/.test(text);
     
-    console.log('Has references section:', hasReferences);
-    console.log('Has citations:', hasCitations);
     
     if (hasCitations && !hasReferences) {
       issues.push({
@@ -344,7 +330,6 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    console.log(`Basic structure analysis found ${issues.length} issues`);
     return issues;
   }
   
@@ -354,7 +339,6 @@ export class EnhancedAPAAnalyzer {
   analyzeCitations(text, extractedCitations) {
     const issues = [];
     
-    console.log('📚 Analyzing citations with structure data...');
     
     // Use extracted citations for more accurate analysis
     const citations = extractedCitations || [];
@@ -410,9 +394,6 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
-    console.log('📝 Basic citation analysis starting...');
-    console.log('Text length:', text.length);
-    console.log('Text sample:', text.substring(0, 200));
     
     // Enhanced citation patterns to catch all APA violations
     
@@ -426,7 +407,6 @@ export class EnhancedAPAAnalyzer {
       // Skip if this contains et al. - handle separately
       if (authorPart.includes('et al')) continue;
       
-      console.log(`Found citation missing comma:`, fullCitation);
       
       issues.push({
         title: "Missing comma in citation",
@@ -450,7 +430,6 @@ export class EnhancedAPAAnalyzer {
       const fullCitation = match[0];
       const authorPart = match[1];
       
-      console.log(`Found citation ${citationCount}:`, fullCitation);
       
       // Check for incorrect ampersand usage
       if (authorPart.includes(' and ') && fullCitation.includes('(')) {
@@ -481,13 +460,11 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
-    console.log(`Found ${citationCount} total citations`);
     
     // 3. Analyze References section for consistency issues
     const referencesSection = text.match(/REFERENCES([\s\S]*?)(?=\n\n[A-Z]|$)/i);
     if (referencesSection) {
       const referencesText = referencesSection[1];
-      console.log('Found references section, analyzing...');
       
       // Check for "and" instead of "&" in references
       const andInReferencesPattern = /^[^.]+,\s+[^,]+,\s+and\s+[^,]+\./gm;
@@ -643,7 +620,6 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
-    console.log(`Basic citation analysis found ${issues.length} issues`);
     return issues;
   }
   
@@ -655,7 +631,6 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
-    console.log('📄 Analyzing title page structure...');
     
     const firstPage = text.substring(0, 1500); // First ~1500 chars for title page
     
@@ -678,7 +653,6 @@ export class EnhancedAPAAnalyzer {
     const possibleTitle = lines[0];
     if (possibleTitle.length > 5 && possibleTitle.startsWith('  ')) {
       // This might indicate improper formatting, but it's hard to detect without rich formatting
-      console.log('Possible title formatting issue detected');
     }
     
     // Check for common title page issues
@@ -714,7 +688,6 @@ export class EnhancedAPAAnalyzer {
       }
     }
     
-    console.log(`Title page analysis found ${issues.length} issues`);
     return issues;
   }
   
@@ -726,13 +699,11 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
-    console.log('📖 Analyzing references...');
     
     // Simple check - if we have citations but no references section
     const hasReferences = text.toLowerCase().includes('references');
     const hasCitations = /\([^)]+,?\s*\d{4}\)/.test(text);
     
-    console.log('References check - has references:', hasReferences, 'has citations:', hasCitations);
     
     if (hasCitations && !hasReferences) {
       issues.push({
@@ -744,7 +715,6 @@ export class EnhancedAPAAnalyzer {
         fixAction: "addReferencesHeader",
         explanation: "All APA papers must include a References section."
       });
-      console.log('Added missing references issue');
     }
     
     const referencesMatch = text.match(/References[\s\n]+([\s\S]+?)(?:\n\n[A-Z]|$)/i);
@@ -800,7 +770,6 @@ export class EnhancedAPAAnalyzer {
     
     if (!text) return issues;
     
-    console.log('📄 Analyzing content compliance...');
     
     // Check for excessive first person usage
     const firstPersonPattern = /\b(I|me|my|mine|we|us|our|ours)\b/gi;
@@ -819,7 +788,6 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    console.log(`Content analysis found ${issues.length} issues`);
     return issues;
   }
   

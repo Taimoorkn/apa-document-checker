@@ -11,7 +11,8 @@
       "Bash(node:*)",
       "Bash(find:*)",
       "Bash(curl:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

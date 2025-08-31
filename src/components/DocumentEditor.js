@@ -16,8 +16,6 @@ const ELEMENT_TYPES = {
   HEADING_4: 'heading-4',
   HEADING_5: 'heading-5',
   TITLE: 'title',
-  ABSTRACT: 'abstract',
-  REFERENCES: 'references',
   CITATION: 'citation'
 };
 
@@ -94,13 +92,7 @@ export default function DocumentEditor() {
 
   // Determine paragraph type based on content and formatting
   const determineParagraphType = useCallback((text, formatting) => {
-    const trimmedText = text.trim().toLowerCase();
-    
-    // Check for special sections
-    if (trimmedText === 'abstract') return ELEMENT_TYPES.ABSTRACT;
-    if (trimmedText === 'references') return ELEMENT_TYPES.REFERENCES;
-    
-    // Check for headings based on formatting or style
+    // Only check for headings based on formatting or style, not content
     if (formatting?.style) {
       const style = formatting.style.toLowerCase();
       if (style.includes('title')) return ELEMENT_TYPES.TITLE;
@@ -109,11 +101,6 @@ export default function DocumentEditor() {
       if (style.includes('heading3')) return ELEMENT_TYPES.HEADING_3;
       if (style.includes('heading4')) return ELEMENT_TYPES.HEADING_4;
       if (style.includes('heading5')) return ELEMENT_TYPES.HEADING_5;
-    }
-    
-    // Check for citations
-    if (/\([^)]+,\s*\d{4}\)/.test(text)) {
-      return ELEMENT_TYPES.PARAGRAPH; // Keep as paragraph but mark citations
     }
     
     return ELEMENT_TYPES.PARAGRAPH;
@@ -227,8 +214,8 @@ export default function DocumentEditor() {
         return (
           <h1 
             {...attributes} 
-            className="text-2xl font-bold text-center mb-6"
-            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
+            className="text-2xl mb-6"
+            style={baseStyle}
           >
             {children}
           </h1>
@@ -237,8 +224,8 @@ export default function DocumentEditor() {
         return (
           <h1 
             {...attributes} 
-            className="text-xl font-bold text-center mb-4"
-            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
+            className="text-xl mb-4"
+            style={baseStyle}
           >
             {children}
           </h1>
@@ -247,8 +234,8 @@ export default function DocumentEditor() {
         return (
           <h2 
             {...attributes} 
-            className="text-lg font-bold text-center mb-3"
-            style={{ ...baseStyle, textAlign: 'center', fontWeight: 'bold' }}
+            className="text-lg mb-3"
+            style={baseStyle}
           >
             {children}
           </h2>
@@ -257,25 +244,11 @@ export default function DocumentEditor() {
         return (
           <h3 
             {...attributes} 
-            className="text-base font-bold mb-3"
-            style={{ ...baseStyle, fontWeight: 'bold' }}
+            className="text-base mb-3"
+            style={baseStyle}
           >
             {children}
           </h3>
-        );
-      case ELEMENT_TYPES.ABSTRACT:
-        return (
-          <div {...attributes} className="mb-6" style={baseStyle}>
-            <h2 className="text-lg font-bold text-center mb-2" style={{ textAlign: 'center', fontWeight: 'bold' }}>Abstract</h2>
-            <p className="apa-paragraph" style={{ textIndent: '0.5in' }}>{children}</p>
-          </div>
-        );
-      case ELEMENT_TYPES.REFERENCES:
-        return (
-          <div {...attributes} className="mb-6" style={{ ...baseStyle, textIndent: '0' }}>
-            <h2 className="text-lg font-bold text-center mb-4" style={{ textAlign: 'center', fontWeight: 'bold' }}>References</h2>
-            <p className="apa-paragraph">{children}</p>
-          </div>
         );
       default:
         return (

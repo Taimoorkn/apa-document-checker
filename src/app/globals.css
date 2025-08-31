@@ -210,8 +210,6 @@ mark[data-issue-id]:hover::after {
 .apa-document h4,
 .apa-document h5,
 .apa-document h6 {
-  font-weight: bold;
-  text-align: center;
   margin: 0;
   text-indent: 0;
 }
@@ -248,12 +246,6 @@ mark[data-issue-id]:hover::after {
   @apply apa-document;
   color: #000;
 }
-
-.slate-editor h1 { font-size: 18pt; }
-.slate-editor h2 { font-size: 16pt; }
-.slate-editor h3 { font-size: 14pt; }
-.slate-editor h4 { font-size: 12pt; }
-.slate-editor h5 { font-size: 12pt; }
 
 /* APA Issue Highlighting in Editor */
 .active-issue {

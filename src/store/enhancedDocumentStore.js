@@ -870,25 +870,13 @@ export const useDocumentStore = create((set, get) => ({
           <html lang="en">
           <head>
             <meta charset="UTF-8">
-            <title>APA Formatted Document</title>
+            <title>Document Export</title>
             <style>
               body { 
                 font-family: "Times New Roman", Times, serif; 
                 font-size: 12pt; 
-                line-height: 2; 
+                line-height: 1.5; 
                 margin: 1in; 
-              }
-              p {
-                text-indent: 0.5in;
-                margin-bottom: 0;
-              }
-              h1, h2, h3, h4, h5, h6 {
-                text-align: center;
-                font-weight: bold;
-              }
-              .references p {
-                text-indent: -0.5in;
-                padding-left: 0.5in;
               }
             </style>
           </head>

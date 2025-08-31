@@ -53,10 +53,12 @@ export default function DocumentEditor() {
 
   // Initialize editor content from document data
   useEffect(() => {
-    if (documentText && documentFormatting && value.length === 0) {
+    if (documentText && documentFormatting) {
+      // Always regenerate when documentFormatting changes (including after fixes)
       if (process.env.NODE_ENV === 'development') {
         console.log('=== DOCUMENT FORMATTING DEBUG ===');
         console.log('Raw document formatting from server:', documentFormatting);
+        console.log('lastFixAppliedAt:', lastFixAppliedAt);
         
         // Debug first few paragraphs
         if (documentFormatting.paragraphs) {
@@ -75,11 +77,40 @@ export default function DocumentEditor() {
         }
       }
       
-      const initialValue = convertTextToSlateNodes(documentText, documentFormatting);
+      const newValue = convertTextToSlateNodes(documentText, documentFormatting);
       
-      setValue(initialValue);
+      // Update in these cases:
+      // 1. Initial load (value is empty)
+      // 2. Document text has changed
+      // 3. A fix was recently applied (lastFixAppliedAt changed)
+      const shouldUpdate = value.length === 0 || 
+                          lastFixAppliedAt || 
+                          (value.length > 0 && 
+                           value.map(node => 
+                             node.children?.map(child => child.text || '').join('') || ''
+                           ).join('\n') !== documentText);
+      
+      if (shouldUpdate) {
+        console.log('🔄 Updating Slate editor with new formatting data');
+        console.log('Reasons:', {
+          initialLoad: value.length === 0,
+          fixApplied: !!lastFixAppliedAt,
+          textChanged: value.length > 0 && value.map(node => 
+            node.children?.map(child => child.text || '').join('') || ''
+          ).join('\n') !== documentText
+        });
+        
+        // Force Slate to re-render by creating completely new value
+        const freshValue = JSON.parse(JSON.stringify(newValue));
+        setValue(freshValue);
+        
+        // Force re-render of the editor component
+        if (editorRef.current) {
+          console.log('🔄 Forcing editor re-render');
+        }
+      }
     }
-  }, [documentText, documentFormatting]);
+  }, [documentText, documentFormatting, lastFixAppliedAt]);
 
   // Apply issue highlighting when issues or active issue changes
   useEffect(() => {
@@ -559,6 +590,7 @@ export default function DocumentEditor() {
                     ref={editorRef}
                   >
                     <Slate 
+                      key={`slate-editor-${lastFixAppliedAt || 'initial'}`}
                       editor={editor} 
                       initialValue={value} 
                       onValueChange={handleEditorChange}

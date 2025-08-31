@@ -168,10 +168,23 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
  * Apply a formatting fix to a DOCX document (Memory-based processing)
  */
 router.post('/apply-fix', async (req, res) => {
+  console.log('🎯 /api/apply-fix endpoint called');
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.keys(req.headers));
+  console.log('Request content-type:', req.get('content-type'));
+  console.log('Request body exists:', !!req.body);
+  console.log('Request body size:', JSON.stringify(req.body || {}).length);
+  
   try {
     // Parse JSON body manually if needed
     let requestData;
+    
+    console.log('Request body keys:', Object.keys(req.body || {}));
+    console.log('Request body type:', typeof req.body);
+    console.log('Is multipart:', req.is('multipart/form-data'));
+    
     if (req.is('multipart/form-data')) {
+      console.log('📦 Processing multipart form data');
       // Handle multipart data (document buffer + metadata)
       requestData = {
         fixAction: req.body.fixAction,
@@ -179,9 +192,12 @@ router.post('/apply-fix', async (req, res) => {
         originalFilename: req.body.originalFilename
       };
     } else {
+      console.log('📦 Processing JSON data');
       // Handle JSON data with base64 document
       requestData = req.body;
     }
+    
+    console.log('Parsed requestData keys:', Object.keys(requestData || {}));
     
     const { documentBuffer, fixAction, fixValue, originalFilename } = requestData;
     
@@ -204,27 +220,49 @@ router.post('/apply-fix', async (req, res) => {
     }
     
     console.log(`🔧 Applying fix: ${fixAction} to document buffer`);
+    console.log('Fix value:', JSON.stringify(fixValue, null, 2));
     
     // Convert base64 to buffer if needed
     let docxBuffer;
     if (typeof documentBuffer === 'string') {
-      docxBuffer = Buffer.from(documentBuffer, 'base64');
+      try {
+        docxBuffer = Buffer.from(documentBuffer, 'base64');
+        console.log(`✅ Buffer conversion successful, size: ${docxBuffer.length} bytes`);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid base64 document buffer: ${error.message}`,
+          code: 'INVALID_BUFFER'
+        });
+      }
     } else {
       docxBuffer = Buffer.from(documentBuffer);
     }
     
     // Apply the fix using DocxModifier (memory-based)
+    console.log('🔄 Calling DocxModifier.applyFormattingFix...');
     const modificationResult = await docxModifier.applyFormattingFix(
       docxBuffer,
       fixAction, 
       fixValue
     );
     
+    console.log('DocxModifier result:', {
+      success: modificationResult.success,
+      error: modificationResult.error,
+      bufferSize: modificationResult.buffer?.length
+    });
+    
     if (!modificationResult.success) {
       return res.status(500).json({
         success: false,
         error: `Failed to apply fix: ${modificationResult.error}`,
-        code: 'FIX_APPLICATION_FAILED'
+        code: 'FIX_APPLICATION_FAILED',
+        details: {
+          fixAction,
+          fixValue,
+          originalError: modificationResult.error
+        }
       });
     }
     
@@ -258,14 +296,30 @@ router.post('/apply-fix', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in apply-fix route:', error);
-    
-    res.status(500).json({
-      success: false,
-      error: 'Failed to apply fix to document',
-      code: 'APPLY_FIX_ERROR',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    console.error('❌ Critical error in apply-fix route:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code
     });
+    
+    // Ensure we always send a JSON response
+    try {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to apply fix to document',
+        code: 'APPLY_FIX_ERROR',
+        details: process.env.NODE_ENV === 'development' ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : undefined
+      });
+    } catch (responseError) {
+      console.error('❌ Failed to send error response:', responseError);
+      res.status(500).end('Internal server error');
+    }
   }
 });
 

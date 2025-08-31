@@ -342,10 +342,16 @@ export const useDocumentStore = create((set, get) => ({
     }));
     
     try {
-      // Check if this is a formatting fix that requires document regeneration
-      const formattingFixes = ['fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation'];
+      // Check if this is a fix that requires document regeneration via DocxModifier
+      const docxModifierFixes = [
+        // Formatting fixes
+        'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
+        // Content fixes
+        'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting', 
+        'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
+      ];
       
-      if (formattingFixes.includes(issue.fixAction)) {
+      if (docxModifierFixes.includes(issue.fixAction)) {
         console.log(`🔄 Regenerating document with fix: ${issue.fixAction}`);
         
         // Apply the fix to the formatting data and regenerate HTML
@@ -395,6 +401,13 @@ export const useDocumentStore = create((set, get) => ({
             }
           }));
           
+          // Clear the lastFixAppliedAt after a brief delay to allow re-triggering
+          setTimeout(() => {
+            set(state => ({
+              lastFixAppliedAt: null
+            }));
+          }, 100);
+          
           return true;
         }
       } else {
@@ -436,6 +449,15 @@ export const useDocumentStore = create((set, get) => ({
             stage: null
           }
         }));
+        
+        // Clear the lastFixAppliedAt after a brief delay if content changed
+        if (contentChanged) {
+          setTimeout(() => {
+            set(state => ({
+              lastFixAppliedAt: null
+            }));
+          }, 100);
+        }
         
         return true;
       }
@@ -576,6 +598,7 @@ export const useDocumentStore = create((set, get) => ({
       // Determine fix value based on action
       let fixValue;
       switch (issue.fixAction) {
+        // Formatting fixes
         case 'fixFont':
           fixValue = 'Times New Roman';
           break;
@@ -591,16 +614,89 @@ export const useDocumentStore = create((set, get) => ({
         case 'fixIndentation':
           fixValue = 0.5;
           break;
+
+        // Text-based content fixes
+        case 'addCitationComma':
+          if (issue.text) {
+            const fixedText = issue.text.replace(/\(([^,)]+)\s+(\d{4})\)/g, '($1, $2)');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
+        case 'fixParentheticalConnector':
+          if (issue.text) {
+            const fixedText = issue.text.replace(' and ', ' & ');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
+        case 'fixEtAlFormatting':
+          if (issue.text) {
+            const fixedText = issue.text.replace(/\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, '($1, et al., $2)');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
+        case 'fixReferenceConnector':
+          if (issue.text) {
+            const fixedText = issue.text.replace(/, and /g, ', & ');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
+        case 'fixAllCapsHeading':
+          if (issue.text) {
+            const fixedText = issue.text.toLowerCase()
+              .split(' ')
+              .map(word => {
+                const smallWords = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'];
+                const isFirstWord = word === issue.text.toLowerCase().split(' ')[0];
+                
+                if (isFirstWord || !smallWords.includes(word)) {
+                  return word.charAt(0).toUpperCase() + word.slice(1);
+                }
+                return word;
+              })
+              .join(' ');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
+        case 'addPageNumber':
+          if (issue.text && issue.text.includes('(') && issue.text.includes(')')) {
+            const fixedText = issue.text.replace(/\)$/, ', p. 1)');
+            fixValue = { originalText: issue.text, replacementText: fixedText };
+          }
+          break;
         default:
           throw new Error(`Unknown fix action: ${issue.fixAction}`);
       }
       
+      if (!fixValue) {
+        throw new Error(`Could not determine fix value for action: ${issue.fixAction}`);
+      }
+      
       console.log(`💡 Sending fix request to server: ${issue.fixAction} = ${JSON.stringify(fixValue)}`);
+      
+      // First, test if server is accessible
+      try {
+        const healthCheck = await fetch(`${SERVER_URL}/api/health`);
+        console.log('🏥 Health check response:', healthCheck.status);
+        if (!healthCheck.ok) {
+          throw new Error(`Server health check failed: ${healthCheck.status}`);
+        }
+      } catch (healthError) {
+        console.error('❌ Server is not accessible:', healthError);
+        throw new Error(`Server is not accessible: ${healthError.message}. Make sure the backend server is running on port 3001.`);
+      }
       
       // Convert Uint8Array to base64 for JSON transport
       const base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
       
       // Send fix request to server with document buffer
+      console.log('🚀 Sending fix request to server:', {
+        fixAction: issue.fixAction,
+        fixValue: fixValue,
+        fixValueType: typeof fixValue,
+        bufferSize: base64Buffer.length,
+        filename: documentName
+      });
+      
       const response = await fetch(`${SERVER_URL}/api/apply-fix`, {
         method: 'POST',
         headers: {
@@ -614,12 +710,46 @@ export const useDocumentStore = create((set, get) => ({
         })
       });
       
+      console.log('📡 Server response status:', response.status);
+      console.log('📡 Server response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        let errorData;
+        const contentType = response.headers.get('content-type');
+        console.log('Response content-type:', contentType);
+        
+        try {
+          const responseText = await response.text();
+          console.log('Raw response text:', responseText);
+          
+          if (contentType && contentType.includes('application/json') && responseText) {
+            errorData = JSON.parse(responseText);
+          } else {
+            errorData = { error: responseText || 'Unknown server error' };
+          }
+        } catch (parseError) {
+          console.error('Error parsing server response:', parseError);
+          errorData = { error: 'Failed to parse server error response' };
+        }
+        
+        console.error('❌ Server error response:', errorData);
+        console.error('❌ Full response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log('✅ Server fix response:', {
+        success: result.success,
+        fixApplied: result.fixApplied,
+        hasDocument: !!result.document,
+        hasBuffer: !!result.modifiedDocumentBuffer
+      });
       
       if (!result.success) {
         throw new Error(result.error || 'Server failed to apply fix');

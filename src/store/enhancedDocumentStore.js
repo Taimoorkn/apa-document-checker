@@ -30,6 +30,7 @@ export const useDocumentStore = create((set, get) => ({
   // Issues and analysis state
   issues: [],
   activeIssueId: null,
+  showIssueHighlighting: true, // Persist issue highlighting state
   analysisScore: null,
   complianceDetails: null, // Detailed compliance information
   lastFixAppliedAt: null,
@@ -787,9 +788,33 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
   
-  // Set active issue
+  // Set active issue and scroll to it
   setActiveIssue: (issueId) => {
     set({ activeIssueId: issueId });
+    
+    // Scroll to the issue in the document
+    if (issueId) {
+      setTimeout(() => {
+        const issueElement = document.querySelector(`[data-issue-id="${issueId}"]`);
+        if (issueElement) {
+          issueElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          console.log(`📍 Scrolled to issue: ${issueId}`);
+        } else {
+          console.warn(`⚠️ Could not find element for issue: ${issueId}`);
+        }
+      }, 100); // Small delay to ensure DOM is updated
+    }
+  },
+
+  // Toggle issue highlighting
+  toggleIssueHighlighting: () => {
+    set(state => ({ 
+      showIssueHighlighting: !state.showIssueHighlighting 
+    }));
   },
 
   

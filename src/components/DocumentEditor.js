@@ -38,13 +38,14 @@ export default function DocumentEditor() {
     processingState, 
     documentFormatting,
     currentDocumentBuffer,
-    analyzeDocument
+    analyzeDocument,
+    showIssueHighlighting,
+    toggleIssueHighlighting
   } = useDocumentStore();
   
   // Editor state
   const [editor] = useState(() => withHistory(withReact(createEditor())));
   const [value, setValue] = useState([]);
-  const [showIssues, setShowIssues] = useState(true);
   
   // Refs for components
   const editorRef = useRef(null);
@@ -112,12 +113,6 @@ export default function DocumentEditor() {
     }
   }, [documentText, documentFormatting, lastFixAppliedAt]);
 
-  // Apply issue highlighting when issues or active issue changes
-  useEffect(() => {
-    if (showIssues) {
-      applyIssueHighlighting();
-    }
-  }, [issues, activeIssueId, showIssues]);
 
 
   // Convert document with rich formatting data to Slate nodes
@@ -289,6 +284,13 @@ export default function DocumentEditor() {
     Transforms.deselect(editor);
   }, [editor, issues, activeIssueId]);
 
+  // Apply issue highlighting when issues or active issue changes
+  useEffect(() => {
+    if (showIssueHighlighting && value.length > 0) {
+      console.log('🎨 Applying issue highlighting to Slate editor');
+      applyIssueHighlighting();
+    }
+  }, [issues, activeIssueId, showIssueHighlighting, value, applyIssueHighlighting]);
 
   // Get CSS class for issue highlighting
   const getIssueClass = useCallback((severity) => {
@@ -560,14 +562,14 @@ export default function DocumentEditor() {
               <div className="flex items-center space-x-3">
                 
                 <button 
-                  onClick={() => setShowIssues(!showIssues)}
+                  onClick={toggleIssueHighlighting}
                   className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    showIssues 
+                    showIssueHighlighting 
                       ? 'bg-red-100 text-red-700 hover:bg-red-200' 
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  {showIssues ? 'Hide Issues' : 'Show Issues'}
+                  {showIssueHighlighting ? 'Hide Issues' : 'Show Issues'}
                 </button>
                 
                 <div className="h-4 w-px bg-gray-300"></div>

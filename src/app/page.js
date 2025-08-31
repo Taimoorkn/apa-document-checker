@@ -8,25 +8,29 @@ import DocumentEditor from '@/components/DocumentEditor';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);
+  const [isDragging, setIsDragging] = useState(false);
   const { documentText, issues } = useDocumentStore();
 
   return (
-    <main className="flex flex-col h-screen bg-gray-100">
+    <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
       <Header />
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Document Viewer (left panel) */}
         <div 
-          className="relative bg-white border-r border-gray-300"
+          className="relative bg-white shadow-xl border-r border-gray-100 transition-all duration-300"
           style={{ width: `${splitRatio}%` }}
         >
           <DocumentEditor />
         </div>
         
-        {/* Resize handle */}
+        {/* Modern Resize Handle */}
         <div 
-          className="w-1 bg-gray-300 hover:bg-blue-400 cursor-col-resize transition-colors relative group"
+          className={`w-1.5 cursor-col-resize relative group transition-all duration-200 ${
+            isDragging ? 'bg-indigo-500 shadow-lg shadow-indigo-500/50' : 'bg-gray-200 hover:bg-indigo-400 hover:shadow-lg hover:shadow-indigo-400/30'
+          }`}
           onMouseDown={(e) => {
+            setIsDragging(true);
             const startX = e.clientX;
             const startWidth = splitRatio;
             
@@ -40,26 +44,35 @@ export default function Home() {
             };
             
             const handleMouseUp = () => {
+              setIsDragging(false);
               document.removeEventListener('mousemove', handleMouseMove);
               document.removeEventListener('mouseup', handleMouseUp);
+              document.body.style.cursor = 'default';
+              document.body.style.userSelect = 'auto';
             };
             
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
           }}
         >
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex flex-col space-y-1">
-              <div className="w-1 h-1.5 bg-white rounded-full"></div>
-              <div className="w-1 h-1.5 bg-white rounded-full"></div>
-              <div className="w-1 h-1.5 bg-white rounded-full"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+            <div className={`flex flex-col space-y-1.5 px-1 py-3 rounded-full transition-all duration-200 ${
+              isDragging ? 'bg-indigo-500 opacity-100' : 'bg-gray-400 opacity-0 group-hover:opacity-100'
+            }`}>
+              <div className="w-1 h-1 bg-white rounded-full"></div>
+              <div className="w-1 h-1 bg-white rounded-full"></div>
+              <div className="w-1 h-1 bg-white rounded-full"></div>
+              <div className="w-1 h-1 bg-white rounded-full"></div>
+              <div className="w-1 h-1 bg-white rounded-full"></div>
             </div>
           </div>
         </div>
         
         {/* Issues Panel (right panel) */}
         <div 
-          className="bg-white border-l border-gray-300"
+          className="bg-white shadow-xl border-l border-gray-100 transition-all duration-300"
           style={{ width: `${100 - splitRatio}%` }}
         >
           <IssuesPanel />

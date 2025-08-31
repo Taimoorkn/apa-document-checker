@@ -8,13 +8,22 @@ import {
   AlertTriangle, 
   AlertCircle, 
   AlertOctagon, 
-  PieChart, 
+  TrendingUp,
   Check,
   ChevronDown,
   FileText,
-  ExternalLink,
   Info,
-  Zap
+  Zap,
+  BarChart3,
+  Activity,
+  Target,
+  Award,
+  BookOpen,
+  FileSearch,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 
 export default function IssuesPanel() {
@@ -25,15 +34,19 @@ export default function IssuesPanel() {
     applyFix, 
     processingState,
     documentFormatting,
-    documentStats
+    documentStats,
+    analysisScore
   } = useDocumentStore();
+  
   const [expandedCategories, setExpandedCategories] = useState({
     Critical: true,
     Major: true,
     Minor: false
   });
   
-  // Group issues by severity (memoized to prevent recalculation on re-renders)
+  const [activeTab, setActiveTab] = useState('issues'); // 'issues' or 'stats'
+  
+  // Group issues by severity
   const groupedIssues = useMemo(() => {
     return (issues || []).reduce((acc, issue) => {
       if (!acc[issue.severity]) {
@@ -44,14 +57,16 @@ export default function IssuesPanel() {
     }, {});
   }, [issues]);
   
-  // Count issues by severity (memoized)
+  // Count issues by severity
   const issueCounts = useMemo(() => ({
     Critical: groupedIssues.Critical?.length || 0,
     Major: groupedIssues.Major?.length || 0,
     Minor: groupedIssues.Minor?.length || 0
   }), [groupedIssues]);
   
-  // Toggle category expansion (use useCallback to prevent unnecessary function recreation)
+  const totalIssues = issueCounts.Critical + issueCounts.Major + issueCounts.Minor;
+  
+  // Toggle category expansion
   const toggleCategory = useCallback((category) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -59,352 +74,409 @@ export default function IssuesPanel() {
     }));
   }, []);
   
-  // Calculate compliance score (memoized)
-  const { totalIssues, weightedScore } = useMemo(() => {
-    const total = issueCounts.Critical + issueCounts.Major + issueCounts.Minor;
-    
-    // Use server-side compliance data if available
-    let score;
-    if (documentFormatting?.compliance?.overall !== undefined) {
-      const contentPenalty = issueCounts.Critical * 10 + issueCounts.Major * 5 + issueCounts.Minor * 2;
-      score = Math.max(0, Math.min(100, 
-        Math.round(documentFormatting.compliance.overall - contentPenalty)
-      ));
-    } else {
-      score = total > 0 
-        ? Math.max(0, 100 - (issueCounts.Critical * 5 + issueCounts.Major * 3 + issueCounts.Minor)) 
-        : 100;
-    }
-    
-    return { totalIssues: total, weightedScore: score };
-  }, [issueCounts, documentFormatting]);
-  
   return (
-    <div className="h-full bg-white flex flex-col">
-      <div className="border-b border-gray-200 px-6 py-4">
-        <div className="flex justify-between items-center">
+    <div className="h-full bg-gradient-to-br from-gray-50 via-white to-indigo-50 flex flex-col">
+      {/* Header with Tabs */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-6 py-4">
+        <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-              <ClipboardList className="h-4 w-4 text-blue-600" />
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <ClipboardList className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Issues Found</h2>
-              <p className="text-sm text-gray-500">APA 7th edition compliance</p>
+              <h2 className="text-lg font-bold text-gray-900">Analysis Panel</h2>
+              <p className="text-xs text-gray-500">APA 7th Edition Compliance</p>
             </div>
           </div>
-          {totalIssues > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
-              <span className="text-red-700 text-sm font-medium">
-                {totalIssues} {totalIssues === 1 ? 'Issue' : 'Issues'}
-              </span>
+          
+          {/* Compliance Badge */}
+          {analysisScore !== null && (
+            <div className={`px-4 py-2 rounded-xl font-semibold text-sm ${
+              analysisScore >= 80 ? 'bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 border border-emerald-200' :
+              analysisScore >= 60 ? 'bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border border-amber-200' :
+              'bg-gradient-to-r from-rose-50 to-rose-100 text-rose-700 border border-rose-200'
+            }`}>
+              {analysisScore >= 80 ? '✨ Excellent' : analysisScore >= 60 ? '⚡ Good' : '🎯 Needs Work'}
             </div>
           )}
         </div>
-      </div>
-      
-      <div className="flex-1 overflow-auto p-6">
-      
-      {totalIssues > 0 ? (
-        <div className="space-y-5">
-          {/* Document format overview */}
-          {documentFormatting && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-              <div className="flex items-start">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mr-3">
-                  <Info className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-blue-800 mb-1">Document Format Details</h3>
-                  <div className="text-xs text-blue-700 grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div>
-                      <span className="font-medium">Font:</span> {documentFormatting.document?.font?.family || 'Unknown'}
-                    </div>
-                    <div>
-                      <span className="font-medium">Font Size:</span> {documentFormatting.document?.font?.size || 'Unknown'}pt
-                    </div>
-                    <div>
-                      <span className="font-medium">Line Spacing:</span> {documentFormatting.document?.spacing?.line || 'Unknown'}
-                    </div>
-                    <div>
-                      <span className="font-medium">Margins:</span> {documentFormatting.document?.margins?.top || 'Unknown'}in
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         
-          {/* Critical Issues */}
-          {issueCounts.Critical > 0 && (
-            <IssueCategory 
-              title="Critical Issues" 
-              count={issueCounts.Critical} 
-              severity="Critical"
-              expanded={expandedCategories.Critical}
-              toggleExpanded={() => toggleCategory('Critical')}
-            >
-              {expandedCategories.Critical && groupedIssues.Critical.map(issue => (
-                <IssueItem 
-                  key={issue.id}
-                  issue={issue}
-                  isActive={activeIssueId === issue.id}
-                  onSelect={() => setActiveIssue(issue.id)}
-                  onApplyFix={() => applyFix(issue.id)}
-                  isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
-                />
-              ))}
-            </IssueCategory>
-          )}
-          
-          {/* Major Issues */}
-          {issueCounts.Major > 0 && (
-            <IssueCategory 
-              title="Major Issues" 
-              count={issueCounts.Major} 
-              severity="Major"
-              expanded={expandedCategories.Major}
-              toggleExpanded={() => toggleCategory('Major')}
-            >
-              {expandedCategories.Major && groupedIssues.Major.map(issue => (
-                <IssueItem 
-                  key={issue.id}
-                  issue={issue}
-                  isActive={activeIssueId === issue.id}
-                  onSelect={() => setActiveIssue(issue.id)}
-                  onApplyFix={() => applyFix(issue.id)}
-                  isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
-                />
-              ))}
-            </IssueCategory>
-          )}
-          
-          {/* Minor Issues */}
-          {issueCounts.Minor > 0 && (
-            <IssueCategory 
-              title="Minor Issues" 
-              count={issueCounts.Minor} 
-              severity="Minor"
-              expanded={expandedCategories.Minor}
-              toggleExpanded={() => toggleCategory('Minor')}
-            >
-              {expandedCategories.Minor && groupedIssues.Minor.map(issue => (
-                <IssueItem 
-                  key={issue.id}
-                  issue={issue}
-                  isActive={activeIssueId === issue.id}
-                  onSelect={() => setActiveIssue(issue.id)}
-                  onApplyFix={() => applyFix(issue.id)}
-                  isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
-                />
-              ))}
-            </IssueCategory>
-          )}
+        {/* Tab Navigation */}
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setActiveTab('issues')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === 'issues'
+                ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <AlertCircle className="h-4 w-4" />
+            <span>Issues ({totalIssues})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('stats')}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === 'stats'
+                ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Statistics</span>
+          </button>
         </div>
-      ) : issues.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl mb-6 flex items-center justify-center">
-            <FileText className="h-8 w-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Document Loaded</h3>
-          <p className="text-gray-500 max-w-sm">
-            Upload a document using the button in the header to check it against APA 7th Edition guidelines
-          </p>
-        </div>
-      ) : (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-          <div className="flex items-start space-x-4">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Check className="h-6 w-6 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-green-900 mb-1">Excellent Work!</h3>
-              <p className="text-green-700 mb-2">
-                No APA compliance issues found in your document.
-              </p>
-              <p className="text-sm text-green-600">
-                Your document follows APA 7th Edition guidelines correctly.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
       </div>
       
-      {/* Document Statistics */}
-      {issues.length > 0 && (
-        <div className="border-t border-gray-200 p-6 bg-gray-50">
-          <div className="flex items-center mb-4">
-            <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center mr-2">
-              <PieChart className="h-3.5 w-3.5 text-blue-600" />
-            </div>
-            <h3 className="text-sm font-semibold text-gray-900">Document Statistics</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-4 rounded-xl border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 mb-2">Compliance Score</p>
-              <div className="flex items-center">
-                <span className={`text-2xl font-bold mr-3 ${
-                  weightedScore > 80 ? 'text-green-600' : weightedScore > 50 ? 'text-yellow-600' : 'text-red-600'
-                }`}>{weightedScore}%</span>
-                <div className="flex-1">
-                  <div className="bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        weightedScore > 80 ? 'bg-green-500' : weightedScore > 50 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{width: `${weightedScore}%`}}
-                    ></div>
-                  </div>
+      {/* Content Area */}
+      <div className="flex-1 overflow-auto">
+        {activeTab === 'issues' ? (
+          <div className="p-6">
+            {totalIssues > 0 ? (
+              <div className="space-y-4">
+                {/* Quick Stats Cards */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  {issueCounts.Critical > 0 && (
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl p-4 border border-rose-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <AlertOctagon className="h-5 w-5 text-rose-600" />
+                        <span className="text-2xl font-bold text-rose-700">{issueCounts.Critical}</span>
+                      </div>
+                      <p className="text-xs font-medium text-rose-600">Critical Issues</p>
+                    </div>
+                  )}
+                  {issueCounts.Major > 0 && (
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        <span className="text-2xl font-bold text-amber-700">{issueCounts.Major}</span>
+                      </div>
+                      <p className="text-xs font-medium text-amber-600">Major Issues</p>
+                    </div>
+                  )}
+                  {issueCounts.Minor > 0 && (
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Info className="h-5 w-5 text-blue-600" />
+                        <span className="text-2xl font-bold text-blue-700">{issueCounts.Minor}</span>
+                      </div>
+                      <p className="text-xs font-medium text-blue-600">Minor Issues</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-gray-200">
-              <p className="text-xs font-medium text-gray-500 mb-2">Issue Breakdown</p>
-              <div className="flex justify-between items-end h-12">
+                
+                {/* Issue Categories */}
                 {issueCounts.Critical > 0 && (
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <span className="text-xs font-medium text-red-600 mb-1">{issueCounts.Critical}</span>
-                    <div 
-                      className="bg-red-500 w-6 rounded-t-lg" 
-                      style={{height: `${Math.max(8, issueCounts.Critical * 4)}px`}}
-                    ></div>
-                    <span className="text-xs text-gray-500 mt-1">Critical</span>
-                  </div>
+                  <IssueCategory 
+                    title="Critical Issues" 
+                    count={issueCounts.Critical} 
+                    severity="Critical"
+                    expanded={expandedCategories.Critical}
+                    toggleExpanded={() => toggleCategory('Critical')}
+                  >
+                    {expandedCategories.Critical && groupedIssues.Critical.map(issue => (
+                      <IssueItem 
+                        key={issue.id}
+                        issue={issue}
+                        isActive={activeIssueId === issue.id}
+                        onSelect={() => setActiveIssue(issue.id)}
+                        onApplyFix={() => applyFix(issue.id)}
+                        isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                      />
+                    ))}
+                  </IssueCategory>
                 )}
+                
                 {issueCounts.Major > 0 && (
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <span className="text-xs font-medium text-orange-600 mb-1">{issueCounts.Major}</span>
-                    <div 
-                      className="bg-orange-500 w-6 rounded-t-lg" 
-                      style={{height: `${Math.max(8, issueCounts.Major * 4)}px`}}
-                    ></div>
-                    <span className="text-xs text-gray-500 mt-1">Major</span>
-                  </div>
+                  <IssueCategory 
+                    title="Major Issues" 
+                    count={issueCounts.Major} 
+                    severity="Major"
+                    expanded={expandedCategories.Major}
+                    toggleExpanded={() => toggleCategory('Major')}
+                  >
+                    {expandedCategories.Major && groupedIssues.Major.map(issue => (
+                      <IssueItem 
+                        key={issue.id}
+                        issue={issue}
+                        isActive={activeIssueId === issue.id}
+                        onSelect={() => setActiveIssue(issue.id)}
+                        onApplyFix={() => applyFix(issue.id)}
+                        isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                      />
+                    ))}
+                  </IssueCategory>
                 )}
+                
                 {issueCounts.Minor > 0 && (
-                  <div className="flex flex-col items-center justify-end h-full">
-                    <span className="text-xs font-medium text-blue-600 mb-1">{issueCounts.Minor}</span>
-                    <div 
-                      className="bg-blue-500 w-6 rounded-t-lg" 
-                      style={{height: `${Math.max(8, issueCounts.Minor * 4)}px`}}
-                    ></div>
-                    <span className="text-xs text-gray-500 mt-1">Minor</span>
-                  </div>
+                  <IssueCategory 
+                    title="Minor Issues" 
+                    count={issueCounts.Minor} 
+                    severity="Minor"
+                    expanded={expandedCategories.Minor}
+                    toggleExpanded={() => toggleCategory('Minor')}
+                  >
+                    {expandedCategories.Minor && groupedIssues.Minor.map(issue => (
+                      <IssueItem 
+                        key={issue.id}
+                        issue={issue}
+                        isActive={activeIssueId === issue.id}
+                        onSelect={() => setActiveIssue(issue.id)}
+                        onApplyFix={() => applyFix(issue.id)}
+                        isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
+                      />
+                    ))}
+                  </IssueCategory>
                 )}
               </div>
+            ) : issues.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl mb-6 flex items-center justify-center">
+                  <FileText className="h-10 w-10 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Document Loaded</h3>
+                <p className="text-gray-500 text-center max-w-sm">
+                  Upload a document to check it against APA 7th Edition guidelines
+                </p>
+              </div>
+            ) : (
+              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-8">
+                <div className="flex items-start space-x-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <Check className="h-7 w-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-emerald-900 mb-2">Perfect Compliance!</h3>
+                    <p className="text-emerald-700 mb-1">
+                      Your document meets all APA 7th Edition requirements.
+                    </p>
+                    <p className="text-sm text-emerald-600">
+                      No formatting or citation issues detected.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-6">
+            {/* Statistics Tab Content */}
+            <div className="space-y-6">
+              {/* Compliance Score Card */}
+              {analysisScore !== null && (
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center">
+                      <Target className="h-5 w-5 mr-2 text-indigo-500" />
+                      Compliance Score
+                    </h3>
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      analysisScore >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                      analysisScore >= 60 ? 'bg-amber-100 text-amber-700' :
+                      'bg-rose-100 text-rose-700'
+                    }`}>
+                      {analysisScore >= 80 ? 'Excellent' : analysisScore >= 60 ? 'Good' : 'Needs Improvement'}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-6">
+                    <div className="relative">
+                      <svg className="w-32 h-32 transform -rotate-90">
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="56"
+                          stroke="#e5e7eb"
+                          strokeWidth="12"
+                          fill="none"
+                        />
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="56"
+                          stroke={analysisScore >= 80 ? '#10b981' : analysisScore >= 60 ? '#f59e0b' : '#f43f5e'}
+                          strokeWidth="12"
+                          fill="none"
+                          strokeDasharray={`${(analysisScore / 100) * 351.86} 351.86`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-3xl font-bold text-gray-900">{analysisScore}%</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Critical Issues</span>
+                        <span className="text-sm font-semibold text-rose-600">{issueCounts.Critical}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Major Issues</span>
+                        <span className="text-sm font-semibold text-amber-600">{issueCounts.Major}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Minor Issues</span>
+                        <span className="text-sm font-semibold text-blue-600">{issueCounts.Minor}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Document Statistics */}
+              {documentStats && (
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <Activity className="h-5 w-5 mr-2 text-indigo-500" />
+                    Document Statistics
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <BookOpen className="h-5 w-5 text-blue-600" />
+                        <span className="text-2xl font-bold text-blue-700">{documentStats.wordCount}</span>
+                      </div>
+                      <p className="text-xs font-medium text-blue-600">Total Words</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <FileText className="h-5 w-5 text-purple-600" />
+                        <span className="text-2xl font-bold text-purple-700">{documentStats.paragraphCount}</span>
+                      </div>
+                      <p className="text-xs font-medium text-purple-600">Paragraphs</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Zap className="h-5 w-5 text-emerald-600" />
+                        <span className="text-2xl font-bold text-emerald-700">{documentStats.charCount}</span>
+                      </div>
+                      <p className="text-xs font-medium text-emerald-600">Characters</p>
+                    </div>
+                    
+                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <Clock className="h-5 w-5 text-indigo-600" />
+                        <span className="text-2xl font-bold text-indigo-700">{Math.round(documentStats.wordCount / 200)}</span>
+                      </div>
+                      <p className="text-xs font-medium text-indigo-600">Min Read Time</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Document Format Details */}
+              {documentFormatting && (
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <FileSearch className="h-5 w-5 mr-2 text-indigo-500" />
+                    Format Analysis
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">Font Family</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {documentFormatting.document?.font?.family || 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">Font Size</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {documentFormatting.document?.font?.size || 'Not specified'}pt
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">Line Spacing</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {documentFormatting.document?.spacing?.line || 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">Margins</span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {documentFormatting.document?.margins?.top || 'Not specified'}"
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          
-          {/* Additional Document Stats */}
-          {documentStats && (
-            <div className="mt-4 bg-white p-4 rounded-xl border border-gray-200">
-              <div className="flex items-center mb-2">
-                <Zap className="h-3.5 w-3.5 text-blue-500 mr-1.5" />
-                <p className="text-xs font-medium text-gray-500">Document Details</p>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-gray-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Words</p>
-                  <p className="text-sm font-semibold text-gray-800">{documentStats.wordCount}</p>
-                </div>
-                <div className="bg-gray-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Paragraphs</p>
-                  <p className="text-sm font-semibold text-gray-800">{documentStats.paragraphCount}</p>
-                </div>
-                <div className="bg-gray-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Characters</p>
-                  <p className="text-sm font-semibold text-gray-800">{documentStats.charCount}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-// Memoize the IssueCategory component to prevent unnecessary renders
+// Modern Issue Category Component
 const IssueCategory = React.memo(function IssueCategory({ title, count, severity, expanded, toggleExpanded, children }) {
-  // Set colors based on severity
   const getStyles = () => {
     switch (severity) {
       case 'Critical': 
         return {
-          bg: 'bg-gradient-to-r from-red-50 to-red-100',
-          text: 'text-red-800',
-          border: 'border-red-200',
-          icon: 'text-red-500',
-          badge: 'bg-red-500',
-          shadow: 'shadow-red-100'
+          gradient: 'from-rose-500 to-rose-600',
+          bg: 'from-rose-50 to-rose-100',
+          border: 'border-rose-200',
+          text: 'text-rose-700',
+          icon: <AlertOctagon className="h-5 w-5" />
         };
       case 'Major': 
         return {
-          bg: 'bg-gradient-to-r from-orange-50 to-amber-100',
-          text: 'text-orange-800',
-          border: 'border-orange-200',
-          icon: 'text-orange-500',
-          badge: 'bg-orange-500',
-          shadow: 'shadow-orange-100'
+          gradient: 'from-amber-500 to-amber-600',
+          bg: 'from-amber-50 to-amber-100',
+          border: 'border-amber-200',
+          text: 'text-amber-700',
+          icon: <AlertTriangle className="h-5 w-5" />
         };
       case 'Minor': 
         return {
-          bg: 'bg-gradient-to-r from-blue-50 to-blue-100',
-          text: 'text-blue-800',
+          gradient: 'from-blue-500 to-blue-600',
+          bg: 'from-blue-50 to-blue-100',
           border: 'border-blue-200',
-          icon: 'text-blue-500',
-          badge: 'bg-blue-500',
-          shadow: 'shadow-blue-100'
+          text: 'text-blue-700',
+          icon: <Info className="h-5 w-5" />
         };
       default: 
         return {
-          bg: 'bg-gray-100',
-          text: 'text-gray-800',
+          gradient: 'from-gray-500 to-gray-600',
+          bg: 'from-gray-50 to-gray-100',
           border: 'border-gray-200',
-          icon: 'text-gray-500',
-          badge: 'bg-gray-500',
-          shadow: 'shadow-gray-100'
+          text: 'text-gray-700',
+          icon: null
         };
     }
   };
   
   const styles = getStyles();
   
-  // Get icon based on severity
-  const getIcon = () => {
-    switch (severity) {
-      case 'Critical':
-        return <AlertOctagon className="h-5 w-5 mr-2" />;
-      case 'Major':
-        return <AlertTriangle className="h-5 w-5 mr-2" />;
-      case 'Minor':
-        return <AlertCircle className="h-5 w-5 mr-2" />;
-      default:
-        return null;
-    }
-  };
-  
   return (
-    <div className={`rounded-lg overflow-hidden border ${styles.border} shadow-sm ${styles.shadow} issue-category hover-shadow`}>
+    <div className={`rounded-2xl overflow-hidden border ${styles.border} shadow-lg hover:shadow-xl transition-all duration-300`}>
       <button 
         onClick={toggleExpanded}
-        className={`w-full flex justify-between items-center px-5 py-3.5 ${styles.bg} ${styles.text} transition-all duration-200 hover:shadow-inner`}
+        className={`w-full flex justify-between items-center px-6 py-4 bg-gradient-to-r ${styles.bg} ${styles.text} transition-all duration-200 hover:opacity-90`}
       >
-        <span className="font-medium flex items-center text-base">
-          <span className={`${styles.icon}`}>{getIcon()}</span>
+        <span className="font-semibold flex items-center text-base">
+          <div className={`w-8 h-8 bg-gradient-to-br ${styles.gradient} rounded-lg flex items-center justify-center mr-3 text-white`}>
+            {styles.icon}
+          </div>
           {title}
         </span>
-        <div className="flex items-center">
-          <span className={`${styles.badge} text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ${count > 0 ? 'animate-pulse-blue' : ''}`}>{count}</span>
+        <div className="flex items-center space-x-3">
+          <span className={`px-3 py-1 bg-white rounded-full text-sm font-bold shadow-sm`}>
+            {count}
+          </span>
           <ChevronDown 
-            className={`h-5 w-5 ml-3 transition-transform duration-300 ease-in-out ${expanded ? 'transform rotate-180' : ''} ${styles.icon}`}
+            className={`h-5 w-5 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
           />
         </div>
       </button>
       
       {expanded && (
-        <div className="bg-white divide-y divide-gray-100 transition-all duration-300 ease-in-out animate-fade-in">
+        <div className="bg-white divide-y divide-gray-100">
           {children}
         </div>
       )}
@@ -412,7 +484,7 @@ const IssueCategory = React.memo(function IssueCategory({ title, count, severity
   );
 });
 
-// Memoize IssueItem to prevent unnecessary re-renders
+// Modern Issue Item Component
 const IssueItem = React.memo(function IssueItem({ 
   issue, 
   isActive, 
@@ -420,98 +492,64 @@ const IssueItem = React.memo(function IssueItem({
   onApplyFix,
   isApplyingFix = false
 }) {
-  // Get highlight color based on severity
-  const getHighlightColor = () => {
-    switch (issue.severity) {
-      case 'Critical': return 'border-red-500 bg-red-50';
-      case 'Major': return 'border-orange-500 bg-orange-50';
-      case 'Minor': return 'border-blue-500 bg-blue-50';
-      default: return 'border-gray-300 bg-gray-50';
-    }
-  };
-  
-  // Get icon based on severity
-  const getIcon = () => {
-    switch (issue.severity) {
-      case 'Critical':
-        return <AlertOctagon className="h-4 w-4 text-red-500" />;
-      case 'Major':
-        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
-      case 'Minor':
-        return <AlertCircle className="h-4 w-4 text-blue-500" />;
-      default:
-        return null;
-    }
-  };
-  
   return (
     <div 
-      className={`px-4 py-4 hover:bg-gray-50 cursor-pointer transition-colors duration-150 ease-in-out issue-item ${
-        isActive ? `border-l-4 ${getHighlightColor()}` : 'border-l-4 border-transparent'
+      className={`px-6 py-5 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
+        isActive ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500' : ''
       }`}
       onClick={onSelect}
     >
       <div className="flex justify-between">
         <div className="flex-1 pr-4">
-          <div className="flex items-center mb-1.5">
-            {getIcon()}
-            <p className="text-sm font-semibold text-gray-800 ml-1">{issue.title}</p>
+          <div className="flex items-start mb-2">
+            <p className="text-sm font-semibold text-gray-900">{issue.title}</p>
           </div>
-          <p className="text-xs text-gray-600 mb-2 leading-relaxed">{issue.description}</p>
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">{issue.description}</p>
           
-          {/* Text snippet */}
           {issue.text && (
-            <div className="mt-2 p-3 border rounded-md text-xs font-mono relative animate-scale-in bg-gray-50 border-gray-200 text-gray-700">
-              <div className="absolute -left-1 -top-1 h-2 w-2 bg-gray-300 rounded-full"></div>
-              <div className="absolute -right-1 -top-1 h-2 w-2 bg-gray-300 rounded-full"></div>
-              <div className="absolute -left-1 -bottom-1 h-2 w-2 bg-gray-300 rounded-full"></div>
-              <div className="absolute -right-1 -bottom-1 h-2 w-2 bg-gray-300 rounded-full"></div>
-              &ldquo;{issue.text}&rdquo;
+            <div className="mt-3 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+              <p className="text-xs font-mono text-gray-700">"{issue.text}"</p>
             </div>
           )}
           
-          {/* Explanation/Guidance */}
           {issue.explanation && (
-            <div className="mt-3 text-xs text-gray-500 italic">
-              <p>{issue.explanation}</p>
+            <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+              <div className="flex items-start space-x-2">
+                <Info className="h-3.5 w-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-blue-700">{issue.explanation}</p>
+              </div>
             </div>
           )}
         </div>
         
-        {/* Action Buttons */}
-        <div className="flex flex-col justify-center space-y-2">
-          {/* Apply Fix Button for rule-based issues */}
-          {issue.hasFix && (
+        {issue.hasFix && (
+          <div className="flex items-center">
             <button 
               onClick={(e) => {
                 e.stopPropagation();
                 if (!isApplyingFix) onApplyFix();
               }}
               disabled={isApplyingFix}
-              className={`flex items-center justify-center text-white text-xs px-4 py-1.5 rounded-md shadow-sm transition-all h-fit whitespace-nowrap font-medium ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 transform ${
                 isApplyingFix 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 hover:shadow hover:translate-y-[-1px]'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
               }`}
             >
               {isApplyingFix ? (
                 <>
-                  <svg className="animate-spin h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Fixing...
+                  <div className="loading-spinner w-3.5 h-3.5"></div>
+                  <span>Fixing...</span>
                 </>
               ) : (
                 <>
-                  <Check className="h-3.5 w-3.5 mr-1" />
-                  Apply Fix
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Apply Fix</span>
                 </>
               )}
             </button>
-          )}
-          
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

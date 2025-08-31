@@ -13,7 +13,9 @@ import {
   FileCheck,
   X,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  User,
+  Mail
 } from 'lucide-react';
 
 export default function Header() {
@@ -226,7 +228,7 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Right Section - Document Info & Score */}
+            {/* Right Section - Document Info & User Account */}
             <div className="flex items-center space-x-4">
               {/* Document Name */}
               {documentName && (
@@ -241,59 +243,41 @@ export default function Header() {
                 </div>
               )}
 
-              {/* Compliance Score */}
+              {/* Issue Count Badges */}
               {analysisScore !== null && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 px-5 py-3">
-                  <div className="flex items-center space-x-4">
-                    <div>
-                      <div className="flex items-center space-x-2 mb-1">
-                        <Sparkles className="h-4 w-4 text-indigo-500" />
-                        <span className="text-xs font-medium text-gray-600">Compliance Score</span>
-                      </div>
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-3xl font-bold ${
-                          analysisScore >= 80 ? 'text-emerald-600' : 
-                          analysisScore >= 60 ? 'text-amber-500' : 
-                          'text-rose-500'
-                        }`}>
-                          {analysisScore}%
-                        </span>
-                        <div className="flex flex-col space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <div className="flex items-center space-x-1">
-                              {criticalCount > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700">
-                                  {criticalCount} Critical
-                                </span>
-                              )}
-                              {majorCount > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                                  {majorCount} Major
-                                </span>
-                              )}
-                              {minorCount > 0 && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                  {minorCount} Minor
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="w-32 bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full transition-all duration-500 ${
-                                analysisScore >= 80 ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' : 
-                                analysisScore >= 60 ? 'bg-gradient-to-r from-amber-400 to-amber-600' : 
-                                'bg-gradient-to-r from-rose-400 to-rose-600'
-                              }`}
-                              style={{ width: `${analysisScore}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  {criticalCount > 0 && (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-rose-100 text-rose-700 border border-rose-200">
+                      {criticalCount} Critical
+                    </span>
+                  )}
+                  {majorCount > 0 && (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">
+                      {majorCount} Major
+                    </span>
+                  )}
+                  {minorCount > 0 && (
+                    <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                      {minorCount} Minor
+                    </span>
+                  )}
                 </div>
               )}
+
+              {/* User Account Section */}
+              <div className="flex items-center space-x-3 px-4 py-2 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-gray-900">John Doe</p>
+                  <p className="text-xs text-gray-500 flex items-center">
+                    <Mail className="h-3 w-3 mr-1" />
+                    john.doe@example.com
+                  </p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </div>
             </div>
           </div>
         </div>

@@ -1,0 +1,505 @@
+// src/utils/referenceValidator.js - Comprehensive reference list validation
+'use client';
+
+export class ReferenceValidator {
+  constructor() {
+    this.doiPattern = /(?:https?:\/\/)?(?:dx\.)?doi\.org\/(.+)|doi:\s*(.+)/i;
+    this.urlPattern = /https?:\/\/[^\s)]+/g;
+  }
+
+  /**
+   * Main validation function for references section
+   */
+  validateReferences(text, structure) {
+    const issues = [];
+    
+    if (!text) return issues;
+    
+    // Extract references section
+    const referencesMatch = text.match(/(?:^|\n)(?:references|REFERENCES|References)\s*\n([\s\S]*?)(?=\n(?:appendix|APPENDIX|Appendix)|$)/i);
+    
+    if (!referencesMatch) {
+      // Check if there are citations that need references
+      const hasCitations = /\([^)]+,\s*\d{4}\)/.test(text);
+      if (hasCitations) {
+        issues.push({
+          title: "Missing references section",
+          description: "Document contains citations but no references section",
+          severity: "Critical",
+          category: "references",
+          hasFix: false,
+          explanation: "All cited sources must be listed in the References section at the end of the document."
+        });
+      }
+      return issues;
+    }
+    
+    const referencesText = referencesMatch[1].trim();
+    
+    // Check for empty references section
+    if (referencesText.length < 50 || !referencesText.match(/[A-Z]/)) {
+      issues.push({
+        title: "Empty references section",
+        description: "References section exists but contains no entries",
+        severity: "Critical",
+        category: "references",
+        hasFix: false,
+        explanation: "The References section must contain full citations for all sources cited in the text."
+      });
+      return issues;
+    }
+    
+    // Parse individual references
+    const referenceEntries = this.parseReferenceEntries(referencesText);
+    
+    // Run all validation checks
+    issues.push(...this.checkAlphabeticalOrder(referenceEntries));
+    issues.push(...this.checkHangingIndent(referenceEntries, referencesText));
+    issues.push(...this.checkReferenceFormatting(referenceEntries));
+    issues.push(...this.crossCheckCitationsAndReferences(text, referenceEntries));
+    issues.push(...this.checkDuplicateReferences(referenceEntries));
+    issues.push(...this.checkDOIAndURLFormatting(referenceEntries));
+    
+    return issues;
+  }
+
+  /**
+   * Parse reference entries from text
+   */
+  parseReferenceEntries(referencesText) {
+    const entries = [];
+    const lines = referencesText.split('\n');
+    let currentEntry = '';
+    let entryStartLine = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+      
+      // Check if this is a new reference entry (starts with capital letter, previous entry has year)
+      const isNewEntry = trimmedLine.length > 0 && 
+                         /^[A-Z]/.test(trimmedLine) && 
+                         currentEntry.includes('(') && 
+                         currentEntry.includes(')');
+      
+      if (trimmedLine.length === 0 || isNewEntry) {
+        if (currentEntry.trim().length > 10) {
+          entries.push({
+            text: currentEntry.trim(),
+            firstAuthor: this.extractFirstAuthor(currentEntry),
+            year: this.extractYear(currentEntry),
+            hasMultipleAuthors: this.hasMultipleAuthors(currentEntry),
+            type: this.detectReferenceType(currentEntry),
+            lineNumber: entryStartLine,
+            indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine, i))
+          });
+        }
+        
+        if (isNewEntry) {
+          currentEntry = trimmedLine;
+          entryStartLine = i;
+        } else {
+          currentEntry = '';
+        }
+      } else if (trimmedLine.length > 0) {
+        currentEntry += (currentEntry ? ' ' : '') + trimmedLine;
+      }
+    }
+    
+    // Add last entry
+    if (currentEntry.trim().length > 10) {
+      entries.push({
+        text: currentEntry.trim(),
+        firstAuthor: this.extractFirstAuthor(currentEntry),
+        year: this.extractYear(currentEntry),
+        hasMultipleAuthors: this.hasMultipleAuthors(currentEntry),
+        type: this.detectReferenceType(currentEntry),
+        lineNumber: entryStartLine,
+        indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine))
+      });
+    }
+    
+    return entries;
+  }
+
+  /**
+   * Extract first author's surname from reference
+   */
+  extractFirstAuthor(reference) {
+    // Match pattern: Surname, F. M. or Surname, First Middle
+    const match = reference.match(/^([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+)?),/);
+    return match ? match[1] : '';
+  }
+
+  /**
+   * Extract year from reference
+   */
+  extractYear(reference) {
+    // Match (YYYY) or (YYYY, Month) or (n.d.)
+    const match = reference.match(/\((\d{4}[a-z]?|n\.d\.)[^)]*\)/);
+    return match ? match[1] : '';
+  }
+
+  /**
+   * Check if reference has multiple authors
+   */
+  hasMultipleAuthors(reference) {
+    return reference.includes('&') || reference.includes(', &') || 
+           reference.split(',').length > 3;
+  }
+
+  /**
+   * Detect reference type (journal, book, website, etc.)
+   */
+  detectReferenceType(reference) {
+    if (reference.match(/\d+\(\d+\),?\s*\d+-\d+/)) return 'journal';
+    if (reference.includes('http') || reference.includes('doi')) return 'online';
+    if (reference.match(/\([^)]*Ed(?:s)?\.\)/)) return 'book';
+    if (reference.includes('In ')) return 'chapter';
+    return 'other';
+  }
+
+  /**
+   * Check indentation of reference entry
+   */
+  checkIndentation(entry, lines) {
+    if (lines.length <= 1) return 'single-line';
+    
+    // Check if second line has more indentation than first
+    const firstLineIndent = lines[0].match(/^(\s*)/)[1].length;
+    const secondLineIndent = lines[1] ? lines[1].match(/^(\s*)/)[1].length : 0;
+    
+    return secondLineIndent > firstLineIndent ? 'hanging' : 'no-hanging';
+  }
+
+  /**
+   * Check alphabetical order
+   */
+  checkAlphabeticalOrder(entries) {
+    const issues = [];
+    if (entries.length < 2) return issues;
+    
+    for (let i = 1; i < entries.length; i++) {
+      const current = entries[i].firstAuthor.toLowerCase();
+      const previous = entries[i-1].firstAuthor.toLowerCase();
+      
+      if (current && previous && current < previous) {
+        // Check for same author, different years
+        const currentBase = current.replace(/[a-z]$/, '');
+        const previousBase = previous.replace(/[a-z]$/, '');
+        
+        if (currentBase !== previousBase) {
+          issues.push({
+            title: "References not in alphabetical order",
+            description: `"${entries[i].firstAuthor}" should come before "${entries[i-1].firstAuthor}"`,
+            text: `${entries[i].firstAuthor} (${entries[i].year})`,
+            severity: "Major",
+            category: "references",
+            hasFix: true,
+            fixAction: "sortReferences",
+            explanation: "References must be listed in alphabetical order by the first author's surname."
+          });
+          break; // Only report first occurrence
+        }
+      }
+      
+      // Check same author, year order
+      if (current === previous && entries[i].year && entries[i-1].year) {
+        const currentYear = entries[i].year;
+        const previousYear = entries[i-1].year;
+        
+        if (currentYear < previousYear && !currentYear.includes('n.d.')) {
+          issues.push({
+            title: "Same author references not in chronological order",
+            description: `${entries[i].firstAuthor}'s works should be ordered by year`,
+            text: `${previousYear} comes before ${currentYear}`,
+            severity: "Minor",
+            category: "references",
+            hasFix: true,
+            fixAction: "sortReferencesByYear",
+            explanation: "When the same author has multiple works, order them chronologically (oldest first)."
+          });
+        }
+      }
+    }
+    
+    return issues;
+  }
+
+  /**
+   * Check hanging indent
+   */
+  checkHangingIndent(entries, referencesText) {
+    const issues = [];
+    let noHangingCount = 0;
+    
+    entries.forEach((entry) => {
+      if (entry.indentation === 'no-hanging' && entry.text.length > 80) {
+        noHangingCount++;
+      }
+    });
+    
+    if (noHangingCount > entries.length * 0.3) { // If >30% lack hanging indent
+      issues.push({
+        title: "Missing hanging indent in references",
+        description: "Reference entries should have 0.5\" hanging indent for lines after the first",
+        text: `${noHangingCount} of ${entries.length} references lack proper indentation`,
+        severity: "Minor",
+        category: "references",
+        hasFix: true,
+        fixAction: "fixReferenceIndent",
+        explanation: "Each reference entry should have a hanging indent of 0.5 inches for continuation lines."
+      });
+    }
+    
+    return issues;
+  }
+
+  /**
+   * Check reference formatting
+   */
+  checkReferenceFormatting(entries) {
+    const issues = [];
+    const reportedTypes = new Set();
+    
+    entries.forEach((entry, index) => {
+      // Check for missing year
+      if (!entry.year && !reportedTypes.has('year')) {
+        issues.push({
+          title: "Missing year in reference",
+          description: "Reference entry missing publication year",
+          text: entry.text.substring(0, 60) + '...',
+          severity: "Major",
+          category: "references",
+          hasFix: false,
+          explanation: "All references must include the publication year in parentheses after the author(s)."
+        });
+        reportedTypes.add('year');
+      }
+      
+      // Check for missing DOI/URL in journal articles
+      if (entry.type === 'journal' && 
+          !entry.text.match(/(?:https?:\/\/|doi:|DOI:)/) && 
+          !reportedTypes.has('doi')) {
+        issues.push({
+          title: "Missing DOI or URL in journal article",
+          description: "Journal articles should include DOI or stable URL",
+          text: entry.text.substring(0, 60) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: false,
+          explanation: "Include DOI (preferred) or stable URL for all journal articles when available."
+        });
+        reportedTypes.add('doi');
+      }
+      
+      // Check for "and" instead of "&"
+      if (entry.hasMultipleAuthors && entry.text.includes(', and ')) {
+        issues.push({
+          title: "Incorrect connector in reference",
+          description: "Use '&' instead of 'and' between authors",
+          text: entry.text.substring(0, 60) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "fixReferenceConnector",
+          explanation: "In reference lists, use & (ampersand) to connect the last two author names."
+        });
+      }
+      
+      // Check for consistent punctuation
+      if (!entry.text.endsWith('.') && !entry.text.match(/\)\.?$/) && !reportedTypes.has('period')) {
+        issues.push({
+          title: "Missing period at end of reference",
+          description: "References should end with a period",
+          text: entry.text.substring(entry.text.length - 30),
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "addReferencePeriod",
+          explanation: "Each reference entry must end with a period."
+        });
+        reportedTypes.add('period');
+      }
+    });
+    
+    return issues;
+  }
+
+  /**
+   * Cross-check citations with references
+   */
+  crossCheckCitationsAndReferences(text, referenceEntries) {
+    const issues = [];
+    
+    // Extract all in-text citations
+    const citationPattern = /\(([A-Za-z][A-Za-z\s&.,'-]+?)(?:,?\s+et\s+al\.)?(?:,\s+)?(\d{4}[a-z]?|n\.d\.)\)/g;
+    const citations = new Map();
+    let match;
+    
+    while ((match = citationPattern.exec(text)) !== null) {
+      const author = match[1].trim().replace(/,$/, '').split(/\s+&\s+|\s+and\s+/)[0];
+      const year = match[2];
+      const key = `${author.toLowerCase()}_${year}`;
+      
+      if (!citations.has(key)) {
+        citations.set(key, { author, year, full: match[0], count: 1 });
+      } else {
+        citations.get(key).count++;
+      }
+    }
+    
+    // Create reference map
+    const references = new Map();
+    referenceEntries.forEach(ref => {
+      if (ref.firstAuthor && ref.year) {
+        const key = `${ref.firstAuthor.toLowerCase()}_${ref.year}`;
+        references.set(key, ref);
+      }
+    });
+    
+    // Find citations without references
+    const missingRefs = [];
+    citations.forEach((citation, key) => {
+      // Try exact match first
+      if (!references.has(key)) {
+        // Try fuzzy match (first 3 letters)
+        const authorStart = citation.author.toLowerCase().substring(0, 3);
+        const found = Array.from(references.keys()).some(refKey => 
+          refKey.startsWith(authorStart) && refKey.includes(citation.year)
+        );
+        
+        if (!found) {
+          missingRefs.push(citation);
+        }
+      }
+    });
+    
+    // Report missing references (max 3)
+    missingRefs.slice(0, 3).forEach(citation => {
+      issues.push({
+        title: "Citation without reference",
+        description: `Citation "${citation.full}" not found in references`,
+        text: citation.full,
+        severity: "Critical",
+        category: "references",
+        hasFix: false,
+        explanation: "Every in-text citation must have a corresponding entry in the References section."
+      });
+    });
+    
+    // Find orphaned references
+    const orphanedRefs = [];
+    references.forEach((ref, key) => {
+      const authorPart = key.split('_')[0];
+      const yearPart = key.split('_')[1];
+      
+      // Check if this reference is cited
+      const found = Array.from(citations.keys()).some(citKey => {
+        const citAuthor = citKey.split('_')[0];
+        const citYear = citKey.split('_')[1];
+        return citAuthor.startsWith(authorPart.substring(0, 3)) && citYear === yearPart;
+      });
+      
+      if (!found) {
+        orphanedRefs.push(ref);
+      }
+    });
+    
+    // Report orphaned references (max 3)
+    orphanedRefs.slice(0, 3).forEach(ref => {
+      issues.push({
+        title: "Orphaned reference",
+        description: `Reference for ${ref.firstAuthor} (${ref.year}) not cited in text`,
+        text: ref.text.substring(0, 60) + '...',
+        severity: "Major",
+        category: "references",
+        hasFix: false,
+        explanation: "Only include references that are cited in the document text."
+      });
+    });
+    
+    return issues;
+  }
+
+  /**
+   * Check for duplicate references
+   */
+  checkDuplicateReferences(entries) {
+    const issues = [];
+    const seen = new Map();
+    
+    entries.forEach(entry => {
+      const key = `${entry.firstAuthor}_${entry.year}`.toLowerCase();
+      
+      if (key && entry.firstAuthor && entry.year) {
+        if (seen.has(key)) {
+          const existing = seen.get(key);
+          
+          // Check if texts are actually different (not just formatting)
+          const normalizedCurrent = entry.text.replace(/\s+/g, ' ').toLowerCase();
+          const normalizedExisting = existing.text.replace(/\s+/g, ' ').toLowerCase();
+          
+          if (normalizedCurrent !== normalizedExisting) {
+            issues.push({
+              title: "Possible duplicate reference",
+              description: `Multiple references for ${entry.firstAuthor} (${entry.year})`,
+              text: entry.text.substring(0, 60) + '...',
+              severity: "Major",
+              category: "references",
+              hasFix: false,
+              explanation: "Each source should appear only once. Use 'a', 'b' suffixes for multiple works by same author in same year."
+            });
+          }
+        } else {
+          seen.set(key, entry);
+        }
+      }
+    });
+    
+    return issues;
+  }
+
+  /**
+   * Check DOI and URL formatting
+   */
+  checkDOIAndURLFormatting(entries) {
+    const issues = [];
+    const reportedTypes = new Set();
+    
+    entries.forEach(entry => {
+      // Check for "Retrieved from" (outdated in APA 7)
+      if (entry.text.includes('Retrieved from') && !reportedTypes.has('retrieved')) {
+        issues.push({
+          title: "Outdated 'Retrieved from' phrase",
+          description: "APA 7th edition no longer uses 'Retrieved from' before URLs",
+          text: entry.text.substring(entry.text.indexOf('Retrieved'), 60) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "removeRetrievedFrom",
+          explanation: "APA 7th edition omits 'Retrieved from' before URLs unless a retrieval date is needed."
+        });
+        reportedTypes.add('retrieved');
+      }
+      
+      // Check DOI format
+      const doiMatch = entry.text.match(this.doiPattern);
+      if (doiMatch && !entry.text.includes('https://doi.org/') && !reportedTypes.has('doi-format')) {
+        issues.push({
+          title: "Incorrect DOI format",
+          description: "DOIs should be formatted as hyperlinks",
+          text: doiMatch[0],
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "formatDOI",
+          explanation: "Format DOIs as hyperlinks: https://doi.org/xxxxx"
+        });
+        reportedTypes.add('doi-format');
+      }
+    });
+    
+    return issues;
+  }
+}

@@ -347,7 +347,10 @@ export const useDocumentStore = create((set, get) => ({
       
       const clientContentFixes = [
         'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting', 
-        'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
+        'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber',
+        'sortReferences', 'fixTableTitleCase', 'fixFigureCaptionCase',
+        'fixTableNoteFormat', 'removeRetrievedFrom', 'formatDOI',
+        'addReferencePeriod', 'fixReferenceIndent'
       ];
       
       if (clientContentFixes.includes(issue.fixAction)) {
@@ -532,6 +535,46 @@ export const useDocumentStore = create((set, get) => ({
             replacementText = issue.text.replace(/\)$/, ', p. 1)');
           }
           break;
+          
+        // New reference fixes
+        case 'sortReferences':
+          // This requires reorganizing the entire references section
+          replacementText = this.sortReferencesSection(issue.text);
+          break;
+          
+        case 'addReferencePeriod':
+          replacementText = issue.text.trim();
+          if (!replacementText.endsWith('.')) {
+            replacementText += '.';
+          }
+          break;
+          
+        case 'removeRetrievedFrom':
+          replacementText = issue.text.replace(/Retrieved from\s*/gi, '');
+          break;
+          
+        case 'formatDOI':
+          // Convert doi:xxxxx to https://doi.org/xxxxx
+          replacementText = issue.text.replace(/doi:\s*([^\s]+)/gi, 'https://doi.org/$1');
+          break;
+          
+        // Table/Figure fixes
+        case 'fixTableTitleCase':
+          replacementText = this.convertToTitleCase(issue.text);
+          break;
+          
+        case 'fixFigureCaptionCase':
+          replacementText = this.convertToSentenceCase(issue.text);
+          break;
+          
+        case 'fixTableNoteFormat':
+          if (!issue.text.startsWith('Note.')) {
+            replacementText = 'Note. ' + issue.text;
+          } else {
+            replacementText = issue.text;
+          }
+          break;
+          
         default:
           console.warn(`Unsupported client-side fix: ${issue.fixAction}`);
           return false;
@@ -1128,6 +1171,61 @@ export const useDocumentStore = create((set, get) => ({
 
       return { success: false, error: error.message };
     }
+  },
+
+  // Helper method: Convert text to title case
+  convertToTitleCase: (text) => {
+    const smallWords = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 
+                       'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet', 'with'];
+    
+    return text.split(' ').map((word, index, array) => {
+      const isFirstOrLast = index === 0 || index === array.length - 1;
+      const lowerWord = word.toLowerCase();
+      
+      if (isFirstOrLast || !smallWords.includes(lowerWord)) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return lowerWord;
+    }).join(' ');
+  },
+  
+  // Helper method: Convert text to sentence case
+  convertToSentenceCase: (text) => {
+    // Keep first letter capitalized, rest lowercase except proper nouns/acronyms
+    return text.charAt(0).toUpperCase() + 
+           text.slice(1).toLowerCase()
+               .replace(/\b[A-Z]{2,}\b/g, match => match) // Keep acronyms
+               .replace(/:\s*([a-z])/g, (match, letter) => ': ' + letter.toUpperCase()); // Capitalize after colon
+  },
+  
+  // Helper method: Sort references section alphabetically
+  sortReferencesSection: (referencesText) => {
+    // Parse individual references
+    const entries = [];
+    const lines = referencesText.split('\n');
+    let currentEntry = '';
+    
+    lines.forEach(line => {
+      if (line.trim() && /^[A-Z]/.test(line.trim()) && currentEntry) {
+        entries.push(currentEntry.trim());
+        currentEntry = line;
+      } else if (line.trim()) {
+        currentEntry += (currentEntry ? ' ' : '') + line;
+      }
+    });
+    
+    if (currentEntry) {
+      entries.push(currentEntry.trim());
+    }
+    
+    // Sort alphabetically by first author's surname
+    entries.sort((a, b) => {
+      const authorA = a.match(/^([A-Z][a-zA-Z'-]+)/)?.[1] || '';
+      const authorB = b.match(/^([A-Z][a-zA-Z'-]+)/)?.[1] || '';
+      return authorA.localeCompare(authorB);
+    });
+    
+    return entries.join('\n\n');
   },
 
   // Export document

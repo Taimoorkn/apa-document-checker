@@ -1,5 +1,9 @@
-// src/utils/enhancedApaAnalyzer.js - Fixed version with safe property access
+// src/utils/enhancedApaAnalyzer.js - Enhanced with reference and table/figure validation
 'use client';
+
+// Import specialized validators
+import { ReferenceValidator } from './referenceValidator';
+import { TableFigureValidator } from './tableFigureValidator';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {
@@ -24,6 +28,10 @@ export class EnhancedAPAAnalyzer {
         firstLine: 0.5 // inches
       }
     };
+    
+    // Initialize specialized validators
+    this.referenceValidator = new ReferenceValidator();
+    this.tableFigureValidator = new TableFigureValidator();
   }
   
   /**
@@ -63,12 +71,20 @@ export class EnhancedAPAAnalyzer {
       issues.push(...this.analyzeBasicCitations(text));
     }
     
-    // 4. Analyze references
+    // 4. Analyze references with enhanced validation
     if (text) {
-      issues.push(...this.analyzeReferences(text, structure));
+      // Use the new comprehensive reference validator
+      const referenceIssues = this.referenceValidator.validateReferences(text, structure);
+      issues.push(...referenceIssues);
     }
     
-    // 5. Analyze content compliance
+    // 5. Analyze tables and figures
+    if (text) {
+      const tableFigureIssues = this.tableFigureValidator.validateTablesAndFigures(text, structure, formatting);
+      issues.push(...tableFigureIssues);
+    }
+    
+    // 6. Analyze content compliance
     if (text) {
       issues.push(...this.analyzeContent(text));
     }
@@ -692,7 +708,9 @@ export class EnhancedAPAAnalyzer {
   }
   
   /**
-   * Analyze references section
+   * Legacy analyze references section - kept for backward compatibility
+   * Now replaced by ReferenceValidator for comprehensive validation
+   * @deprecated Use ReferenceValidator.validateReferences() instead
    */
   analyzeReferences(text, structure) {
     const issues = [];

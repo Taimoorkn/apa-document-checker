@@ -12,17 +12,19 @@ export default function Home() {
   const { documentText, issues } = useDocumentStore();
 
   return (
-    <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
+    <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50" role="main">
       <Header />
       
-      <div className="flex-1 flex overflow-hidden relative">
+      <section className="flex-1 flex overflow-hidden relative" aria-label="Document analysis workspace">
         {/* Document Viewer (left panel) */}
-        <div 
+        <article 
           className="relative bg-white shadow-xl border-r border-gray-100 transition-all duration-300"
           style={{ width: `${splitRatio}%` }}
+          role="region"
+          aria-label="Document editor and viewer"
         >
           <DocumentEditor />
-        </div>
+        </article>
         
         {/* Modern Resize Handle */}
         <div 
@@ -71,13 +73,15 @@ export default function Home() {
         </div>
         
         {/* Issues Panel (right panel) */}
-        <div 
+        <aside 
           className="bg-white shadow-xl border-l border-gray-100 transition-all duration-300"
           style={{ width: `${100 - splitRatio}%` }}
+          role="complementary"
+          aria-label="APA issues and suggestions panel"
         >
           <IssuesPanel />
-        </div>
-      </div>
+        </aside>
+      </section>
     </main>
   );
 }

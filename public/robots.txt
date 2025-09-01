@@ -1,0 +1,25 @@
+# Robots.txt for APA Document Checker
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /_next/static/
+Disallow: /server/
+
+# Allow crawling of important pages
+Allow: /api/sitemap.xml
+
+# Sitemap location
+Sitemap: https://apa-document-checker.vercel.app/api/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Special instructions for major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /

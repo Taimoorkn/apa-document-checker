@@ -63,12 +63,25 @@ class XmlDocxProcessor {
       const stylesData = await this.extractStylesXml(zip);
       const settingsData = await this.extractSettingsXml(zip);
       
+      // Extract headers and footers
+      const headersFooters = await this.extractHeadersFooters(zip);
+      
+      // Extract tables with border information
+      const tables = await this.extractTablesWithFormatting(zip, documentData);
+      
       // Process the extracted XML data
       const textResult = this.extractPlainText(documentData);
       const htmlResult = this.convertToHtml(documentData, stylesData);
       const formattingInfo = this.extractFormattingDetails(documentData, stylesData, settingsData);
       const structure = this.extractDocumentStructure(documentData);
       const styles = this.processStyles(stylesData);
+      
+      // Add headers/footers and tables to structure
+      structure.headersFooters = headersFooters;
+      structure.tables = tables;
+      
+      // Extract italicized text for reference validation
+      structure.italicizedText = this.extractItalicizedText(documentData);
       
       console.log('XML-based DOCX processing completed successfully');
       
@@ -78,6 +91,7 @@ class XmlDocxProcessor {
         formatting: formattingInfo,
         structure: structure,
         styles: styles,
+        headersFooters: headersFooters,
         messages: [{
           type: 'info',
           message: 'Document processed using XML parser for accurate structure extraction'
@@ -270,6 +284,176 @@ class XmlDocxProcessor {
   }
 
   /**
+   * Extract headers and footers from document
+   */
+  async extractHeadersFooters(zip) {
+    const headersFooters = {
+      headers: [],
+      footers: [],
+      firstPageHeader: null,
+      firstPageFooter: null,
+      evenPageHeader: null,
+      evenPageFooter: null,
+      runningHead: null,
+      pageNumbers: {
+        present: false,
+        position: null,
+        format: null,
+        startNumber: 1
+      }
+    };
+    
+    try {
+      // Extract header files
+      for (let i = 1; i <= 10; i++) {
+        const headerFile = zip.file(`word/header${i}.xml`);
+        if (headerFile) {
+          const headerXml = headerFile.asText();
+          const headerData = await this.parser.parseStringPromise(headerXml);
+          const headerContent = this.extractHeaderContent(headerData, i);
+          
+          headersFooters.headers.push(headerContent);
+          
+          // Check for running head
+          if (headerContent.text) {
+            const runningHeadMatch = headerContent.text.match(/Running head:\s*(.+)|([A-Z\s]{2,50})/);
+            if (runningHeadMatch) {
+              headersFooters.runningHead = {
+                text: runningHeadMatch[1] || runningHeadMatch[2],
+                allCaps: runningHeadMatch[2] === runningHeadMatch[2]?.toUpperCase(),
+                length: (runningHeadMatch[1] || runningHeadMatch[2]).length,
+                headerIndex: i
+              };
+            }
+          }
+        }
+        
+        // Extract footer files
+        const footerFile = zip.file(`word/footer${i}.xml`);
+        if (footerFile) {
+          const footerXml = footerFile.asText();
+          const footerData = await this.parser.parseStringPromise(footerXml);
+          const footerContent = this.extractFooterContent(footerData, i);
+          
+          headersFooters.footers.push(footerContent);
+          
+          // Check for page numbers
+          if (footerContent.hasPageNumber) {
+            headersFooters.pageNumbers.present = true;
+            headersFooters.pageNumbers.position = footerContent.pageNumberPosition;
+          }
+        }
+      }
+      
+      // Check document.xml for header/footer references
+      const docRelsFile = zip.file('word/_rels/document.xml.rels');
+      if (docRelsFile) {
+        const relsXml = docRelsFile.asText();
+        const relsData = await this.parser.parseStringPromise(relsXml);
+        this.mapHeaderFooterTypes(relsData, headersFooters);
+      }
+      
+    } catch (error) {
+      console.error('Error extracting headers/footers:', error);
+    }
+    
+    return headersFooters;
+  }
+  
+  /**
+   * Extract header content
+   */
+  extractHeaderContent(headerData, index) {
+    const content = {
+      index: index,
+      text: '',
+      hasPageNumber: false,
+      pageNumberPosition: null,
+      formatting: {}
+    };
+    
+    try {
+      const header = headerData['w:hdr'];
+      if (header) {
+        const paragraphs = this.ensureArray(header['w:p']);
+        
+        paragraphs.forEach(para => {
+          const text = this.extractParagraphText(para);
+          content.text += text + ' ';
+          
+          // Check for page number field
+          const runs = this.ensureArray(para['w:r']);
+          runs.forEach(run => {
+            if (run['w:fldChar'] || run['w:instrText']) {
+              const instrText = run['w:instrText'];
+              if (instrText && (instrText.includes('PAGE') || instrText.includes('NUMPAGES'))) {
+                content.hasPageNumber = true;
+                
+                // Determine position based on alignment
+                const alignment = para['w:pPr']?.['w:jc']?.['$']?.['w:val'];
+                content.pageNumberPosition = alignment || 'left';
+              }
+            }
+          });
+        });
+        
+        content.text = content.text.trim();
+      }
+    } catch (error) {
+      console.error('Error extracting header content:', error);
+    }
+    
+    return content;
+  }
+  
+  /**
+   * Extract footer content
+   */
+  extractFooterContent(footerData, index) {
+    const content = {
+      index: index,
+      text: '',
+      hasPageNumber: false,
+      pageNumberPosition: null,
+      formatting: {}
+    };
+    
+    try {
+      const footer = footerData['w:ftr'];
+      if (footer) {
+        const paragraphs = this.ensureArray(footer['w:p']);
+        
+        paragraphs.forEach(para => {
+          const text = this.extractParagraphText(para);
+          content.text += text + ' ';
+          
+          // Check for page number
+          const runs = this.ensureArray(para['w:r']);
+          runs.forEach(run => {
+            if (run['w:fldChar'] || run['w:instrText']) {
+              const instrText = run['w:instrText'];
+              if (instrText && (instrText.includes('PAGE') || instrText.includes('NUMPAGES'))) {
+                content.hasPageNumber = true;
+                
+                // Determine position
+                const alignment = para['w:pPr']?.['w:jc']?.['$']?.['w:val'];
+                content.pageNumberPosition = alignment === 'right' ? 'right' : 
+                                            alignment === 'center' ? 'center' : 'left';
+              }
+            }
+          });
+        });
+        
+        content.text = content.text.trim();
+      }
+    } catch (error) {
+      console.error('Error extracting footer content:', error);
+    }
+    
+    return content;
+  }
+
+  /**
    * Extract document structure (headings, citations, etc.)
    */
   extractDocumentStructure(documentData) {
@@ -279,7 +463,8 @@ class XmlDocxProcessor {
       citations: [],
       references: [],
       tables: [],
-      figures: []
+      figures: [],
+      italicizedText: []  // Track italicized text for reference validation
     };
     
     try {
@@ -317,6 +502,173 @@ class XmlDocxProcessor {
     }
     
     return structure;
+  }
+
+  /**
+   * Extract tables with border and formatting information
+   */
+  async extractTablesWithFormatting(zip, documentData) {
+    const tables = [];
+    
+    try {
+      const body = documentData['w:document']['w:body'];
+      const tablElements = this.ensureArray(body['w:tbl']);
+      
+      tablElements.forEach((table, index) => {
+        if (!table) return;
+        
+        const tableInfo = {
+          index: index,
+          hasVerticalLines: false,
+          hasFullBorders: false,
+          borderStyle: {},
+          cells: [],
+          text: ''
+        };
+        
+        // Check table properties for borders
+        const tblPr = table['w:tblPr'];
+        if (tblPr) {
+          const borders = tblPr['w:tblBorders'];
+          if (borders) {
+            // Check for vertical borders (inside vertical lines)
+            if (borders['w:insideV']) {
+              const insideV = borders['w:insideV']['$'];
+              if (insideV && insideV['w:val'] !== 'nil' && insideV['w:val'] !== 'none') {
+                tableInfo.hasVerticalLines = true;
+              }
+            }
+            
+            // Check for full borders
+            const hasBorder = (borderType) => {
+              const border = borders[borderType];
+              return border && border['$'] && 
+                     border['$']['w:val'] !== 'nil' && 
+                     border['$']['w:val'] !== 'none';
+            };
+            
+            tableInfo.hasFullBorders = hasBorder('w:top') && 
+                                       hasBorder('w:bottom') && 
+                                       hasBorder('w:left') && 
+                                       hasBorder('w:right');
+            
+            // Store border style details
+            tableInfo.borderStyle = {
+              top: hasBorder('w:top'),
+              bottom: hasBorder('w:bottom'),
+              left: hasBorder('w:left'),
+              right: hasBorder('w:right'),
+              insideH: hasBorder('w:insideH'),
+              insideV: hasBorder('w:insideV')
+            };
+          }
+        }
+        
+        // Extract table text content
+        const rows = this.ensureArray(table['w:tr']);
+        rows.forEach(row => {
+          const cells = this.ensureArray(row['w:tc']);
+          cells.forEach(cell => {
+            const paragraphs = this.ensureArray(cell['w:p']);
+            paragraphs.forEach(para => {
+              const text = this.extractParagraphText(para);
+              tableInfo.text += text + ' ';
+            });
+          });
+        });
+        
+        tableInfo.text = tableInfo.text.trim();
+        tables.push(tableInfo);
+      });
+      
+    } catch (error) {
+      console.error('Error extracting tables with formatting:', error);
+    }
+    
+    return tables;
+  }
+  
+  /**
+   * Extract italicized text for reference validation
+   */
+  extractItalicizedText(documentData) {
+    const italicizedText = [];
+    
+    try {
+      const body = documentData['w:document']['w:body'];
+      const paragraphs = this.ensureArray(body['w:p']);
+      
+      paragraphs.forEach((para, paraIndex) => {
+        if (!para) return;
+        
+        const runs = this.ensureArray(para['w:r']);
+        runs.forEach((run, runIndex) => {
+          if (!run) return;
+          
+          // Check if run has italic formatting
+          const rPr = run['w:rPr'];
+          if (rPr && rPr['w:i']) {
+            const italic = rPr['w:i'];
+            // Check if italic is enabled (no val attribute means true, or val="1" or val="true")
+            const isItalic = !italic['$'] || 
+                           italic['$']['w:val'] === '1' || 
+                           italic['$']['w:val'] === 'true' ||
+                           italic['$']['w:val'] === 'on';
+            
+            if (isItalic) {
+              const text = this.extractRunText(run);
+              if (text) {
+                italicizedText.push({
+                  text: text,
+                  paragraphIndex: paraIndex,
+                  runIndex: runIndex,
+                  context: this.extractParagraphText(para)
+                });
+              }
+            }
+          }
+        });
+      });
+      
+    } catch (error) {
+      console.error('Error extracting italicized text:', error);
+    }
+    
+    return italicizedText;
+  }
+  
+  /**
+   * Map header/footer types from relationships
+   */
+  mapHeaderFooterTypes(relsData, headersFooters) {
+    try {
+      const relationships = relsData['Relationships']['Relationship'];
+      if (relationships) {
+        const rels = this.ensureArray(relationships);
+        
+        rels.forEach(rel => {
+          const type = rel['$']['Type'];
+          const target = rel['$']['Target'];
+          
+          if (type && type.includes('header')) {
+            // Determine header type based on target
+            if (target.includes('first')) {
+              headersFooters.firstPageHeader = target;
+            } else if (target.includes('even')) {
+              headersFooters.evenPageHeader = target;
+            }
+          } else if (type && type.includes('footer')) {
+            if (target.includes('first')) {
+              headersFooters.firstPageFooter = target;
+            } else if (target.includes('even')) {
+              headersFooters.evenPageFooter = target;
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error mapping header/footer types:', error);
+    }
   }
 
   /**

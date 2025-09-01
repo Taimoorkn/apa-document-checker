@@ -8,9 +8,9 @@ export class ReferenceValidator {
   }
 
   /**
-   * Main validation function for references section
+   * Main validation function for references section with deep formatting
    */
-  validateReferences(text, structure) {
+  validateReferences(text, structure, italicizedText = []) {
     const issues = [];
     
     if (!text) return issues;
@@ -52,10 +52,10 @@ export class ReferenceValidator {
     // Parse individual references
     const referenceEntries = this.parseReferenceEntries(referencesText);
     
-    // Run all validation checks
+    // Run all validation checks including deep formatting with italicized text
     issues.push(...this.checkAlphabeticalOrder(referenceEntries));
     issues.push(...this.checkHangingIndent(referenceEntries, referencesText));
-    issues.push(...this.checkReferenceFormatting(referenceEntries));
+    issues.push(...this.checkReferenceFormatting(referenceEntries, italicizedText));
     issues.push(...this.crossCheckCitationsAndReferences(text, referenceEntries));
     issues.push(...this.checkDuplicateReferences(referenceEntries));
     issues.push(...this.checkDOIAndURLFormatting(referenceEntries));
@@ -256,13 +256,20 @@ export class ReferenceValidator {
   }
 
   /**
-   * Check reference formatting
+   * Enhanced deep reference formatting validation
    */
-  checkReferenceFormatting(entries) {
+  checkReferenceFormatting(entries, italicizedText) {
     const issues = [];
     const reportedTypes = new Set();
     
     entries.forEach((entry, index) => {
+      // Deep validation of author format
+      const authorIssues = this.validateAuthorFormat(entry);
+      if (authorIssues && !reportedTypes.has('author-format')) {
+        issues.push(authorIssues);
+        reportedTypes.add('author-format');
+      }
+      
       // Check for missing year
       if (!entry.year && !reportedTypes.has('year')) {
         issues.push({
@@ -276,6 +283,15 @@ export class ReferenceValidator {
         });
         reportedTypes.add('year');
       }
+      
+      // Deep validation based on reference type
+      const typeSpecificIssues = this.validateReferenceByType(entry, italicizedText);
+      typeSpecificIssues.forEach(issue => {
+        if (!reportedTypes.has(issue.type)) {
+          issues.push(issue);
+          reportedTypes.add(issue.type);
+        }
+      });
       
       // Check for missing DOI/URL in journal articles
       if (entry.type === 'journal' && 
@@ -456,6 +472,273 @@ export class ReferenceValidator {
         }
       }
     });
+    
+    return issues;
+  }
+
+  /**
+   * Validate author format in references
+   */
+  validateAuthorFormat(entry) {
+    const text = entry.text;
+    
+    // Check for proper author format: Lastname, F. M.
+    const authorPattern = /^([A-Z][a-zA-Z'-]+),\s+([A-Z]\.(?:\s*[A-Z]\.)*)/;
+    
+    if (!authorPattern.test(text)) {
+      // Check for common formatting errors
+      
+      // Missing initials
+      if (/^[A-Z][a-zA-Z'-]+,\s+[A-Z][a-z]+/.test(text)) {
+        return {
+          title: "Full first names instead of initials",
+          description: "Use initials instead of full first names in references",
+          text: text.substring(0, 50) + '...',
+          severity: "Major",
+          category: "references",
+          hasFix: false,
+          type: 'author-format',
+          explanation: "Author names should use initials: Smith, J. D., not Smith, John David."
+        };
+      }
+      
+      // Missing comma after surname
+      if (/^[A-Z][a-zA-Z'-]+\s+[A-Z]\./.test(text)) {
+        return {
+          title: "Missing comma after author surname",
+          description: "Author surname should be followed by a comma",
+          text: text.substring(0, 50) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "fixAuthorComma",
+          type: 'author-format',
+          explanation: "Format: Lastname, F. M., not Lastname F. M."
+        };
+      }
+      
+      // Missing periods after initials
+      if (/^[A-Z][a-zA-Z'-]+,\s+[A-Z]\s+[A-Z]/.test(text)) {
+        return {
+          title: "Missing periods after author initials",
+          description: "Each initial should be followed by a period",
+          text: text.substring(0, 50) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "fixAuthorInitials",
+          type: 'author-format',
+          explanation: "Format: Smith, J. D., not Smith, J D"
+        };
+      }
+    }
+    
+    // Check for up to 20 authors rule (APA 7th)
+    const authorCount = (text.match(/[A-Z][a-zA-Z'-]+,\s+[A-Z]\./g) || []).length;
+    if (authorCount > 20) {
+      return {
+        title: "Too many authors listed",
+        description: "List first 19 authors, then ... and the last author",
+        text: text.substring(0, 50) + '...',
+        severity: "Minor",
+        category: "references",
+        hasFix: false,
+        type: 'author-format',
+        explanation: "For 21+ authors: list first 19, then ellipsis (...), then final author."
+      };
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Validate reference by type with deep formatting checks
+   */
+  validateReferenceByType(entry, italicizedText = []) {
+    const issues = [];
+    const text = entry.text;
+    
+    if (entry.type === 'journal') {
+      // Journal article specific validation
+      
+      // Check for journal name italicization
+      const journalMatch = text.match(/\)\.\s+([^,]+),\s*\d+/);
+      if (journalMatch) {
+        const journalName = journalMatch[1];
+        const isItalicized = italicizedText?.some(item => 
+          item.text.includes(journalName) || journalName.includes(item.text)
+        );
+        
+        if (!isItalicized && journalName.length > 3) {
+          issues.push({
+            title: "Journal name not italicized",
+            description: "Journal names must be italicized in references",
+            text: journalName,
+            severity: "Major",
+            category: "references",
+            hasFix: false,
+            type: 'journal-italics',
+            explanation: "Journal titles should be in italics: Journal of Psychology, not Journal of Psychology"
+          });
+        }
+      }
+      
+      // Check for volume number italicization
+      const volumeMatch = text.match(/,\s*(\d+)(?:\(|,)/);
+      if (volumeMatch) {
+        const volume = volumeMatch[1];
+        const volumeContext = text.substring(
+          text.indexOf(volume) - 10, 
+          text.indexOf(volume) + volume.length + 10
+        );
+        
+        const volumeItalicized = italicizedText?.some(item => 
+          item.text.includes(volume) && item.context?.includes(journalMatch?.[1])
+        );
+        
+        if (!volumeItalicized) {
+          issues.push({
+            title: "Volume number not italicized",
+            description: "Journal volume numbers should be italicized",
+            text: volumeContext,
+            severity: "Minor",
+            category: "references",
+            hasFix: false,
+            type: 'volume-italics',
+            explanation: "Volume numbers should be italicized: Psychology Today, 45(3), not Psychology Today, 45(3)"
+          });
+        }
+      }
+      
+      // Check for issue number format
+      const issueMatch = text.match(/\d+\((\d+)\)/);
+      if (issueMatch) {
+        const issueContext = text.substring(
+          text.indexOf(issueMatch[0]) - 5,
+          text.indexOf(issueMatch[0]) + issueMatch[0].length + 5
+        );
+        
+        // Issue number should NOT be italicized
+        const issueItalicized = italicizedText?.some(item => 
+          item.text.includes(`(${issueMatch[1]})`)
+        );
+        
+        if (issueItalicized) {
+          issues.push({
+            title: "Issue number incorrectly italicized",
+            description: "Issue numbers in parentheses should not be italicized",
+            text: issueContext,
+            severity: "Minor",
+            category: "references",
+            hasFix: false,
+            type: 'issue-italics',
+            explanation: "Only volume is italicized, not issue: 45(3), where 45 is italic but (3) is not"
+          });
+        }
+      }
+      
+      // Check page range format
+      const pageMatch = text.match(/,\s*(\d+)[–-](\d+)/);
+      if (pageMatch) {
+        // Check for en dash vs hyphen
+        if (text.includes(`${pageMatch[1]}-${pageMatch[2]}`)) {
+          issues.push({
+            title: "Hyphen instead of en dash in page range",
+            description: "Use en dash (–) not hyphen (-) for page ranges",
+            text: `${pageMatch[1]}-${pageMatch[2]}`,
+            severity: "Minor",
+            category: "references",
+            hasFix: true,
+            fixAction: "fixPageRangeDash",
+            type: 'page-dash',
+            explanation: "Page ranges use en dash: 123–456, not 123-456"
+          });
+        }
+      }
+      
+    } else if (entry.type === 'book') {
+      // Book specific validation
+      
+      // Check for book title italicization
+      const titleMatch = text.match(/\)\.\s+([^.]+)\./);
+      if (titleMatch) {
+        const bookTitle = titleMatch[1];
+        const isItalicized = italicizedText?.some(item => 
+          item.text.includes(bookTitle) || bookTitle.includes(item.text)
+        );
+        
+        if (!isItalicized && bookTitle.length > 3) {
+          issues.push({
+            title: "Book title not italicized",
+            description: "Book titles must be italicized in references",
+            text: bookTitle.substring(0, 50),
+            severity: "Major",
+            category: "references",
+            hasFix: false,
+            type: 'book-italics',
+            explanation: "Book titles should be in italics throughout the reference"
+          });
+        }
+        
+        // Check for sentence case in book titles
+        const words = bookTitle.split(/\s+/);
+        const hasExcessiveCapitals = words.filter(w => 
+          w.length > 3 && w[0] === w[0].toUpperCase()
+        ).length > words.length * 0.5;
+        
+        if (hasExcessiveCapitals) {
+          issues.push({
+            title: "Book title not in sentence case",
+            description: "Book titles should use sentence case, not title case",
+            text: bookTitle.substring(0, 50),
+            severity: "Minor",
+            category: "references",
+            hasFix: true,
+            fixAction: "fixBookTitleCase",
+            type: 'book-case',
+            explanation: "Book titles use sentence case: 'The psychology of learning' not 'The Psychology of Learning'"
+          });
+        }
+      }
+      
+      // Check for edition format
+      const editionMatch = text.match(/\((\d+)(?:st|nd|rd|th)\s+[Ee]d(?:ition)?\)/);
+      if (editionMatch) {
+        if (!text.includes(`(${editionMatch[1]}th ed.)`) && 
+            !text.includes(`(${editionMatch[1]}nd ed.)`) &&
+            !text.includes(`(${editionMatch[1]}rd ed.)`) &&
+            !text.includes(`(${editionMatch[1]}st ed.)`)) {
+          issues.push({
+            title: "Incorrect edition format",
+            description: "Edition should be formatted as '(2nd ed.)'",
+            text: editionMatch[0],
+            severity: "Minor",
+            category: "references",
+            hasFix: true,
+            fixAction: "fixEditionFormat",
+            type: 'edition-format',
+            explanation: "Format editions as: (2nd ed.), (3rd ed.), etc."
+          });
+        }
+      }
+      
+      // Check for publisher location (not needed in APA 7th)
+      if (text.match(/[A-Z][a-z]+,\s+[A-Z]{2}:\s+[A-Z]/) || 
+          text.includes('New York:') || 
+          text.includes('London:')) {
+        issues.push({
+          title: "Publisher location included",
+          description: "APA 7th edition no longer requires publisher location",
+          text: text.substring(0, 60) + '...',
+          severity: "Minor",
+          category: "references",
+          hasFix: true,
+          fixAction: "removePublisherLocation",
+          type: 'publisher-location',
+          explanation: "APA 7th edition omits publisher location. Use just publisher name."
+        });
+      }
+    }
     
     return issues;
   }

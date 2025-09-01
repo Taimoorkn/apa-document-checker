@@ -4,6 +4,7 @@
 // Import specialized validators
 import { ReferenceValidator } from './referenceValidator';
 import { TableFigureValidator } from './tableFigureValidator';
+import { HeaderFooterValidator } from './headerFooterValidator';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {
@@ -32,6 +33,7 @@ export class EnhancedAPAAnalyzer {
     // Initialize specialized validators
     this.referenceValidator = new ReferenceValidator();
     this.tableFigureValidator = new TableFigureValidator();
+    this.headerFooterValidator = new HeaderFooterValidator();
   }
   
   /**
@@ -71,20 +73,34 @@ export class EnhancedAPAAnalyzer {
       issues.push(...this.analyzeBasicCitations(text));
     }
     
-    // 4. Analyze references with enhanced validation
+    // 4. Analyze references with enhanced validation including deep formatting
     if (text) {
-      // Use the new comprehensive reference validator
-      const referenceIssues = this.referenceValidator.validateReferences(text, structure);
+      // Pass italicized text for deep formatting validation
+      const italicizedText = structure?.italicizedText || [];
+      const referenceIssues = this.referenceValidator.validateReferences(text, structure, italicizedText);
       issues.push(...referenceIssues);
     }
     
-    // 5. Analyze tables and figures
+    // 5. Analyze tables and figures including border validation
     if (text) {
+      // Enhanced validation with table border information from XML
       const tableFigureIssues = this.tableFigureValidator.validateTablesAndFigures(text, structure, formatting);
+      
+      // Add table border validation if XML data is available
+      if (structure?.tables) {
+        tableFigureIssues.push(...this.validateTableBorders(structure.tables));
+      }
+      
       issues.push(...tableFigureIssues);
     }
     
-    // 6. Analyze content compliance
+    // 6. Analyze headers, footers, running heads, and page numbers
+    if (text && structure) {
+      const headerFooterIssues = this.headerFooterValidator.validateHeadersFooters(text, structure);
+      issues.push(...headerFooterIssues);
+    }
+    
+    // 7. Analyze content compliance
     if (text) {
       issues.push(...this.analyzeContent(text));
     }
@@ -707,6 +723,68 @@ export class EnhancedAPAAnalyzer {
     return issues;
   }
   
+  /**
+   * Validate table borders from XML data
+   */
+  validateTableBorders(tables) {
+    const issues = [];
+    
+    tables.forEach((table, index) => {
+      // Check for vertical lines (APA doesn't use them)
+      if (table.hasVerticalLines) {
+        issues.push({
+          title: "Vertical lines in table",
+          description: `Table ${index + 1} contains vertical lines which violate APA format`,
+          text: `Table ${index + 1}`,
+          severity: "Minor",
+          category: "tables",
+          hasFix: true,
+          fixAction: "removeTableVerticalLines",
+          explanation: "APA style tables should not use vertical lines. Use only horizontal lines for clarity."
+        });
+      }
+      
+      // Check for excessive borders
+      if (table.hasFullBorders) {
+        issues.push({
+          title: "Excessive borders in table",
+          description: `Table ${index + 1} has full borders instead of APA style minimal borders`,
+          text: `Table ${index + 1}`,
+          severity: "Minor",
+          category: "tables",
+          hasFix: true,
+          fixAction: "fixTableBorders",
+          explanation: "APA tables use minimal borders: horizontal lines at top, bottom, and below column headings only."
+        });
+      }
+      
+      // Check for proper APA table border style
+      if (table.borderStyle) {
+        const hasProperBorders = table.borderStyle.top && 
+                                table.borderStyle.bottom && 
+                                table.borderStyle.insideH && 
+                                !table.borderStyle.left && 
+                                !table.borderStyle.right && 
+                                !table.borderStyle.insideV;
+        
+        if (!hasProperBorders && !table.hasFullBorders) {
+          issues.push({
+            title: "Incorrect table border style",
+            description: `Table ${index + 1} doesn't follow APA border guidelines`,
+            text: `Table ${index + 1}`,
+            severity: "Minor",
+            category: "tables",
+            hasFix: true,
+            fixAction: "fixTableBorderStyle",
+            explanation: "APA tables should have horizontal lines at top, bottom, and after header row only."
+          });
+        }
+      }
+    });
+    
+    return issues;
+  }
+
   /**
    * Legacy analyze references section - kept for backward compatibility
    * Now replaced by ReferenceValidator for comprehensive validation

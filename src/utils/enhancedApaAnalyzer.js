@@ -5,6 +5,11 @@
 import { ReferenceValidator } from './referenceValidator';
 import { TableFigureValidator } from './tableFigureValidator';
 import { HeaderFooterValidator } from './headerFooterValidator';
+import { AdvancedCitationValidator } from './advancedCitationValidator';
+import { QuotationValidator } from './quotationValidator';
+import { StatisticalValidator } from './statisticalValidator';
+import { BiasFreeLanguageValidator } from './biasFreeLanguageValidator';
+import { ComprehensiveValidator } from './comprehensiveValidator';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {
@@ -34,6 +39,11 @@ export class EnhancedAPAAnalyzer {
     this.referenceValidator = new ReferenceValidator();
     this.tableFigureValidator = new TableFigureValidator();
     this.headerFooterValidator = new HeaderFooterValidator();
+    this.advancedCitationValidator = new AdvancedCitationValidator();
+    this.quotationValidator = new QuotationValidator();
+    this.statisticalValidator = new StatisticalValidator();
+    this.biasFreeLanguageValidator = new BiasFreeLanguageValidator();
+    this.comprehensiveValidator = new ComprehensiveValidator();
   }
   
   /**
@@ -100,7 +110,39 @@ export class EnhancedAPAAnalyzer {
       issues.push(...headerFooterIssues);
     }
     
-    // 7. Analyze content compliance
+    // 7. Advanced citation validation
+    if (text) {
+      const advancedCitationIssues = this.advancedCitationValidator.validateAdvancedCitations(text, structure);
+      issues.push(...advancedCitationIssues);
+    }
+    
+    // 8. Quotation handling validation
+    if (text) {
+      const quotationIssues = this.quotationValidator.validateQuotations(text, structure);
+      issues.push(...quotationIssues);
+    }
+    
+    // 9. Statistical and numerical formatting
+    if (text) {
+      const statisticalIssues = this.statisticalValidator.validateStatistical(text, structure);
+      issues.push(...statisticalIssues);
+    }
+    
+    // 10. Bias-free language detection
+    if (text) {
+      const biasFreeIssues = this.biasFreeLanguageValidator.validateBiasFreeLanguage(text, structure);
+      issues.push(...biasFreeIssues);
+    }
+    
+    // 11. Lists, abbreviations, and appendices
+    if (text) {
+      issues.push(...this.comprehensiveValidator.validateListsAndSeriation(text));
+      issues.push(...this.comprehensiveValidator.validateAbbreviations(text));
+      issues.push(...this.comprehensiveValidator.validateAppendixAndSupplements(text, structure));
+      issues.push(...this.comprehensiveValidator.validateTitleAndHeadings(text));
+    }
+    
+    // 12. Analyze content compliance (original basic content check)
     if (text) {
       issues.push(...this.analyzeContent(text));
     }

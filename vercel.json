@@ -5,7 +5,8 @@
       "src": "server/index.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["server/**"]
+        "includeFiles": ["server/**"],
+        "maxLambdaSize": "50mb"
       }
     },
     {
@@ -22,10 +23,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "functions": {
-    "server/index.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }

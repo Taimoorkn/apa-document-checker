@@ -3,19 +3,46 @@
 @tailwind utilities;
 
 :root {
-  --primary: #3b82f6;
-  --secondary: #10b981;
+  /* Modern color palette */
+  --primary: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #818cf8;
+  --secondary: #06b6d4;
+  --secondary-dark: #0891b2;
   --accent: #8b5cf6;
-  --error: #ef4444;
+  --success: #10b981;
+  --error: #f43f5e;
   --warning: #f59e0b;
+  --info: #3b82f6;
+  
+  /* Neutral colors */
   --background: #ffffff;
-  --text: #1f2937;
+  --surface: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Spacing */
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --radius-lg: 1rem;
 }
 
 /* Base styling */
 body {
   color: var(--text);
-  background-color: var(--background);
+  background: linear-gradient(to bottom right, #f8fafc, #e0e7ff);
+  min-height: 100vh;
 }
 
 /* Typography */
@@ -30,8 +57,6 @@ body {
 /* APA styling for document viewer */
 .prose {
   font-family: 'Times New Roman', Times, serif;
-  font-size: 12pt;
-  line-height: 2;
   max-width: none;
 }
 
@@ -137,6 +162,11 @@ mark[data-issue-id]:hover::after {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
 /* Animation utilities (fallback for older Tailwind versions) */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
@@ -152,6 +182,10 @@ mark[data-issue-id]:hover::after {
 
 .animate-pulse-blue {
   animation: pulse 2s infinite;
+}
+
+.animate-progress {
+  animation: progress 2s ease-out infinite;
 }
 
 /* Apply animations to components */
@@ -181,10 +215,148 @@ mark[data-issue-id]:hover::after {
 
 /* Loading spinner */
 .loading-spinner {
-  border: 3px solid rgba(59, 130, 246, 0.1);
+  border: 3px solid rgba(99, 102, 241, 0.1);
   border-radius: 50%;
   border-top: 3px solid var(--primary);
   width: 24px;
   height: 24px;
   animation: spin 1s linear infinite;
 }
+
+/* Modern button styles */
+.btn-primary {
+  @apply bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-medium px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 font-medium px-5 py-2.5 rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:bg-gray-50 transform transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
+}
+
+.btn-success {
+  @apply bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transform transition-all duration-200 hover:-translate-y-0.5;
+}
+
+.btn-danger {
+  @apply bg-gradient-to-r from-rose-500 to-rose-600 text-white font-medium px-4 py-2 rounded-lg shadow-sm hover:shadow-md transform transition-all duration-200 hover:-translate-y-0.5;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md;
+}
+
+.card-header {
+  @apply px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-100;
+}
+
+.card-body {
+  @apply p-6;
+}
+
+/* Modern input styles */
+.input-modern {
+  @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-400;
+}
+
+/* Glass morphism effects */
+.glass {
+  @apply bg-white bg-opacity-70 backdrop-blur-lg border border-white border-opacity-20;
+}
+
+.glass-dark {
+  @apply bg-gray-900 bg-opacity-70 backdrop-blur-lg border border-gray-700 border-opacity-20;
+}
+
+/* APA Document Base Styling */
+.apa-document {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  /* font-family removed to preserve original document fonts */
+}
+
+.apa-document h1,
+.apa-document h2,
+.apa-document h3,
+.apa-document h4,
+.apa-document h5,
+.apa-document h6 {
+  text-indent: 0;
+}
+
+.apa-document strong,
+.apa-document b {
+  font-weight: bold;
+}
+
+.apa-document em,
+.apa-document i {
+  font-style: italic;
+}
+
+.apa-document u {
+  text-decoration: underline;
+}
+
+/* References section specific styling */
+.apa-document .hanging-indent {
+  padding-left: 0.5in;
+  text-indent: -0.5in;
+}
+
+
+
+/* Slate.js Editor Enhancements */
+.slate-editor {
+  @apply apa-document;
+  color: #000;
+}
+
+/* Force exact pt values without browser conversion */
+.slate-editor * {
+  font-family: unset;
+  font-size: unset !important;
+}
+
+/* Ensure pt units are preserved exactly as specified */
+.slate-editor [style*="font-size"] {
+  font-size: inherit !important;
+}
+
+/* Force 1:1 pt rendering */
+.slate-editor {
+  font-size-adjust: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+/* APA Issue Highlighting in Editor */
+.active-issue {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
+  border-radius: 2px;
+}
+
+/* Issue severity styles for editor */
+mark[data-issue-id] {
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+mark[data-issue-id]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+
+/* Editor focus styles */
+[data-slate-editor="true"] {
+  outline: none;
+}
+
+[data-slate-editor="true"]:focus-within {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border-radius: 4px;
+}
+

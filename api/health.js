@@ -1,5 +1,5 @@
 // api/health.js
-export default function handler(req, res) {
+module.exports = (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -9,4 +9,4 @@ export default function handler(req, res) {
     timestamp: new Date().toISOString(),
     service: 'APA Document Checker Server'
   });
-}
+};

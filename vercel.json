@@ -1,7 +1,16 @@
 {
   "functions": {
-    "api/[...slug].js": {
+    "api/upload-docx.js": {
       "maxDuration": 30
+    },
+    "api/apply-fix.js": {
+      "maxDuration": 30
+    },
+    "api/processing-status.js": {
+      "maxDuration": 10
+    },
+    "api/health.js": {
+      "maxDuration": 10
     }
   }
 }

@@ -1,7 +1,7 @@
 import './globals.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { Inter, Roboto } from 'next/font/google'
-
+import { Analytics } from "@vercel/analytics/next"
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
@@ -142,6 +142,7 @@ export default function RootLayout({ children }) {
         <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
           {children}
         </ErrorBoundary>
+        <Analytics />
       </body>
     </html>
   );

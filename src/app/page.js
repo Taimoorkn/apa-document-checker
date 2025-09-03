@@ -13,6 +13,23 @@ export default function Home() {
 
   return (
     <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50" role="main">
+      {/* Navigation Bar */}
+      <nav className="bg-white border-b border-gray-200 px-4 py-2" role="navigation">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
+          <div className="flex items-center space-x-6">
+            <a href="/" className="text-xl font-bold text-indigo-600">APA Checker</a>
+            <div className="hidden md:flex space-x-4">
+              <a href="/faq" className="text-gray-600 hover:text-indigo-600 transition-colors">FAQ</a>
+              <a href="/about" className="text-gray-600 hover:text-indigo-600 transition-colors">About</a>
+              <a href="/guide" className="text-gray-600 hover:text-indigo-600 transition-colors">APA Guide</a>
+            </div>
+          </div>
+          <div className="text-sm text-gray-500">
+            Free APA 7th Edition Checker
+          </div>
+        </div>
+      </nav>
+      
       <Header />
       
       <section className="flex-1 flex overflow-hidden relative" aria-label="Document analysis workspace">

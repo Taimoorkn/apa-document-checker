@@ -9,7 +9,7 @@ Disallow: /server/
 Allow: /api/sitemap.xml
 
 # Sitemap location
-Sitemap: https://apa-document-checker.vercel.app/api/sitemap.xml
+Sitemap: https://apa-document-checker.vercel.app/sitemap.xml
 
 # Crawl-delay for respectful crawling
 Crawl-delay: 1

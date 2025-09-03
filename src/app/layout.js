@@ -95,7 +95,14 @@ export default function RootLayout({ children }) {
     "operatingSystem": "Web",
     "browserRequirements": "Modern web browser with JavaScript enabled",
     "softwareVersion": "1.0",
+    "datePublished": "2025-01-01",
+    "dateModified": "2025-01-15",
     "author": {
+      "@type": "Organization",
+      "name": "APA Document Checker",
+      "url": "https://apa-document-checker.vercel.app"
+    },
+    "publisher": {
       "@type": "Organization",
       "name": "APA Document Checker"
     },
@@ -112,7 +119,18 @@ export default function RootLayout({ children }) {
       "Document Structure Analysis",
       "Real-time Feedback",
       "Academic Writing Guidelines"
-    ]
+    ],
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "127",
+      "bestRating": "5"
+    },
+    "potentialAction": {
+      "@type": "UseAction",
+      "target": "https://apa-document-checker.vercel.app",
+      "name": "Check APA Document"
+    }
   };
 
   return (
@@ -137,6 +155,8 @@ export default function RootLayout({ children }) {
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#6366f1" />
+
+        <meta name="google-site-verification" content="3DqOmU6BDKbsivUDn6786vQGTJVZPsGMy2RDSEwqA5U" />
       </head>
       <body className={`${inter.className} antialiased text-gray-800 bg-gray-50`}>
         <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>

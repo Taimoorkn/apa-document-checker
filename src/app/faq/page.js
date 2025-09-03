@@ -102,15 +102,6 @@ export default function FAQ() {
               </article>
             ))}
           </div>
-
-          <footer className="mt-12 text-center">
-            <p className="text-gray-600">
-              Still have questions? Our APA Document Checker provides detailed feedback on your documents.{' '}
-              <a href="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
-                Try it now for free
-              </a>
-            </p>
-          </footer>
         </div>
       </div>
     </>

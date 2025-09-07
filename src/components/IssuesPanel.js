@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import React from 'react';
 import { 
@@ -46,6 +46,10 @@ export default function IssuesPanel() {
   
   const [activeTab, setActiveTab] = useState('issues'); // 'issues' or 'stats'
   
+  // Refs for tracking issue elements
+  const issueRefs = useRef({});
+  const panelContentRef = useRef(null);
+  
   // Group issues by severity
   const groupedIssues = useMemo(() => {
     return (issues || []).reduce((acc, issue) => {
@@ -73,6 +77,65 @@ export default function IssuesPanel() {
       [category]: !prev[category]
     }));
   }, []);
+  
+  // Auto-scroll and auto-expand when activeIssueId changes
+  useEffect(() => {
+    if (!activeIssueId || !issues || issues.length === 0) return;
+    
+    // Find the issue and its severity
+    const activeIssue = issues.find(issue => issue.id === activeIssueId);
+    if (!activeIssue) return;
+    
+    const severity = activeIssue.severity;
+    
+    // Auto-expand the category if it's collapsed
+    setExpandedCategories(prev => {
+      if (!prev[severity]) {
+        console.log(`📂 Auto-expanding ${severity} category for issue: ${activeIssueId}`);
+        return { ...prev, [severity]: true };
+      }
+      return prev;
+    });
+    
+    // Delay scrolling to allow for category expansion animation
+    const scrollTimer = setTimeout(() => {
+      // First, ensure we're on the issues tab
+      if (activeTab !== 'issues') {
+        setActiveTab('issues');
+      }
+      
+      // Scroll to the issue element
+      const issueElement = issueRefs.current[activeIssueId];
+      if (issueElement) {
+        console.log(`📍 Auto-scrolling to issue: ${activeIssueId}`);
+        
+        // Calculate the position relative to the panel content
+        const panelContent = panelContentRef.current;
+        if (panelContent) {
+          // Get the issue element's position relative to the panel
+          const issueRect = issueElement.getBoundingClientRect();
+          const panelRect = panelContent.getBoundingClientRect();
+          
+          // Calculate scroll position to center the issue in view
+          const scrollTop = issueElement.offsetTop - panelRect.height / 2 + issueElement.offsetHeight / 2;
+          
+          // Smooth scroll to the issue
+          panelContent.scrollTo({
+            top: Math.max(0, scrollTop),
+            behavior: 'smooth'
+          });
+        }
+        
+        // Add a highlight animation to draw attention
+        issueElement.classList.add('issue-highlight-animation');
+        setTimeout(() => {
+          issueElement.classList.remove('issue-highlight-animation');
+        }, 2000);
+      }
+    }, expandedCategories[severity] ? 100 : 400); // Longer delay if category needs to expand
+    
+    return () => clearTimeout(scrollTimer);
+  }, [activeIssueId, issues, activeTab, expandedCategories]);
   
   return (
     <div className="h-full bg-gradient-to-br from-gray-50 via-white to-indigo-50 flex flex-col">
@@ -129,7 +192,7 @@ export default function IssuesPanel() {
       </div>
       
       {/* Content Area */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto" ref={panelContentRef}>
         {activeTab === 'issues' ? (
           <div className="p-6">
             {totalIssues > 0 ? (
@@ -177,6 +240,7 @@ export default function IssuesPanel() {
                     {expandedCategories.Critical && groupedIssues.Critical.map(issue => (
                       <IssueItem 
                         key={issue.id}
+                        ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
@@ -198,6 +262,7 @@ export default function IssuesPanel() {
                     {expandedCategories.Major && groupedIssues.Major.map(issue => (
                       <IssueItem 
                         key={issue.id}
+                        ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
@@ -219,6 +284,7 @@ export default function IssuesPanel() {
                     {expandedCategories.Minor && groupedIssues.Minor.map(issue => (
                       <IssueItem 
                         key={issue.id}
+                        ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
@@ -485,15 +551,16 @@ const IssueCategory = React.memo(function IssueCategory({ title, count, severity
 });
 
 // Modern Issue Item Component
-const IssueItem = React.memo(function IssueItem({ 
+const IssueItem = React.memo(React.forwardRef(function IssueItem({ 
   issue, 
   isActive, 
   onSelect, 
   onApplyFix,
   isApplyingFix = false
-}) {
+}, ref) {
   return (
     <div 
+      ref={ref}
       className={`px-6 py-5 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
         isActive ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-l-4 border-indigo-500' : ''
       }`}
@@ -553,4 +620,4 @@ const IssueItem = React.memo(function IssueItem({
       </div>
     </div>
   );
-});
+}));

@@ -335,6 +335,32 @@ mark[data-issue-id]:hover::after {
   border-radius: 2px;
 }
 
+/* Custom animations for issue highlighting in panel */
+@keyframes issueHighlight {
+  0% {
+    background-color: transparent;
+  }
+  25% {
+    background-color: rgba(99, 102, 241, 0.2);
+    transform: scale(1.01);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.3);
+  }
+  75% {
+    background-color: rgba(99, 102, 241, 0.2);
+    transform: scale(1.01);
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.issue-highlight-animation {
+  animation: issueHighlight 2s ease-in-out;
+}
+
 /* Issue severity styles for editor */
 mark[data-issue-id] {
   cursor: pointer;

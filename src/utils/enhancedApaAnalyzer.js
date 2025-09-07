@@ -181,13 +181,16 @@ export class EnhancedAPAAnalyzer {
       if (!fontFamily.includes('times new roman') && 
           !fontFamily.includes('times') && 
           !fontFamily.includes('liberation serif')) {
+        // Find first paragraph with text to highlight
+        const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
         issues.push({
           title: "Incorrect font family",
           description: `Document uses "${font.family}" instead of Times New Roman`,
-          text: `Font: ${font.family}`,
+          text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Font: ${font.family}`,
+          highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
           severity: "Major",
           category: "formatting",
-          location: { type: "document", section: "font" },
+          location: { type: "document", section: "font", paragraphIndex: 0 },
           hasFix: true,
           fixAction: "fixFont",
           explanation: "APA 7th edition requires Times New Roman 12pt font throughout the document."
@@ -207,13 +210,16 @@ export class EnhancedAPAAnalyzer {
     
     // Check font size with tolerance - SAFE ACCESS
     if (font.size && Math.abs(font.size - 12) > 0.5) {
+      // Find first paragraph with text to highlight
+      const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
       issues.push({
         title: "Incorrect font size",
         description: `Font size is ${font.size}pt instead of 12pt`,
-        text: `Font size: ${font.size}pt`,
+        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Font size: ${font.size}pt`,
+        highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         severity: "Major",
         category: "formatting", 
-        location: { type: "document", section: "font" },
+        location: { type: "document", section: "font", paragraphIndex: 0 },
         hasFix: true,
         fixAction: "fixFontSize",
         explanation: "APA 7th edition requires 12-point font size."
@@ -222,13 +228,16 @@ export class EnhancedAPAAnalyzer {
     
     // Check line spacing - SAFE ACCESS
     if (spacing.line && Math.abs(spacing.line - 2.0) > 0.1) {
+      // Find first paragraph with text to highlight
+      const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
       issues.push({
         title: "Incorrect line spacing",
         description: `Line spacing is ${spacing.line} instead of double (2.0)`,
-        text: `Line spacing: ${spacing.line}`,
+        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Line spacing: ${spacing.line}`,
+        highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         severity: "Major",
         category: "formatting", 
-        location: { type: "document", section: "spacing" },
+        location: { type: "document", section: "spacing", paragraphIndex: 0 },
         hasFix: true,
         fixAction: "fixLineSpacing",
         explanation: "APA 7th edition requires double spacing (2.0) throughout the document."
@@ -494,6 +503,7 @@ export class EnhancedAPAAnalyzer {
         title: "Missing comma in citation",
         description: "Citations must have a comma between author and year",
         text: fullCitation,
+        highlightText: fullCitation,
         severity: "Minor", 
         category: "citations",
         hasFix: true,
@@ -519,6 +529,7 @@ export class EnhancedAPAAnalyzer {
           title: "Incorrect connector in parenthetical citation",
           description: "Use '&' instead of 'and' in parenthetical citations",
           text: fullCitation,
+          highlightText: fullCitation,
           severity: "Minor",
           category: "citations",
           hasFix: true,
@@ -533,6 +544,7 @@ export class EnhancedAPAAnalyzer {
           title: "Incorrect comma before et al.",
           description: "APA 7th edition does not use comma before 'et al.' in citations",
           text: fullCitation,
+          highlightText: fullCitation,
           severity: "Minor",
           category: "citations", 
           hasFix: true,
@@ -556,6 +568,7 @@ export class EnhancedAPAAnalyzer {
           title: "Incorrect connector in reference",
           description: "Use '&' instead of 'and' in reference list",
           text: andMatch[0],
+          highlightText: andMatch[0],
           severity: "Minor",
           category: "references",
           hasFix: true,
@@ -597,6 +610,7 @@ export class EnhancedAPAAnalyzer {
         title: "Citation spacing error",
         description: "Citations need proper spacing before and after",
         text: spacingMatch[0],
+        highlightText: spacingMatch[0],
         severity: "Minor",
         category: "formatting",
         hasFix: false,
@@ -613,6 +627,7 @@ export class EnhancedAPAAnalyzer {
           title: "URL formatting in text",
           description: "URLs should be properly formatted in references, not embedded in text",
           text: urlMatch[0],
+          highlightText: urlMatch[0],
           severity: "Minor",
           category: "formatting",
           hasFix: false,
@@ -634,6 +649,7 @@ export class EnhancedAPAAnalyzer {
           title: "ALL CAPS heading detected",
           description: "Headings should use title case or sentence case, not ALL CAPS",
           text: heading,
+          highlightText: heading,
           severity: "Minor",
           category: "formatting", 
           hasFix: true,
@@ -693,6 +709,7 @@ export class EnhancedAPAAnalyzer {
           title: "Direct quote missing page number",
           description: "Direct quotes require page numbers",
           text: quoteMatch[0],
+          highlightText: quoteMatch[0],
           severity: "Major",
           category: "citations",
           hasFix: true,

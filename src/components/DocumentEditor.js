@@ -251,31 +251,44 @@ export default function DocumentEditor() {
   // Apply issue highlighting to Slate editor
   const applyIssueHighlighting = useCallback(() => {
     if (!issues.length || !editor) return;
-
-    // Remove existing highlights
+    
+    // Remove existing highlights first
     Editor.removeMark(editor, MARKS.APA_ISSUE);
+    
+    // Only highlight issues that have real text (not descriptive text)
+    const highlightableIssues = issues.filter(issue => {
+      const text = issue.highlightText || issue.text;
+      return text && 
+             !text.startsWith('Font:') && 
+             !text.startsWith('Font size:') && 
+             !text.startsWith('Line spacing:') &&
+             !text.startsWith('Expected:') &&
+             !text.startsWith('Found ') &&
+             !text.includes('varies') &&
+             text.length > 3;
+    });
 
-    issues.forEach(issue => {
-      if (!issue.text) return;
-
-      // Find text in editor and apply highlighting
+    // Simple approach: just try to highlight whatever text we have
+    highlightableIssues.forEach(issue => {
       try {
-        const [match] = Editor.nodes(editor, {
+        const searchText = issue.highlightText || issue.text;
+        if (!searchText) return;
+        
+        // Search for this text in the document
+        const textNodes = Array.from(Editor.nodes(editor, {
           at: [],
-          match: n => Text.isText(n) && n.text && n.text.includes(issue.text)
-        });
-
-        if (match) {
-          const [node, path] = match;
-          const text = node.text;
-          const index = text.indexOf(issue.text);
-
+          match: n => Text.isText(n) && n.text && n.text.includes(searchText)
+        }));
+        
+        // Highlight each occurrence
+        textNodes.forEach(([node, path]) => {
+          const index = node.text.indexOf(searchText);
           if (index !== -1) {
             const range = {
               anchor: { path, offset: index },
-              focus: { path, offset: index + issue.text.length }
+              focus: { path, offset: index + searchText.length }
             };
-
+            
             Transforms.select(editor, range);
             Editor.addMark(editor, MARKS.APA_ISSUE, {
               issueId: issue.id,
@@ -283,9 +296,9 @@ export default function DocumentEditor() {
               active: issue.id === activeIssueId
             });
           }
-        }
+        });
       } catch (error) {
-        console.warn('Error highlighting issue in editor:', error);
+        // Silently skip errors
       }
     });
 

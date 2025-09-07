@@ -3,8 +3,11 @@
 
 export class ReferenceValidator {
   constructor() {
-    this.doiPattern = /(?:https?:\/\/)?(?:dx\.)?doi\.org\/(.+)|doi:\s*(.+)/i;
+    // Enhanced DOI pattern with validation
+    this.doiPattern = /(?:https?:\/\/)?(?:dx\.)?doi\.org\/([0-9.]+\/[^\s]+)|doi:\s*([0-9.]+\/[^\s]+)/i;
     this.urlPattern = /https?:\/\/[^\s)]+/g;
+    // Valid DOI prefix pattern (10.xxxx)
+    this.validDoiPrefix = /^10\.\d{4,}/;
   }
 
   /**
@@ -766,20 +769,58 @@ export class ReferenceValidator {
         reportedTypes.add('retrieved');
       }
       
-      // Check DOI format
+      // Check DOI format and validity
       const doiMatch = entry.text.match(this.doiPattern);
-      if (doiMatch && !entry.text.includes('https://doi.org/') && !reportedTypes.has('doi-format')) {
-        issues.push({
-          title: "Incorrect DOI format",
-          description: "DOIs should be formatted as hyperlinks",
-          text: doiMatch[0],
-          severity: "Minor",
-          category: "references",
-          hasFix: true,
-          fixAction: "formatDOI",
-          explanation: "Format DOIs as hyperlinks: https://doi.org/xxxxx"
-        });
-        reportedTypes.add('doi-format');
+      if (doiMatch) {
+        const doi = doiMatch[1] || doiMatch[2];
+        
+        // Validate DOI structure
+        if (doi && !this.validDoiPrefix.test(doi) && !reportedTypes.has('invalid-doi')) {
+          issues.push({
+            title: "Invalid DOI format",
+            description: "DOI appears malformed",
+            text: doiMatch[0],
+            severity: "Major",
+            category: "references",
+            hasFix: false,
+            explanation: "DOIs should start with '10.' followed by a registrant code"
+          });
+          reportedTypes.add('invalid-doi');
+        }
+        
+        // Check if formatted as hyperlink
+        if (!entry.text.includes('https://doi.org/') && !reportedTypes.has('doi-format')) {
+          issues.push({
+            title: "DOI not formatted as hyperlink",
+            description: "DOIs should be formatted as clickable hyperlinks",
+            text: doiMatch[0],
+            severity: "Minor",
+            category: "references",
+            hasFix: true,
+            fixAction: "formatDOI",
+            explanation: "Format DOIs as: https://doi.org/10.xxxx/xxxxx"
+          });
+          reportedTypes.add('doi-format');
+        }
+      }
+      
+      // Check for electronic sources without retrieval date when needed
+      if (entry.text.includes('http') && !entry.text.includes('doi') && 
+          !reportedTypes.has('retrieval-date')) {
+        // Check if it's a source that changes (wiki, news, etc.)
+        const needsRetrievalDate = /wikipedia|wiki|news|blog|press release/i.test(entry.text);
+        if (needsRetrievalDate && !entry.text.includes('Retrieved')) {
+          issues.push({
+            title: "Missing retrieval date",
+            description: "Online sources that change need retrieval dates",
+            text: entry.text.substring(0, 60) + '...',
+            severity: "Minor",
+            category: "references",
+            hasFix: false,
+            explanation: "Add 'Retrieved [Month Day, Year], from' before URL for changing content"
+          });
+          reportedTypes.add('retrieval-date');
+        }
       }
     });
     

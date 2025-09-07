@@ -336,43 +336,95 @@ export class TableFigureValidator {
   }
 
   /**
-   * Check numbering sequence
+   * Check numbering sequence with appendix support
    */
   checkNumberingSequence(items, type) {
     const issues = [];
     
     if (items.length < 2) return issues;
     
-    // Sort by position to check sequence
-    const sortedItems = [...items].sort((a, b) => a.position - b.position);
+    // Separate main document items from appendix items
+    const mainItems = [];
+    const appendixItems = new Map(); // Map of appendix letter to items
     
-    let expectedNumber = 1;
-    for (let i = 0; i < sortedItems.length; i++) {
-      const item = sortedItems[i];
+    items.forEach(item => {
+      // Check if it's an appendix table/figure (e.g., Table A1, Figure B2)
+      const appendixMatch = item.numberText.match(/^([A-Z])(\d+)$/);
+      if (appendixMatch) {
+        const appendixLetter = appendixMatch[1];
+        const appendixNumber = parseInt(appendixMatch[2]);
+        
+        if (!appendixItems.has(appendixLetter)) {
+          appendixItems.set(appendixLetter, []);
+        }
+        appendixItems.get(appendixLetter).push({
+          ...item,
+          appendixLetter,
+          appendixNumber
+        });
+      } else if (!item.numberText.includes('.') || item.numberText.match(/^\d+\.\d+$/)) {
+        // Regular numbered item or sub-numbered item (2.1, 2.2)
+        mainItems.push(item);
+      }
+    });
+    
+    // Check main document sequence
+    if (mainItems.length > 1) {
+      const sortedMain = [...mainItems].sort((a, b) => a.position - b.position);
+      let expectedNumber = 1;
       
-      // Check if it's a sub-number (e.g., Table 2.1)
-      const isSubNumber = item.numberText.includes('.');
-      
-      if (item.number !== expectedNumber) {
-        if (!isSubNumber && Math.abs(item.number - expectedNumber) > 0.1) {
-          issues.push({
-            title: `${type} numbering sequence error`,
-            description: `${type} ${item.numberText} appears out of sequence (expected ${type} ${expectedNumber})`,
-            text: item.fullMatch,
-            severity: "Major",
-            category: type.toLowerCase() + 's',
-            hasFix: true,
-            fixAction: `fix${type}Numbering`,
-            explanation: `${type}s must be numbered consecutively in the order they appear in the text.`
-          });
-          break; // Only report first sequence error
+      for (let i = 0; i < sortedMain.length; i++) {
+        const item = sortedMain[i];
+        const isSubNumber = item.numberText.includes('.');
+        
+        if (!isSubNumber && item.number !== expectedNumber) {
+          if (Math.abs(item.number - expectedNumber) > 0.1) {
+            issues.push({
+              title: `${type} numbering sequence error`,
+              description: `${type} ${item.numberText} appears out of sequence (expected ${type} ${expectedNumber})`,
+              text: item.fullMatch,
+              severity: "Major",
+              category: type.toLowerCase() + 's',
+              hasFix: true,
+              fixAction: `fix${type}Numbering`,
+              explanation: `${type}s must be numbered consecutively in the order they appear in the text.`
+            });
+            break;
+          }
+        }
+        
+        if (!isSubNumber) {
+          expectedNumber = item.number + 1;
         }
       }
-      
-      if (!isSubNumber) {
-        expectedNumber = item.number + 1;
-      }
     }
+    
+    // Check appendix sequences (each appendix has its own sequence)
+    appendixItems.forEach((appendixItemList, appendixLetter) => {
+      if (appendixItemList.length > 1) {
+        const sortedAppendix = [...appendixItemList].sort((a, b) => a.position - b.position);
+        let expectedAppendixNumber = 1;
+        
+        for (let i = 0; i < sortedAppendix.length; i++) {
+          const item = sortedAppendix[i];
+          
+          if (item.appendixNumber !== expectedAppendixNumber) {
+            issues.push({
+              title: `Appendix ${appendixLetter} ${type} numbering error`,
+              description: `${type} ${item.numberText} out of sequence (expected ${type} ${appendixLetter}${expectedAppendixNumber})`,
+              text: item.fullMatch,
+              severity: "Major",
+              category: type.toLowerCase() + 's',
+              hasFix: true,
+              fixAction: `fixAppendix${type}Numbering`,
+              explanation: `Appendix ${type}s must be numbered consecutively within each appendix.`
+            });
+            break;
+          }
+          expectedAppendixNumber++;
+        }
+      }
+    });
     
     return issues;
   }

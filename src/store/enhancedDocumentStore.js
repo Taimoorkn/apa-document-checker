@@ -517,7 +517,8 @@ export const useDocumentStore = create((set, get) => ({
           replacementText = issue.text.replace(' and ', ' & ');
           break;
         case 'fixEtAlFormatting':
-          replacementText = issue.text.replace(/\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, '($1, et al., $2)');
+          // Remove comma before et al. (APA 7th doesn't use comma)
+          replacementText = issue.text.replace(/\(([^,)]+),\s+et\s+al\.,\s*(\d{4})\)/g, '($1 et al., $2)');
           break;
         case 'fixReferenceConnector':
           replacementText = issue.text.replace(/, and /g, ', & ');
@@ -746,10 +747,11 @@ export const useDocumentStore = create((set, get) => ({
           
         case 'fixEtAlFormatting':
           if (issue.text) {
-            // Fix et al. formatting: (Smith et al., 2021) → (Smith, et al., 2021)
+            // Fix et al. formatting: Remove comma before et al. (APA 7th edition)
+            // (Smith, et al., 2021) → (Smith et al., 2021)
             const fixedText = issue.text.replace(
-              /\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, 
-              '($1, et al., $2)'
+              /\(([^,)]+),\s+et\s+al\.,\s*(\d{4})\)/g, 
+              '($1 et al., $2)'
             );
             updatedText = text.replace(issue.text, fixedText);
             updatedHtml = html.replace(issue.text, fixedText);
@@ -852,7 +854,8 @@ export const useDocumentStore = create((set, get) => ({
           break;
         case 'fixEtAlFormatting':
           if (issue.text) {
-            const fixedText = issue.text.replace(/\(([^,)]+)\s+et\s+al\.,\s*(\d{4})\)/g, '($1, et al., $2)');
+            // Remove comma before et al. per APA 7th edition
+            const fixedText = issue.text.replace(/\(([^,)]+),\s+et\s+al\.,\s*(\d{4})\)/g, '($1 et al., $2)');
             fixValue = { originalText: issue.text, replacementText: fixedText };
           }
           break;
@@ -907,8 +910,26 @@ export const useDocumentStore = create((set, get) => ({
         throw new Error(`Server is not accessible: ${healthError.message}. Make sure the backend server is running on port 3001.`);
       }
       
-      // Convert Uint8Array to base64 for JSON transport
-      const base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
+      // Convert Uint8Array to base64 for JSON transport with error handling
+      let base64Buffer;
+      try {
+        // Handle large buffers that might exceed call stack
+        if (currentDocumentBuffer.length > 100000) {
+          // Process in chunks for large buffers
+          let binaryString = '';
+          const chunkSize = 8192;
+          for (let i = 0; i < currentDocumentBuffer.length; i += chunkSize) {
+            const chunk = currentDocumentBuffer.slice(i, i + chunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+          }
+          base64Buffer = btoa(binaryString);
+        } else {
+          base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
+        }
+      } catch (bufferError) {
+        console.error('Error converting buffer to base64:', bufferError);
+        throw new Error(`Failed to convert document buffer: ${bufferError.message}`);
+      }
       
       // Send fix request to server with document buffer
       console.log('🚀 Sending fix request to server:', {
@@ -979,13 +1000,26 @@ export const useDocumentStore = create((set, get) => ({
       
       console.log('🎉 Memory-based fix applied successfully');
       
-      // Convert the returned buffer back to Uint8Array for next iteration
+      // Convert the returned buffer back to Uint8Array for next iteration with validation
       let updatedBuffer = null;
       if (result.modifiedDocumentBuffer) {
-        const binaryString = atob(result.modifiedDocumentBuffer);
-        updatedBuffer = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          updatedBuffer[i] = binaryString.charCodeAt(i);
+        try {
+          const binaryString = atob(result.modifiedDocumentBuffer);
+          if (!binaryString || binaryString.length === 0) {
+            throw new Error('Decoded buffer is empty');
+          }
+          updatedBuffer = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            updatedBuffer[i] = binaryString.charCodeAt(i);
+          }
+          // Validate the buffer is a valid DOCX (starts with PK)
+          if (updatedBuffer[0] !== 0x50 || updatedBuffer[1] !== 0x4B) {
+            console.warn('Warning: Modified buffer may not be a valid DOCX file');
+          }
+        } catch (decodeError) {
+          console.error('Error decoding modified buffer:', decodeError);
+          // Use original buffer if decode fails
+          updatedBuffer = currentDocumentBuffer;
         }
       }
       

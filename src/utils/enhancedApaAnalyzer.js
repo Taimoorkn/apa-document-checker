@@ -10,6 +10,8 @@ import { QuotationValidator } from './quotationValidator';
 import { StatisticalValidator } from './statisticalValidator';
 import { BiasFreeLanguageValidator } from './biasFreeLanguageValidator';
 import { ComprehensiveValidator } from './comprehensiveValidator';
+import { AdditionalAPARules } from './additionalApaRules';
+import { OptimizedValidator } from './optimizedValidator';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {
@@ -142,7 +144,13 @@ export class EnhancedAPAAnalyzer {
       issues.push(...this.comprehensiveValidator.validateTitleAndHeadings(text));
     }
     
-    // 12. Analyze content compliance (original basic content check)
+    // 12. Additional APA rules (footnotes, equations, legal, social media, etc.)
+    if (text) {
+      const additionalRulesValidator = new AdditionalAPARules();
+      issues.push(...additionalRulesValidator.validateAdditionalRules(text, structure));
+    }
+    
+    // 13. Analyze content compliance (original basic content check)
     if (text) {
       issues.push(...this.analyzeContent(text));
     }
@@ -519,17 +527,17 @@ export class EnhancedAPAAnalyzer {
         });
       }
       
-      // Check for incorrect et al. formatting - APA 7th edition REQUIRES comma before et al.
-      if (authorPart.includes(' et al.') && !authorPart.includes(', et al.')) {
+      // Check for incorrect et al. formatting - APA 7th edition does NOT use comma before et al.
+      if (authorPart.includes(', et al.')) {
         issues.push({
-          title: "Missing comma before et al.",
-          description: "APA 7th edition requires comma before 'et al.' in citations",
+          title: "Incorrect comma before et al.",
+          description: "APA 7th edition does not use comma before 'et al.' in citations",
           text: fullCitation,
           severity: "Minor",
           category: "citations", 
           hasFix: true,
           fixAction: "fixEtAlFormatting",
-          explanation: "APA 7th edition requires a comma before 'et al.': (Smith, et al., 2021)."
+          explanation: "APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021)."
         });
       }
     }

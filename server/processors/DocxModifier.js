@@ -132,26 +132,28 @@ class DocxModifier {
   }
 
   /**
-   * Fix font family in document XML
+   * Fix font family in document XML with proper escaping
    */
   fixFontFamily(xmlContent, fontFamily) {
+    // Escape the font family for XML safety
+    const escapedFontFamily = this.escapeXml(fontFamily);
     
     // Replace all font family references in run properties
     // Pattern matches: <w:rFonts w:ascii="..." w:hAnsi="..." ... />
     xmlContent = xmlContent.replace(
       /<w:rFonts[^>]*w:ascii="[^"]*"([^>]*)/g,
-      `<w:rFonts w:ascii="${fontFamily}"$1`
+      `<w:rFonts w:ascii="${escapedFontFamily}"$1`
     );
     
     xmlContent = xmlContent.replace(
       /<w:rFonts[^>]*w:hAnsi="[^"]*"([^>]*)/g,
-      (match, rest) => match.replace(/w:hAnsi="[^"]*"/, `w:hAnsi="${fontFamily}"`)
+      (match, rest) => match.replace(/w:hAnsi="[^"]*"/, `w:hAnsi="${escapedFontFamily}"`)
     );
     
     // Add font family to runs that don't have it
     xmlContent = xmlContent.replace(
       /<w:rPr>(?![^<]*<w:rFonts)/g,
-      `<w:rPr><w:rFonts w:ascii="${fontFamily}" w:hAnsi="${fontFamily}"/>`
+      `<w:rPr><w:rFonts w:ascii="${escapedFontFamily}" w:hAnsi="${escapedFontFamily}"/>`
     );
     
     return xmlContent;

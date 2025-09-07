@@ -84,7 +84,7 @@ export class BiasFreeLanguageValidator {
   }
 
   /**
-   * Check for gendered language
+   * Check for gendered language with context awareness
    */
   checkGenderedLanguage(text) {
     const issues = [];
@@ -97,21 +97,43 @@ export class BiasFreeLanguageValidator {
       if (matches.length > 0 && !reportedTerms.has(term.toLowerCase())) {
         const firstMatch = matches[0];
         const position = text.toLowerCase().indexOf(term.toLowerCase());
-        const context = text.substring(Math.max(0, position - 30), position + term.length + 30);
+        const context = text.substring(Math.max(0, position - 50), position + term.length + 50);
         
-        issues.push({
-          title: "Gendered language detected",
-          description: `"${firstMatch}" is gendered language`,
-          text: context,
-          severity: "Minor",
-          category: "bias-free",
-          hasFix: true,
-          fixAction: "replaceGenderedTerm",
-          fixValue: { original: firstMatch, replacement: alternative.split(',')[0].trim() },
-          explanation: `Use gender-neutral terms: ${alternative}`
-        });
+        // Context-aware checks to avoid false positives
+        const contextExceptions = {
+          'mailman': ['Mailman list', 'Mailman software'], // Software name
+          'chairman': ['Chairman Mao', 'Chairman of the Board (proper title)'],
+          'freshman': ['Freshman Composition (course name)']
+        };
         
-        reportedTerms.add(term.toLowerCase());
+        // Skip if it's a proper noun or specific exception
+        const exceptions = contextExceptions[term.toLowerCase()] || [];
+        let isException = false;
+        for (const exception of exceptions) {
+          if (context.includes(exception)) {
+            isException = true;
+            break;
+          }
+        }
+        
+        // Also skip if in quotes (might be historical/direct quote)
+        const inQuotes = (context.match(/["'][^"']*$/)?.[0] || '').includes(term);
+        
+        if (!isException && !inQuotes) {
+          issues.push({
+            title: "Gendered language detected",
+            description: `"${firstMatch}" is gendered language`,
+            text: context.trim(),
+            severity: "Minor",
+            category: "bias-free",
+            hasFix: true,
+            fixAction: "replaceGenderedTerm",
+            fixValue: { original: firstMatch, replacement: alternative.split(',')[0].trim() },
+            explanation: `Use gender-neutral terms: ${alternative}`
+          });
+          
+          reportedTerms.add(term.toLowerCase());
+        }
       }
     });
     

@@ -57,54 +57,74 @@ export class StatisticalValidator {
     const issues = [];
     const italicizedText = structure?.italicizedText || [];
     
-    // Check for statistical symbols that should be italicized
+    // Check for statistical symbols that should be italicized - with improved context awareness
+    const reportedSymbols = new Set();
+    
     Object.entries(this.statisticalSymbols).forEach(([symbol, name]) => {
+      // Skip if already reported
+      if (reportedSymbols.has(symbol)) return;
+      
       // Skip uppercase letters that might be regular text
       if (symbol.length === 1 && /[A-Z]/.test(symbol)) {
-        // Look for statistical context
-        const statPattern = new RegExp(`\\b${symbol}\\s*[=<>]\\s*[\\d.-]+`, 'g');
-        const matches = text.match(statPattern) || [];
+        // Look for clear statistical context with more specific patterns
+        const statPatterns = [
+          new RegExp(`\\b${symbol}\\s*[=<>≤≥]\\s*[\\d.-]+`, 'g'), // With value
+          new RegExp(`\\(${symbol}\\s*[=<>≤≥]\\s*[\\d.-]+\\)`, 'g'), // In parentheses
+          new RegExp(`\\b${symbol}\\s*\\([\\d,\\s]+\\)\\s*[=<>≤≥]`, 'g'), // With df like F(2, 147)
+          new RegExp(`\\b${symbol}\\s+test\\b`, 'gi'), // Explicitly named test
+          new RegExp(`\\btest.*\\b${symbol}\\s*[=<>≤≥]`, 'gi') // Test statistic
+        ];
         
-        matches.forEach(match => {
-          const isItalicized = italicizedText.some(item => item.text.includes(symbol));
-          if (!isItalicized) {
-            issues.push({
-              title: `Statistical symbol '${symbol}' not italicized`,
-              description: `'${symbol}' should be italicized when used as ${name}`,
-              text: match,
-              severity: "Minor",
-              category: "statistical",
-              hasFix: false,
-              explanation: `Statistical symbols like ${symbol} must be italicized: *${symbol}* = value`
-            });
-          }
-        });
-      } else {
-        // For lowercase letters and multi-character symbols
-        const pattern = new RegExp(`\\b${symbol}\\b`, 'g');
-        const matches = text.match(pattern) || [];
-        
-        matches.forEach(match => {
-          const position = text.indexOf(match);
-          const context = text.substring(Math.max(0, position - 20), position + 30);
-          
-          // Check if in statistical context
-          if (context.match(/[=<>]/) || context.match(/\d/)) {
+        let foundStatistical = false;
+        for (const statPattern of statPatterns) {
+          const matches = text.match(statPattern) || [];
+          if (matches.length > 0) {
+            foundStatistical = true;
+            const match = matches[0];
             const isItalicized = italicizedText.some(item => item.text.includes(symbol));
             if (!isItalicized) {
               issues.push({
                 title: `Statistical symbol '${symbol}' not italicized`,
+                description: `'${symbol}' should be italicized when used as ${name}`,
+                text: match,
+                severity: "Minor",
+                category: "statistical",
+                hasFix: false,
+                explanation: `Statistical symbols like ${symbol} must be italicized: *${symbol}* = value`
+              });
+              reportedSymbols.add(symbol);
+              break;
+            }
+          }
+        }
+      } else {
+        // For lowercase letters and multi-character symbols (more strict matching)
+        const statContextPatterns = [
+          new RegExp(`\\b${symbol}\\s*[=<>≤≥]\\s*[\\d.-]+`, 'g'),
+          new RegExp(`\\(${symbol}\\s*[=<>≤≥]\\s*[\\d.-]+\\)`, 'g'),
+          new RegExp(`\\b${symbol}\\s*\\([\\d,\\s]+\\)`, 'g')
+        ];
+        
+        for (const pattern of statContextPatterns) {
+          const matches = text.match(pattern) || [];
+          if (matches.length > 0) {
+            const match = matches[0];
+            const isItalicized = italicizedText.some(item => item.text.includes(symbol));
+            if (!isItalicized && !reportedSymbols.has(symbol)) {
+              issues.push({
+                title: `Statistical symbol '${symbol}' not italicized`,
                 description: `'${symbol}' should be italicized in statistical context`,
-                text: context,
+                text: match,
                 severity: "Minor",
                 category: "statistical",
                 hasFix: false,
                 explanation: `Italicize statistical notation: *${symbol}*`
               });
-              return; // Only report once per symbol
+              reportedSymbols.add(symbol);
+              break;
             }
           }
-        });
+        }
       }
     });
     

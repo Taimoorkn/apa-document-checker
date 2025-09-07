@@ -47,102 +47,163 @@ export class IssueReportGenerator {
     }
     
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       line-height: 1.5;
-      color: #1f2937;
-      background: #f0f2f5;
+      color: #1a1a1a;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
       padding: 0;
       margin: 0;
     }
     
     .container {
-      max-width: 1400px;
+      max-width: 1500px;
       margin: 0 auto;
-      background: white;
+      background: #ffffff;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
     }
     
-    /* Compact Header */
+    /* Enhanced Header */
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 20px 30px;
+      padding: 30px 40px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      border-radius: 50%;
     }
     
     .header h1 {
-      font-size: 1.5rem;
-      font-weight: 600;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      position: relative;
+      z-index: 1;
     }
     
     .header-stats {
       display: flex;
-      gap: 30px;
+      gap: 40px;
       align-items: center;
+      position: relative;
+      z-index: 1;
     }
     
     .header-stat {
       text-align: center;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .header-stat:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
     }
     
     .header-stat-value {
-      font-size: 1.5rem;
-      font-weight: bold;
+      font-size: 1.75rem;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
     .header-stat-label {
-      font-size: 0.75rem;
-      opacity: 0.9;
+      font-size: 0.8rem;
+      opacity: 0.95;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
-    /* Navigation Tabs */
+    /* Enhanced Navigation Tabs */
     .nav-tabs {
-      background: #f8f9fa;
-      border-bottom: 1px solid #dee2e6;
-      padding: 0 30px;
+      background: linear-gradient(to bottom, #ffffff, #fafbfc);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      padding: 0 40px;
       display: flex;
-      gap: 20px;
+      gap: 8px;
       position: sticky;
       top: 0;
       z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     }
     
     .nav-tab {
-      padding: 12px 20px;
+      padding: 16px 24px;
       cursor: pointer;
       border: none;
       background: none;
-      font-size: 0.9rem;
-      color: #6c757d;
+      font-size: 0.925rem;
+      color: #64748b;
       border-bottom: 3px solid transparent;
-      transition: all 0.2s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      position: relative;
+    }
+    
+    .nav-tab::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(-50%);
     }
     
     .nav-tab:hover {
-      color: #495057;
+      color: #475569;
+      background: rgba(102, 126, 234, 0.04);
     }
     
     .nav-tab.active {
       color: #667eea;
-      border-bottom-color: #667eea;
       font-weight: 600;
+      background: rgba(102, 126, 234, 0.08);
+    }
+    
+    .nav-tab.active::after {
+      width: 100%;
     }
     
     /* Content Sections */
     .content {
-      padding: 30px;
+      padding: 40px;
+      background: #fafbfc;
     }
     
     .section {
       display: none;
+      animation: fadeIn 0.3s ease-in-out;
     }
     
     .section.active {
       display: block;
     }
     
-    /* Summary Dashboard */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Enhanced Dashboard */
     .dashboard-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -152,25 +213,44 @@ export class IssueReportGenerator {
     
     .dashboard-card {
       background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 20px;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: all 0.3s ease;
+    }
+    
+    .dashboard-card:hover {
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      transform: translateY(-2px);
     }
     
     .dashboard-card h3 {
-      font-size: 1rem;
-      color: #374151;
-      margin-bottom: 15px;
-      font-weight: 600;
+      font-size: 1.1rem;
+      color: #1e293b;
+      margin-bottom: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     
-    /* Severity Distribution Chart */
+    .dashboard-card h3::before {
+      content: '';
+      width: 4px;
+      height: 20px;
+      background: linear-gradient(180deg, #667eea, #764ba2);
+      border-radius: 2px;
+    }
+    
+    /* Enhanced Severity Chart */
     .severity-chart {
       display: flex;
-      height: 30px;
-      border-radius: 4px;
+      height: 40px;
+      border-radius: 12px;
       overflow: hidden;
-      margin-bottom: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
     
     .severity-segment {
@@ -178,46 +258,62 @@ export class IssueReportGenerator {
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.875rem;
+      font-weight: 700;
       position: relative;
+      transition: all 0.3s ease;
+    }
+    
+    .severity-segment:hover {
+      filter: brightness(1.1);
     }
     
     .severity-segment.critical {
-      background: #dc2626;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
     }
     
     .severity-segment.major {
-      background: #ea580c;
+      background: linear-gradient(135deg, #f97316, #ea580c);
     }
     
     .severity-segment.minor {
-      background: #ca8a04;
+      background: linear-gradient(135deg, #eab308, #ca8a04);
     }
     
-    /* Category Summary Table */
+    /* Enhanced Summary Table */
     .summary-table {
       width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.875rem;
+      border-radius: 8px;
+      overflow: hidden;
     }
     
     .summary-table th {
       text-align: left;
-      padding: 8px 12px;
-      background: #f8f9fa;
-      border-bottom: 2px solid #dee2e6;
+      padding: 12px 16px;
+      background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
       font-weight: 600;
-      color: #495057;
+      color: #475569;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     .summary-table td {
-      padding: 8px 12px;
-      border-bottom: 1px solid #e9ecef;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
     }
     
-    .summary-table tr:hover {
-      background: #f8f9fa;
+    .summary-table tr:hover td {
+      background: rgba(102, 126, 234, 0.03);
+    }
+    
+    .summary-table tr:last-child td {
+      border-bottom: none;
     }
     
     .category-badge {
@@ -227,70 +323,93 @@ export class IssueReportGenerator {
     }
     
     .count-badge {
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      transition: all 0.2s ease;
     }
     
     .count-badge.critical {
-      background: #fee2e2;
+      background: linear-gradient(135deg, #fee2e2, #fecaca);
       color: #dc2626;
+      box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1);
     }
     
     .count-badge.major {
-      background: #fed7aa;
+      background: linear-gradient(135deg, #fed7aa, #fdba74);
       color: #ea580c;
+      box-shadow: 0 2px 4px rgba(234, 88, 12, 0.1);
     }
     
     .count-badge.minor {
-      background: #fef3c7;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
       color: #ca8a04;
+      box-shadow: 0 2px 4px rgba(202, 138, 4, 0.1);
     }
     
-    /* Issues by Category - Compact View */
+    .count-badge:hover {
+      transform: scale(1.05);
+    }
+    
+    /* Enhanced Category View */
     .category-issues {
-      margin-bottom: 30px;
+      margin-bottom: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: all 0.3s ease;
+    }
+    
+    .category-issues:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
     
     .category-header {
-      background: #f8f9fa;
-      padding: 12px 20px;
-      border-radius: 8px 8px 0 0;
+      background: linear-gradient(to right, #ffffff, #fafbfc);
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
       user-select: none;
-      border: 1px solid #e5e7eb;
+      border: 1px solid rgba(0,0,0,0.06);
+      transition: all 0.3s ease;
     }
     
     .category-header:hover {
-      background: #e9ecef;
+      background: linear-gradient(to right, #fafbfc, #f1f5f9);
+      border-color: rgba(102, 126, 234, 0.2);
     }
     
     .category-header-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
     
     .category-icon {
-      font-size: 1.2rem;
+      font-size: 1.4rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
     }
     
     .category-name {
-      font-weight: 600;
-      color: #374151;
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 0.95rem;
     }
     
     .category-counts {
       display: flex;
-      gap: 8px;
+      gap: 10px;
+      align-items: center;
     }
     
     .expand-icon {
-      transition: transform 0.2s;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #94a3b8;
+      font-size: 1.2rem;
     }
     
     .category-header.expanded .expand-icon {
@@ -298,17 +417,36 @@ export class IssueReportGenerator {
     }
     
     .category-content {
-      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,0.06);
       border-top: none;
-      border-radius: 0 0 8px 8px;
       max-height: 0;
       overflow: hidden;
-      transition: max-height 0.3s ease;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .category-content.expanded {
-      max-height: 600px;
+      max-height: 700px;
       overflow-y: auto;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);
+    }
+    
+    /* Custom Scrollbar */
+    .category-content::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .category-content::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    
+    .category-content::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+      border-radius: 4px;
+    }
+    
+    .category-content::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, #94a3b8, #64748b);
     }
     
     /* Compact Issue List */
@@ -340,13 +478,22 @@ export class IssueReportGenerator {
     }
     
     .severity-pill {
-      padding: 2px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
       font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
       color: white;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: all 0.2s ease;
+    }
+    
+    .severity-pill:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
     }
     
     .issue-title {
@@ -379,24 +526,43 @@ export class IssueReportGenerator {
       font-style: italic;
     }
     
-    /* Top Issues Section */
+    /* Enhanced Top Issues Section */
     .top-issues-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 24px;
       margin-bottom: 30px;
     }
     
     .top-issue-card {
       background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 15px;
-      transition: box-shadow 0.2s;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .top-issue-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
     }
     
     .top-issue-card:hover {
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    
+    .top-issue-card:hover::before {
+      transform: scaleX(1);
     }
     
     .top-issue-header {
@@ -414,31 +580,57 @@ export class IssueReportGenerator {
       margin-right: 10px;
     }
     
-    /* Statistics Section */
+    /* Enhanced Statistics Section */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
       margin-bottom: 30px;
     }
     
     .stat-card {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 20px;
-      border-radius: 8px;
+      background: white;
+      border: 1px solid rgba(0,0,0,0.06);
+      padding: 24px;
+      border-radius: 16px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.1);
     }
     
     .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
     
     .stat-label {
-      font-size: 0.85rem;
-      opacity: 0.9;
+      font-size: 0.9rem;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     /* Print Styles */
@@ -489,12 +681,17 @@ export class IssueReportGenerator {
 </head>
 <body>
   <div class="container">
-    <!-- Compact Header with Key Stats -->
+    <!-- Enhanced Header with Key Stats -->
     <div class="header">
-      <div>
-        <h1>📋 APA Compliance Report</h1>
-        <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 5px;">
-          ${documentName} • ${timestamp}
+      <div style="position: relative; z-index: 1;">
+        <h1 style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">📋</span>
+          APA Compliance Report
+        </h1>
+        <div style="font-size: 0.9rem; opacity: 0.95; margin-top: 8px; font-weight: 500;">
+          <span style="opacity: 0.9;">Document:</span> ${documentName}
+          <span style="margin: 0 12px; opacity: 0.6;">•</span>
+          <span style="opacity: 0.9;">Generated:</span> ${timestamp}
         </div>
       </div>
       <div class="header-stats">
@@ -517,19 +714,47 @@ export class IssueReportGenerator {
       </div>
     </div>
     
-    <!-- Navigation Tabs -->
+    <!-- Quick Summary Bar -->
+    <div id="summaryBar" style="background: #fafbfc; padding: 12px 40px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem;">
+      <div style="display: flex; gap: 20px;">
+        <span><strong>${issues.length}</strong> total issues</span>
+        <span style="color: #dc2626;">▪ <strong>${groupedBySeverity.Critical?.length || 0}</strong> Critical</span>
+        <span style="color: #ea580c;">▪ <strong>${groupedBySeverity.Major?.length || 0}</strong> Major</span>
+        <span style="color: #ca8a04;">▪ <strong>${groupedBySeverity.Minor?.length || 0}</strong> Minor</span>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <span id="activeFilter" style="padding: 4px 12px; background: #e0e7ff; color: #4338ca; border-radius: 12px; font-weight: 500; display: none;"></span>
+        <button onclick="window.print()" style="padding: 6px 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Print Report</button>
+      </div>
+    </div>
+    
+    <!-- Navigation Tabs with Counts -->
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showSection('summary')">Summary</button>
-      <button class="nav-tab" onclick="showSection('by-category')">By Category</button>
-      <button class="nav-tab" onclick="showSection('by-severity')">By Severity</button>
-      <button class="nav-tab" onclick="showSection('top-issues')">Top Issues</button>
+      <button class="nav-tab active" onclick="showSection('summary')">
+        Summary
+      </button>
+      <button class="nav-tab" onclick="showSection('by-category')">
+        By Category
+        <span style="background: rgba(102, 126, 234, 0.1); color: #667eea; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 6px; font-weight: 600;">${Object.keys(groupedByCategory).length}</span>
+      </button>
+      <button class="nav-tab" onclick="showSection('by-severity')">
+        By Severity
+        <span style="background: rgba(239, 68, 68, 0.1); color: #dc2626; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 6px; font-weight: 600;">${groupedBySeverity.Critical?.length || 0}</span>
+      </button>
+      <button class="nav-tab" onclick="showSection('top-issues')">
+        Top Issues
+        <span style="background: rgba(249, 115, 22, 0.1); color: #ea580c; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 6px; font-weight: 600;">${Math.min(12, (groupedBySeverity.Critical?.length || 0) + (groupedBySeverity.Major?.length || 0))}</span>
+      </button>
       <button class="nav-tab" onclick="showSection('statistics')">Statistics</button>
     </div>
     
     <div class="content">
       <!-- Summary Section -->
       <section id="summary" class="section active">
-        <h2 style="margin-bottom: 20px;">Executive Summary</h2>
+        <h2 style="margin-bottom: 30px; color: #1e293b; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 12px;">
+          <span style="width: 4px; height: 24px; background: linear-gradient(180deg, #667eea, #764ba2); border-radius: 2px;"></span>
+          Executive Summary
+        </h2>
         
         <div class="dashboard-grid">
           <!-- Severity Distribution -->
@@ -538,10 +763,19 @@ export class IssueReportGenerator {
             <div class="severity-chart">
               ${this.generateSeverityChart(groupedBySeverity, issues.length)}
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280;">
-              <span>🔴 Critical: ${((groupedBySeverity.Critical?.length || 0) / issues.length * 100).toFixed(1)}%</span>
-              <span>🟠 Major: ${((groupedBySeverity.Major?.length || 0) / issues.length * 100).toFixed(1)}%</span>
-              <span>🟡 Minor: ${((groupedBySeverity.Minor?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+            <div style="display: flex; justify-content: space-between; margin-top: 16px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #ef4444, #dc2626);"></div>
+                <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Critical: ${((groupedBySeverity.Critical?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #f97316, #ea580c);"></div>
+                <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Major: ${((groupedBySeverity.Major?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: linear-gradient(135deg, #eab308, #ca8a04);"></div>
+                <span style="font-size: 0.85rem; color: #64748b; font-weight: 500;">Minor: ${((groupedBySeverity.Minor?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+              </div>
             </div>
           </div>
           
@@ -585,7 +819,28 @@ export class IssueReportGenerator {
       
       <!-- By Category Section -->
       <section id="by-category" class="section">
-        <h2 style="margin-bottom: 20px;">Issues by Category</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h2 style="color: #1e293b; font-size: 1.5rem; font-weight: 700; margin: 0;">Issues by Category</h2>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <!-- Search -->
+            <input type="text" id="categorySearch" placeholder="Search issues..." 
+              style="padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; width: 200px;"
+              onkeyup="filterIssues(this.value)">
+            <!-- Quick Actions -->
+            <button onclick="expandAllCategories()" 
+              style="padding: 8px 16px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; cursor: pointer; font-weight: 500;">
+              Expand All
+            </button>
+            <button onclick="collapseAllCategories()" 
+              style="padding: 8px 16px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; cursor: pointer; font-weight: 500;">
+              Collapse All
+            </button>
+            <button onclick="showOnlyCritical()" 
+              style="padding: 8px 16px; background: #fee2e2; border: 1px solid #fecaca; border-radius: 8px; font-size: 0.875rem; cursor: pointer; font-weight: 500; color: #dc2626;">
+              Critical Only
+            </button>
+          </div>
+        </div>
         ${this.generateCompactCategoryView(groupedByCategory)}
       </section>
       
@@ -629,28 +884,110 @@ export class IssueReportGenerator {
   </div>
   
   <script>
+    // Quick summary for current view
+    let currentFilter = 'all';
+    let searchTerm = '';
+    
     function showSection(sectionId) {
-      // Hide all sections
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      
-      // Show selected section
       document.getElementById(sectionId).classList.add('active');
       event.target.classList.add('active');
+      updateSummaryBar();
     }
     
-    // Toggle category expansion
+    // Search functionality
+    function filterIssues(term) {
+      searchTerm = term.toLowerCase();
+      const rows = document.querySelectorAll('.issues-table tbody tr');
+      let visibleCount = 0;
+      
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      
+      // Update count
+      document.getElementById('filterCount').textContent = visibleCount + ' issues shown';
+    }
+    
+    // Expand/Collapse all
+    function expandAllCategories() {
+      document.querySelectorAll('.category-header').forEach(header => {
+        header.classList.add('expanded');
+        header.nextElementSibling.classList.add('expanded');
+      });
+    }
+    
+    function collapseAllCategories() {
+      document.querySelectorAll('.category-header').forEach(header => {
+        header.classList.remove('expanded');
+        header.nextElementSibling.classList.remove('expanded');
+      });
+    }
+    
+    // Filter by severity
+    function showOnlyCritical() {
+      currentFilter = 'critical';
+      document.querySelectorAll('.issues-table tbody tr').forEach(row => {
+        const hasCritical = row.querySelector('.severity-pill')?.textContent.includes('CRITICAL');
+        row.style.display = hasCritical ? '' : 'none';
+      });
+      updateFilterCount();
+    }
+    
+    function resetFilter() {
+      currentFilter = 'all';
+      document.querySelectorAll('.issues-table tbody tr').forEach(row => {
+        row.style.display = '';
+      });
+      updateFilterCount();
+    }
+    
+    function updateFilterCount() {
+      const visible = document.querySelectorAll('.issues-table tbody tr:not([style*="display: none"])').length;
+      const filterEl = document.getElementById('filterCount');
+      if (filterEl) filterEl.textContent = visible + ' issues shown';
+    }
+    
+    function updateSummaryBar() {
+      // Update summary based on current view
+      const activeSection = document.querySelector('.section.active');
+      const visibleIssues = activeSection.querySelectorAll('.issues-table tbody tr:not([style*="display: none"])').length;
+      console.log('Current view has ' + visibleIssues + ' visible issues');
+    }
+    
+    // Copy issue text
+    function copyIssue(text) {
+      navigator.clipboard.writeText(text);
+      // Show toast notification
+      const toast = document.createElement('div');
+      toast.textContent = 'Copied to clipboard!';
+      toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; z-index: 1000;';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+    
+    // Initialize
     document.addEventListener('DOMContentLoaded', function() {
+      // Category click handlers
       const headers = document.querySelectorAll('.category-header');
       headers.forEach(header => {
-        header.addEventListener('click', function() {
-          const content = this.nextElementSibling;
-          this.classList.toggle('expanded');
-          content.classList.toggle('expanded');
+        header.addEventListener('click', function(e) {
+          if (e.target.tagName !== 'BUTTON') {
+            const content = this.nextElementSibling;
+            this.classList.toggle('expanded');
+            content.classList.toggle('expanded');
+          }
         });
       });
       
-      // Auto-expand categories with critical issues
+      // Auto-expand critical categories
       document.querySelectorAll('.category-header').forEach(header => {
         const criticalCount = header.querySelector('.count-badge.critical');
         if (criticalCount && parseInt(criticalCount.textContent) > 0) {
@@ -658,6 +995,12 @@ export class IssueReportGenerator {
           header.nextElementSibling.classList.add('expanded');
         }
       });
+      
+      // Add filter count indicator
+      const filterIndicator = document.createElement('div');
+      filterIndicator.id = 'filterCount';
+      filterIndicator.style.cssText = 'position: fixed; bottom: 20px; left: 20px; background: #667eea; color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.875rem; font-weight: 600; display: none;';
+      document.body.appendChild(filterIndicator);
     });
   </script>
 </body>
@@ -775,9 +1118,10 @@ export class IssueReportGenerator {
    */
   generateCompactIssueRow(issue) {
     const severityColor = this.severityColors[issue.severity];
+    const issueId = `issue-${Math.random().toString(36).substr(2, 9)}`;
     
     return `
-      <tr>
+      <tr id="${issueId}" data-severity="${issue.severity}" data-category="${issue.category}">
         <td>
           <span class="severity-pill" style="background: ${severityColor}">
             ${issue.severity}
@@ -786,12 +1130,23 @@ export class IssueReportGenerator {
         <td>
           <div class="issue-title">${this.escapeHtml(issue.title)}</div>
           <div class="issue-description">${this.escapeHtml(issue.description)}</div>
+          ${issue.hasFix ? `<span style="display: inline-block; margin-top: 4px; padding: 2px 6px; background: #dcfce7; color: #14532d; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">✓ Fix Available</span>` : ''}
         </td>
         <td>
-          ${issue.text ? `<div class="issue-context" title="${this.escapeHtml(issue.text)}">${this.escapeHtml(issue.text)}</div>` : '-'}
+          ${issue.text ? `
+            <div class="issue-context" title="${this.escapeHtml(issue.text)}" style="position: relative;">
+              ${this.escapeHtml(issue.text.length > 50 ? issue.text.substring(0, 50) + '...' : issue.text)}
+              <button onclick="copyIssue('${this.escapeHtml(issue.text).replace(/'/g, "\\'")}')" 
+                style="position: absolute; right: 4px; top: 4px; background: white; border: 1px solid #e5e7eb; border-radius: 4px; padding: 2px 6px; font-size: 0.65rem; cursor: pointer; opacity: 0; transition: opacity 0.2s;"
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                copy
+              </button>
+            </div>
+          ` : '<span style="color: #9ca3af;">—</span>'}
         </td>
         <td>
           <div class="issue-explanation">${this.escapeHtml(issue.explanation || 'See APA manual for details')}</div>
+          ${issue.location ? `<div style="margin-top: 4px; font-size: 0.7rem; color: #6b7280;">📍 ${issue.location.type || 'document'}</div>` : ''}
         </td>
       </tr>
     `;

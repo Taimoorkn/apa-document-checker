@@ -1,4 +1,4 @@
-// src/utils/issueReportGenerator.js - Generate formatted issue reports
+// src/utils/issueReportGenerator.js - Generate formatted issue reports with compact layout
 'use client';
 
 export class IssueReportGenerator {
@@ -24,11 +24,13 @@ export class IssueReportGenerator {
   }
 
   /**
-   * Generate HTML report with all issues
+   * Generate compact HTML report with better structure for many issues
    */
   generateHTMLReport(issues, documentStats, documentName = 'Document') {
     const timestamp = new Date().toLocaleString();
-    const groupedIssues = this.groupIssues(issues);
+    const groupedBySeverity = this.groupIssues(issues);
+    const groupedByCategory = this.groupByCategory(issues);
+    const issueTypeCounts = this.getIssueTypeCounts(issues);
     
     const html = `
 <!DOCTYPE html>
@@ -45,350 +47,619 @@ export class IssueReportGenerator {
     }
     
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.5;
       color: #1f2937;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      padding: 20px;
+      background: #f0f2f5;
+      padding: 0;
+      margin: 0;
     }
     
     .container {
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
       background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      overflow: hidden;
     }
     
+    /* Compact Header */
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 40px;
-      text-align: center;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .header h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      font-weight: 700;
-    }
-    
-    .header .subtitle {
-      font-size: 1.1rem;
-      opacity: 0.95;
-    }
-    
-    .header .timestamp {
-      font-size: 0.9rem;
-      opacity: 0.85;
-      margin-top: 10px;
-    }
-    
-    .summary {
-      background: #f8fafc;
-      padding: 30px 40px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .summary h2 {
-      color: #374151;
-      margin-bottom: 20px;
       font-size: 1.5rem;
+      font-weight: 600;
     }
     
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
+    .header-stats {
+      display: flex;
+      gap: 30px;
+      align-items: center;
     }
     
-    .stat-card {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
+    .header-stat {
       text-align: center;
-      transition: transform 0.2s;
     }
     
-    .stat-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    .stat-number {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #4b5563;
-    }
-    
-    .stat-label {
-      font-size: 0.9rem;
-      color: #6b7280;
-      margin-top: 5px;
-    }
-    
-    .severity-breakdown {
-      display: flex;
-      gap: 15px;
-      margin-top: 20px;
-      flex-wrap: wrap;
-    }
-    
-    .severity-badge {
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: 600;
-      color: white;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .severity-critical {
-      background: #dc2626;
-    }
-    
-    .severity-major {
-      background: #ea580c;
-    }
-    
-    .severity-minor {
-      background: #ca8a04;
-    }
-    
-    .issues-section {
-      padding: 40px;
-    }
-    
-    .category-section {
-      margin-bottom: 40px;
-    }
-    
-    .category-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    .category-icon {
+    .header-stat-value {
       font-size: 1.5rem;
+      font-weight: bold;
     }
     
-    .category-title {
-      font-size: 1.3rem;
-      color: #374151;
-      font-weight: 600;
+    .header-stat-label {
+      font-size: 0.75rem;
+      opacity: 0.9;
     }
     
-    .category-count {
-      margin-left: auto;
-      background: #f3f4f6;
-      padding: 4px 12px;
-      border-radius: 12px;
+    /* Navigation Tabs */
+    .nav-tabs {
+      background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+      padding: 0 30px;
+      display: flex;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .nav-tab {
+      padding: 12px 20px;
+      cursor: pointer;
+      border: none;
+      background: none;
       font-size: 0.9rem;
-      color: #6b7280;
-    }
-    
-    .issue-card {
-      background: #ffffff;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 15px;
+      color: #6c757d;
+      border-bottom: 3px solid transparent;
       transition: all 0.2s;
     }
     
-    .issue-card:hover {
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      transform: translateX(4px);
+    .nav-tab:hover {
+      color: #495057;
     }
     
-    .issue-header {
+    .nav-tab.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+      font-weight: 600;
+    }
+    
+    /* Content Sections */
+    .content {
+      padding: 30px;
+    }
+    
+    .section {
+      display: none;
+    }
+    
+    .section.active {
+      display: block;
+    }
+    
+    /* Summary Dashboard */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+    
+    .dashboard-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    
+    .dashboard-card h3 {
+      font-size: 1rem;
+      color: #374151;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    
+    /* Severity Distribution Chart */
+    .severity-chart {
       display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 12px;
+      height: 30px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 15px;
     }
     
-    .issue-severity {
-      padding: 4px 10px;
-      border-radius: 6px;
+    .severity-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
       font-size: 0.75rem;
+      font-weight: 600;
+      position: relative;
+    }
+    
+    .severity-segment.critical {
+      background: #dc2626;
+    }
+    
+    .severity-segment.major {
+      background: #ea580c;
+    }
+    
+    .severity-segment.minor {
+      background: #ca8a04;
+    }
+    
+    /* Category Summary Table */
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    
+    .summary-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #f8f9fa;
+      border-bottom: 2px solid #dee2e6;
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .summary-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .summary-table tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .count-badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .count-badge.critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .count-badge.major {
+      background: #fed7aa;
+      color: #ea580c;
+    }
+    
+    .count-badge.minor {
+      background: #fef3c7;
+      color: #ca8a04;
+    }
+    
+    /* Issues by Category - Compact View */
+    .category-issues {
+      margin-bottom: 30px;
+    }
+    
+    .category-header {
+      background: #f8f9fa;
+      padding: 12px 20px;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .category-header:hover {
+      background: #e9ecef;
+    }
+    
+    .category-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .category-icon {
+      font-size: 1.2rem;
+    }
+    
+    .category-name {
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .category-counts {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .expand-icon {
+      transition: transform 0.2s;
+    }
+    
+    .category-header.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+    
+    .category-content {
+      border: 1px solid #e5e7eb;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .category-content.expanded {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    /* Compact Issue List */
+    .issues-table {
+      width: 100%;
+      font-size: 0.8rem;
+    }
+    
+    .issues-table th {
+      text-align: left;
+      padding: 10px 15px;
+      background: #fafafa;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .issues-table td {
+      padding: 10px 15px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    
+    .issues-table tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .severity-pill {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
       color: white;
-      flex-shrink: 0;
+      display: inline-block;
     }
     
     .issue-title {
       font-weight: 600;
       color: #1f2937;
-      font-size: 1.05rem;
-      flex-grow: 1;
+      margin-bottom: 2px;
     }
     
     .issue-description {
-      color: #4b5563;
-      margin-bottom: 12px;
-      line-height: 1.5;
+      color: #6b7280;
+      font-size: 0.75rem;
     }
     
-    .issue-text {
+    .issue-context {
       background: #f9fafb;
-      border-left: 3px solid #9ca3af;
-      padding: 10px 15px;
-      margin: 12px 0;
-      font-family: 'Courier New', monospace;
-      font-size: 0.9rem;
-      color: #374151;
+      padding: 4px 8px;
       border-radius: 4px;
-      word-break: break-word;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.7rem;
+      color: #4b5563;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     
     .issue-explanation {
-      background: #fef3c7;
-      border: 1px solid #fcd34d;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 12px;
-      color: #78350f;
-      font-size: 0.9rem;
-    }
-    
-    .issue-explanation::before {
-      content: '💡 ';
-      font-weight: bold;
-    }
-    
-    .issue-fix {
-      background: #dcfce7;
-      border: 1px solid #86efac;
-      border-radius: 8px;
-      padding: 12px;
-      margin-top: 12px;
-      color: #14532d;
-      font-size: 0.9rem;
-    }
-    
-    .issue-fix::before {
-      content: '✅ ';
-      font-weight: bold;
-    }
-    
-    .footer {
-      background: #f8fafc;
-      padding: 30px 40px;
-      text-align: center;
       color: #6b7280;
-      border-top: 2px solid #e5e7eb;
+      font-size: 0.75rem;
+      font-style: italic;
     }
     
-    .footer a {
-      color: #667eea;
-      text-decoration: none;
+    /* Top Issues Section */
+    .top-issues-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
     }
     
-    .no-issues {
-      text-align: center;
-      padding: 60px;
-      color: #10b981;
+    .top-issue-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 15px;
+      transition: box-shadow 0.2s;
     }
     
-    .no-issues-icon {
-      font-size: 4rem;
-      margin-bottom: 20px;
+    .top-issue-card:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
     
-    .no-issues-text {
-      font-size: 1.5rem;
+    .top-issue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    
+    .top-issue-title {
       font-weight: 600;
+      color: #1f2937;
+      font-size: 0.9rem;
+      flex: 1;
+      margin-right: 10px;
     }
     
+    /* Statistics Section */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+    
+    /* Print Styles */
     @media print {
       body {
         background: white;
-        padding: 0;
       }
       
-      .container {
-        box-shadow: none;
-        border-radius: 0;
+      .nav-tabs {
+        display: none;
       }
       
-      .issue-card:hover {
-        transform: none;
-        box-shadow: none;
+      .section {
+        display: block !important;
+        page-break-after: always;
+      }
+      
+      .category-content {
+        max-height: none !important;
+        overflow: visible !important;
       }
     }
     
     @media (max-width: 768px) {
-      .header h1 {
-        font-size: 1.8rem;
-      }
-      
-      .stats-grid {
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
       
-      .severity-breakdown {
+      .header {
         flex-direction: column;
+        text-align: center;
+      }
+      
+      .header-stats {
+        margin-top: 15px;
+      }
+      
+      .issues-table {
+        font-size: 0.7rem;
+      }
+      
+      .issues-table th,
+      .issues-table td {
+        padding: 8px;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <!-- Compact Header with Key Stats -->
     <div class="header">
-      <h1>📋 APA 7th Edition Compliance Report</h1>
-      <div class="subtitle">${documentName}</div>
-      <div class="timestamp">Generated: ${timestamp}</div>
-    </div>
-    
-    <div class="summary">
-      <h2>Executive Summary</h2>
-      
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-number">${issues.length}</div>
-          <div class="stat-label">Total Issues</div>
+      <div>
+        <h1>📋 APA Compliance Report</h1>
+        <div style="font-size: 0.85rem; opacity: 0.9; margin-top: 5px;">
+          ${documentName} • ${timestamp}
         </div>
-        ${documentStats ? `
-        <div class="stat-card">
-          <div class="stat-number">${documentStats.wordCount || 0}</div>
-          <div class="stat-label">Word Count</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number">${documentStats.paragraphCount || 0}</div>
-          <div class="stat-label">Paragraphs</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-number">${documentStats.complianceScore || 0}%</div>
-          <div class="stat-label">Compliance Score</div>
-        </div>
-        ` : ''}
       </div>
-      
-      <div class="severity-breakdown">
-        ${this.generateSeverityBadges(groupedIssues)}
+      <div class="header-stats">
+        <div class="header-stat">
+          <div class="header-stat-value">${issues.length}</div>
+          <div class="header-stat-label">Total Issues</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">${groupedBySeverity.Critical?.length || 0}</div>
+          <div class="header-stat-label">Critical</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">${groupedBySeverity.Major?.length || 0}</div>
+          <div class="header-stat-label">Major</div>
+        </div>
+        <div class="header-stat">
+          <div class="header-stat-value">${groupedBySeverity.Minor?.length || 0}</div>
+          <div class="header-stat-label">Minor</div>
+        </div>
       </div>
     </div>
     
-    <div class="issues-section">
-      ${issues.length === 0 ? this.generateNoIssuesMessage() : this.generateIssuesByCategory(issues)}
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showSection('summary')">Summary</button>
+      <button class="nav-tab" onclick="showSection('by-category')">By Category</button>
+      <button class="nav-tab" onclick="showSection('by-severity')">By Severity</button>
+      <button class="nav-tab" onclick="showSection('top-issues')">Top Issues</button>
+      <button class="nav-tab" onclick="showSection('statistics')">Statistics</button>
     </div>
     
-    <div class="footer">
-      <p>Generated by APA Document Checker</p>
-      <p>This report provides suggestions based on APA 7th Edition guidelines.</p>
-      <p><a href="https://apastyle.apa.org/">Learn more about APA Style</a></p>
+    <div class="content">
+      <!-- Summary Section -->
+      <section id="summary" class="section active">
+        <h2 style="margin-bottom: 20px;">Executive Summary</h2>
+        
+        <div class="dashboard-grid">
+          <!-- Severity Distribution -->
+          <div class="dashboard-card">
+            <h3>Severity Distribution</h3>
+            <div class="severity-chart">
+              ${this.generateSeverityChart(groupedBySeverity, issues.length)}
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #6b7280;">
+              <span>🔴 Critical: ${((groupedBySeverity.Critical?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+              <span>🟠 Major: ${((groupedBySeverity.Major?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+              <span>🟡 Minor: ${((groupedBySeverity.Minor?.length || 0) / issues.length * 100).toFixed(1)}%</span>
+            </div>
+          </div>
+          
+          <!-- Category Breakdown -->
+          <div class="dashboard-card">
+            <h3>Issues by Category</h3>
+            <table class="summary-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th style="text-align: center;">Critical</th>
+                  <th style="text-align: center;">Major</th>
+                  <th style="text-align: center;">Minor</th>
+                  <th style="text-align: center;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${this.generateCategorySummaryRows(groupedByCategory)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Most Common Issues -->
+        <div class="dashboard-card">
+          <h3>Most Common Issue Types</h3>
+          <table class="summary-table">
+            <thead>
+              <tr>
+                <th>Issue Type</th>
+                <th>Count</th>
+                <th>Percentage</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.generateTopIssueTypes(issueTypeCounts, issues.length)}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      
+      <!-- By Category Section -->
+      <section id="by-category" class="section">
+        <h2 style="margin-bottom: 20px;">Issues by Category</h2>
+        ${this.generateCompactCategoryView(groupedByCategory)}
+      </section>
+      
+      <!-- By Severity Section -->
+      <section id="by-severity" class="section">
+        <h2 style="margin-bottom: 20px;">Issues by Severity</h2>
+        ${this.generateCompactSeverityView(groupedBySeverity)}
+      </section>
+      
+      <!-- Top Issues Section -->
+      <section id="top-issues" class="section">
+        <h2 style="margin-bottom: 20px;">Critical & Major Issues Overview</h2>
+        <div class="top-issues-grid">
+          ${this.generateTopIssuesCards(groupedBySeverity)}
+        </div>
+      </section>
+      
+      <!-- Statistics Section -->
+      <section id="statistics" class="section">
+        <h2 style="margin-bottom: 20px;">Document Statistics</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value">${documentStats?.wordCount || 0}</div>
+            <div class="stat-label">Word Count</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${documentStats?.paragraphCount || 0}</div>
+            <div class="stat-label">Paragraphs</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${documentStats?.complianceScore || 0}%</div>
+            <div class="stat-label">Compliance Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">${Object.keys(groupedByCategory).length}</div>
+            <div class="stat-label">Categories Affected</div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
+  
+  <script>
+    function showSection(sectionId) {
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      
+      // Show selected section
+      document.getElementById(sectionId).classList.add('active');
+      event.target.classList.add('active');
+    }
+    
+    // Toggle category expansion
+    document.addEventListener('DOMContentLoaded', function() {
+      const headers = document.querySelectorAll('.category-header');
+      headers.forEach(header => {
+        header.addEventListener('click', function() {
+          const content = this.nextElementSibling;
+          this.classList.toggle('expanded');
+          content.classList.toggle('expanded');
+        });
+      });
+      
+      // Auto-expand categories with critical issues
+      document.querySelectorAll('.category-header').forEach(header => {
+        const criticalCount = header.querySelector('.count-badge.critical');
+        if (criticalCount && parseInt(criticalCount.textContent) > 0) {
+          header.classList.add('expanded');
+          header.nextElementSibling.classList.add('expanded');
+        }
+      });
+    });
+  </script>
 </body>
 </html>`;
     
@@ -396,55 +667,287 @@ export class IssueReportGenerator {
   }
 
   /**
-   * Generate Markdown report
+   * Generate severity chart HTML
    */
-  generateMarkdownReport(issues, documentStats, documentName = 'Document') {
-    const timestamp = new Date().toLocaleString();
-    const groupedBySeverity = this.groupIssues(issues);
-    const groupedByCategory = this.groupByCategory(issues);
+  generateSeverityChart(groupedBySeverity, total) {
+    const critical = groupedBySeverity.Critical?.length || 0;
+    const major = groupedBySeverity.Major?.length || 0;
+    const minor = groupedBySeverity.Minor?.length || 0;
     
-    let markdown = `# 📋 APA 7th Edition Compliance Report
+    let html = '';
+    
+    if (critical > 0) {
+      const width = (critical / total) * 100;
+      html += `<div class="severity-segment critical" style="width: ${width}%">${critical}</div>`;
+    }
+    if (major > 0) {
+      const width = (major / total) * 100;
+      html += `<div class="severity-segment major" style="width: ${width}%">${major}</div>`;
+    }
+    if (minor > 0) {
+      const width = (minor / total) * 100;
+      html += `<div class="severity-segment minor" style="width: ${width}%">${minor}</div>`;
+    }
+    
+    return html;
+  }
 
-**Document:** ${documentName}  
-**Generated:** ${timestamp}  
-**Total Issues:** ${issues.length}
-
----
-
-## 📊 Summary Statistics
-
-| Metric | Value |
-|--------|-------|
-| Total Issues | ${issues.length} |
-| Critical Issues | ${groupedBySeverity.Critical?.length || 0} |
-| Major Issues | ${groupedBySeverity.Major?.length || 0} |
-| Minor Issues | ${groupedBySeverity.Minor?.length || 0} |
-${documentStats ? `| Word Count | ${documentStats.wordCount || 0} |
-| Paragraphs | ${documentStats.paragraphCount || 0} |
-| Compliance Score | ${documentStats.complianceScore || 0}% |` : ''}
-
----
-
-## 🔍 Issues by Category
-
-`;
-
-    // Generate issues by category
-    Object.entries(groupedByCategory).forEach(([category, categoryIssues]) => {
-      const icon = this.categoryIcons[category] || '📝';
-      markdown += `\n### ${icon} ${this.formatCategoryName(category)} (${categoryIssues.length} issues)\n\n`;
+  /**
+   * Generate category summary rows
+   */
+  generateCategorySummaryRows(groupedByCategory) {
+    let html = '';
+    
+    Object.entries(groupedByCategory).forEach(([category, issues]) => {
+      const critical = issues.filter(i => i.severity === 'Critical').length;
+      const major = issues.filter(i => i.severity === 'Major').length;
+      const minor = issues.filter(i => i.severity === 'Minor').length;
       
-      categoryIssues.forEach((issue, index) => {
-        markdown += this.generateMarkdownIssue(issue, index + 1);
-      });
+      html += `
+        <tr>
+          <td>
+            <span class="category-badge">
+              ${this.categoryIcons[category] || '📝'}
+              ${this.formatCategoryName(category)}
+            </span>
+          </td>
+          <td style="text-align: center;">${critical || '-'}</td>
+          <td style="text-align: center;">${major || '-'}</td>
+          <td style="text-align: center;">${minor || '-'}</td>
+          <td style="text-align: center; font-weight: 600;">${issues.length}</td>
+        </tr>
+      `;
     });
     
-    markdown += `\n---
+    return html;
+  }
 
-*Generated by APA Document Checker*  
-*Based on APA 7th Edition Guidelines*`;
+  /**
+   * Generate compact category view
+   */
+  generateCompactCategoryView(groupedByCategory) {
+    let html = '';
     
-    return markdown;
+    Object.entries(groupedByCategory).forEach(([category, issues]) => {
+      const critical = issues.filter(i => i.severity === 'Critical').length;
+      const major = issues.filter(i => i.severity === 'Major').length;
+      const minor = issues.filter(i => i.severity === 'Minor').length;
+      
+      html += `
+        <div class="category-issues">
+          <div class="category-header">
+            <div class="category-header-left">
+              <span class="category-icon">${this.categoryIcons[category] || '📝'}</span>
+              <span class="category-name">${this.formatCategoryName(category)}</span>
+              <span style="color: #6b7280; font-size: 0.85rem;">(${issues.length} issues)</span>
+            </div>
+            <div class="category-counts">
+              ${critical > 0 ? `<span class="count-badge critical">${critical}</span>` : ''}
+              ${major > 0 ? `<span class="count-badge major">${major}</span>` : ''}
+              ${minor > 0 ? `<span class="count-badge minor">${minor}</span>` : ''}
+              <span class="expand-icon">▼</span>
+            </div>
+          </div>
+          <div class="category-content">
+            <table class="issues-table">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">Severity</th>
+                  <th style="width: 25%;">Issue</th>
+                  <th style="width: 35%;">Context</th>
+                  <th>Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${issues.map(issue => this.generateCompactIssueRow(issue)).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    });
+    
+    return html;
+  }
+
+  /**
+   * Generate compact issue row
+   */
+  generateCompactIssueRow(issue) {
+    const severityColor = this.severityColors[issue.severity];
+    
+    return `
+      <tr>
+        <td>
+          <span class="severity-pill" style="background: ${severityColor}">
+            ${issue.severity}
+          </span>
+        </td>
+        <td>
+          <div class="issue-title">${this.escapeHtml(issue.title)}</div>
+          <div class="issue-description">${this.escapeHtml(issue.description)}</div>
+        </td>
+        <td>
+          ${issue.text ? `<div class="issue-context" title="${this.escapeHtml(issue.text)}">${this.escapeHtml(issue.text)}</div>` : '-'}
+        </td>
+        <td>
+          <div class="issue-explanation">${this.escapeHtml(issue.explanation || 'See APA manual for details')}</div>
+        </td>
+      </tr>
+    `;
+  }
+
+  /**
+   * Generate compact severity view
+   */
+  generateCompactSeverityView(groupedBySeverity) {
+    let html = '';
+    const severityOrder = ['Critical', 'Major', 'Minor'];
+    
+    severityOrder.forEach(severity => {
+      const issues = groupedBySeverity[severity];
+      if (!issues || issues.length === 0) return;
+      
+      const severityColor = this.severityColors[severity];
+      const byCategory = this.groupByCategory(issues);
+      
+      html += `
+        <div class="category-issues">
+          <div class="category-header expanded" style="background: linear-gradient(to right, ${severityColor}15, transparent);">
+            <div class="category-header-left">
+              <span class="severity-pill" style="background: ${severityColor}">${severity}</span>
+              <span class="category-name">${issues.length} ${severity} Issues</span>
+            </div>
+            <div class="category-counts">
+              ${Object.keys(byCategory).length} categories affected
+              <span class="expand-icon">▼</span>
+            </div>
+          </div>
+          <div class="category-content expanded">
+            <table class="issues-table">
+              <thead>
+                <tr>
+                  <th style="width: 15%;">Category</th>
+                  <th style="width: 25%;">Issue</th>
+                  <th style="width: 35%;">Context</th>
+                  <th>Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${issues.map(issue => `
+                  <tr>
+                    <td>
+                      <span class="category-badge">
+                        ${this.categoryIcons[issue.category] || '📝'}
+                        ${this.formatCategoryName(issue.category)}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="issue-title">${this.escapeHtml(issue.title)}</div>
+                      <div class="issue-description">${this.escapeHtml(issue.description)}</div>
+                    </td>
+                    <td>
+                      ${issue.text ? `<div class="issue-context" title="${this.escapeHtml(issue.text)}">${this.escapeHtml(issue.text)}</div>` : '-'}
+                    </td>
+                    <td>
+                      <div class="issue-explanation">${this.escapeHtml(issue.explanation || 'See APA manual')}</div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    });
+    
+    return html;
+  }
+
+  /**
+   * Generate top issues cards
+   */
+  generateTopIssuesCards(groupedBySeverity) {
+    let html = '';
+    const topIssues = [
+      ...(groupedBySeverity.Critical || []),
+      ...(groupedBySeverity.Major || [])
+    ].slice(0, 12); // Show top 12 critical/major issues
+    
+    topIssues.forEach(issue => {
+      const severityColor = this.severityColors[issue.severity];
+      
+      html += `
+        <div class="top-issue-card">
+          <div class="top-issue-header">
+            <div class="top-issue-title">${this.escapeHtml(issue.title)}</div>
+            <span class="severity-pill" style="background: ${severityColor}">${issue.severity}</span>
+          </div>
+          <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 10px;">
+            ${this.escapeHtml(issue.description)}
+          </p>
+          ${issue.text ? `
+            <div class="issue-context" style="margin-bottom: 10px; max-width: 100%;">
+              ${this.escapeHtml(issue.text.substring(0, 100))}${issue.text.length > 100 ? '...' : ''}
+            </div>
+          ` : ''}
+          ${issue.hasFix ? `
+            <div style="background: #dcfce7; padding: 8px; border-radius: 4px; font-size: 0.75rem; color: #14532d;">
+              ✅ Fix available: ${issue.fixAction || 'Manual correction'}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+    
+    return html;
+  }
+
+  /**
+   * Get issue type counts
+   */
+  getIssueTypeCounts(issues) {
+    const counts = {};
+    
+    issues.forEach(issue => {
+      if (!counts[issue.title]) {
+        counts[issue.title] = 0;
+      }
+      counts[issue.title]++;
+    });
+    
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([title, count]) => ({ title, count }));
+  }
+
+  /**
+   * Generate top issue types
+   */
+  generateTopIssueTypes(issueTypeCounts, total) {
+    let html = '';
+    const topTypes = issueTypeCounts.slice(0, 10);
+    
+    topTypes.forEach(type => {
+      const percentage = ((type.count / total) * 100).toFixed(1);
+      
+      html += `
+        <tr>
+          <td>${this.escapeHtml(type.title)}</td>
+          <td style="text-align: center;">${type.count}</td>
+          <td style="text-align: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="flex: 1; background: #e5e7eb; height: 8px; border-radius: 4px;">
+                <div style="width: ${percentage}%; height: 100%; background: linear-gradient(to right, #667eea, #764ba2); border-radius: 4px;"></div>
+              </div>
+              <span style="font-size: 0.75rem; color: #6b7280;">${percentage}%</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+    
+    return html;
   }
 
   /**
@@ -471,105 +974,6 @@ ${documentStats ? `| Word Count | ${documentStats.wordCount || 0} |
     }, {});
   }
   
-  generateSeverityBadges(groupedIssues) {
-    const badges = [];
-    
-    if (groupedIssues.Critical?.length > 0) {
-      badges.push(`<span class="severity-badge severity-critical">🔴 ${groupedIssues.Critical.length} Critical</span>`);
-    }
-    if (groupedIssues.Major?.length > 0) {
-      badges.push(`<span class="severity-badge severity-major">🟠 ${groupedIssues.Major.length} Major</span>`);
-    }
-    if (groupedIssues.Minor?.length > 0) {
-      badges.push(`<span class="severity-badge severity-minor">🟡 ${groupedIssues.Minor.length} Minor</span>`);
-    }
-    
-    return badges.join('');
-  }
-  
-  generateNoIssuesMessage() {
-    return `
-      <div class="no-issues">
-        <div class="no-issues-icon">✅</div>
-        <div class="no-issues-text">Excellent! No APA issues detected.</div>
-        <p>Your document appears to comply with APA 7th Edition guidelines.</p>
-      </div>
-    `;
-  }
-  
-  generateIssuesByCategory(issues) {
-    const grouped = this.groupByCategory(issues);
-    let html = '';
-    
-    Object.entries(grouped).forEach(([category, categoryIssues]) => {
-      const icon = this.categoryIcons[category] || '📝';
-      
-      html += `
-        <div class="category-section">
-          <div class="category-header">
-            <span class="category-icon">${icon}</span>
-            <span class="category-title">${this.formatCategoryName(category)}</span>
-            <span class="category-count">${categoryIssues.length} issue${categoryIssues.length !== 1 ? 's' : ''}</span>
-          </div>
-          ${categoryIssues.map(issue => this.generateIssueCard(issue)).join('')}
-        </div>
-      `;
-    });
-    
-    return html;
-  }
-  
-  generateIssueCard(issue) {
-    const severityColor = this.severityColors[issue.severity];
-    
-    return `
-      <div class="issue-card">
-        <div class="issue-header">
-          <span class="issue-severity" style="background: ${severityColor}">
-            ${issue.severity}
-          </span>
-          <span class="issue-title">${this.escapeHtml(issue.title)}</span>
-        </div>
-        
-        <div class="issue-description">
-          ${this.escapeHtml(issue.description)}
-        </div>
-        
-        ${issue.text ? `
-          <div class="issue-text">
-            ${this.escapeHtml(issue.text)}
-          </div>
-        ` : ''}
-        
-        ${issue.explanation ? `
-          <div class="issue-explanation">
-            ${this.escapeHtml(issue.explanation)}
-          </div>
-        ` : ''}
-        
-        ${issue.hasFix ? `
-          <div class="issue-fix">
-            Suggested Fix: ${issue.fixAction ? `Apply "${issue.fixAction}" action` : 'Manual correction recommended'}
-          </div>
-        ` : ''}
-      </div>
-    `;
-  }
-  
-  generateMarkdownIssue(issue, number) {
-    return `
-#### ${number}. ${issue.title}
-
-**Severity:** \`${issue.severity}\`  
-**Description:** ${issue.description}  
-${issue.text ? `**Context:** \`${issue.text}\`  ` : ''}
-${issue.explanation ? `\n> 💡 **Explanation:** ${issue.explanation}\n` : ''}
-${issue.hasFix ? `\n> ✅ **Fix Available:** ${issue.fixAction || 'Manual correction recommended'}\n` : ''}
-
----
-`;
-  }
-  
   formatCategoryName(category) {
     const nameMap = {
       formatting: 'Formatting',
@@ -593,6 +997,82 @@ ${issue.hasFix ? `\n> ✅ **Fix Available:** ${issue.fixAction || 'Manual correc
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Generate Markdown report (simplified for large issue counts)
+   */
+  generateMarkdownReport(issues, documentStats, documentName = 'Document') {
+    const timestamp = new Date().toLocaleString();
+    const groupedBySeverity = this.groupIssues(issues);
+    const groupedByCategory = this.groupByCategory(issues);
+    
+    let markdown = `# 📋 APA 7th Edition Compliance Report
+
+**Document:** ${documentName}  
+**Generated:** ${timestamp}  
+**Total Issues:** ${issues.length}
+
+---
+
+## 📊 Summary Statistics
+
+| Severity | Count | Percentage |
+|----------|-------|------------|
+| Critical | ${groupedBySeverity.Critical?.length || 0} | ${((groupedBySeverity.Critical?.length || 0) / issues.length * 100).toFixed(1)}% |
+| Major | ${groupedBySeverity.Major?.length || 0} | ${((groupedBySeverity.Major?.length || 0) / issues.length * 100).toFixed(1)}% |
+| Minor | ${groupedBySeverity.Minor?.length || 0} | ${((groupedBySeverity.Minor?.length || 0) / issues.length * 100).toFixed(1)}% |
+
+## 📁 Issues by Category
+
+| Category | Critical | Major | Minor | Total |
+|----------|----------|-------|-------|-------|
+`;
+
+    Object.entries(groupedByCategory).forEach(([category, categoryIssues]) => {
+      const critical = categoryIssues.filter(i => i.severity === 'Critical').length;
+      const major = categoryIssues.filter(i => i.severity === 'Major').length;
+      const minor = categoryIssues.filter(i => i.severity === 'Minor').length;
+      
+      markdown += `| ${this.formatCategoryName(category)} | ${critical} | ${major} | ${minor} | ${categoryIssues.length} |\n`;
+    });
+
+    markdown += `\n---\n\n## 🔍 Detailed Issues\n\n`;
+
+    // Only show critical and major issues in detail for large reports
+    if (issues.length > 50) {
+      markdown += `*Note: Showing only Critical and Major issues due to large issue count (${issues.length} total)*\n\n`;
+      
+      const importantIssues = [
+        ...(groupedBySeverity.Critical || []),
+        ...(groupedBySeverity.Major || [])
+      ];
+      
+      importantIssues.forEach((issue, index) => {
+        markdown += `### ${index + 1}. [${issue.severity}] ${issue.title}\n\n`;
+        markdown += `**Category:** ${this.formatCategoryName(issue.category)}  \n`;
+        markdown += `**Description:** ${issue.description}  \n`;
+        if (issue.text) markdown += `**Context:** \`${issue.text.substring(0, 100)}${issue.text.length > 100 ? '...' : ''}\`  \n`;
+        if (issue.explanation) markdown += `**Explanation:** ${issue.explanation}  \n`;
+        markdown += '\n---\n\n';
+      });
+    } else {
+      // Show all issues for smaller reports
+      Object.entries(groupedByCategory).forEach(([category, categoryIssues]) => {
+        markdown += `### ${this.formatCategoryName(category)}\n\n`;
+        
+        categoryIssues.forEach((issue, index) => {
+          markdown += `**${index + 1}. ${issue.title}** [\`${issue.severity}\`]\n`;
+          markdown += `- ${issue.description}\n`;
+          if (issue.text) markdown += `- Context: \`${issue.text.substring(0, 80)}...\`\n`;
+          markdown += '\n';
+        });
+        
+        markdown += '---\n\n';
+      });
+    }
+    
+    return markdown;
   }
   
   /**

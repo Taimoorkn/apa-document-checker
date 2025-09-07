@@ -350,10 +350,10 @@ export class TableFigureValidator {
     for (let i = 0; i < sortedItems.length; i++) {
       const item = sortedItems[i];
       
+      // Check if it's a sub-number (e.g., Table 2.1)
+      const isSubNumber = item.numberText.includes('.');
+      
       if (item.number !== expectedNumber) {
-        // Check if it's a sub-number (e.g., Table 2.1)
-        const isSubNumber = item.numberText.includes('.');
-        
         if (!isSubNumber && Math.abs(item.number - expectedNumber) > 0.1) {
           issues.push({
             title: `${type} numbering sequence error`,

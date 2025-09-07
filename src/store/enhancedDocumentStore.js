@@ -301,12 +301,13 @@ export const useDocumentStore = create((set, get) => ({
       console.error('Error details:', error.message, error.stack);
       
       set(state => ({
-        issues,
-        analysisScore,
+        issues: [],
+        analysisScore: null,
         processingState: {
           ...state.processingState,
           isAnalyzing: false,
           isSchedulingAnalysis: false,
+          lastError: error.message || 'Document analysis failed',
           stage: null
         }
       }));

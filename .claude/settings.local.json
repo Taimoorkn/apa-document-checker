@@ -12,7 +12,8 @@
       "Bash(find:*)",
       "Bash(curl:*)",
       "Bash(rm:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

@@ -350,7 +350,10 @@ export const useDocumentStore = create((set, get) => ({
         'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber',
         'sortReferences', 'fixTableTitleCase', 'fixFigureCaptionCase',
         'fixTableNoteFormat', 'removeRetrievedFrom', 'formatDOI',
-        'addReferencePeriod', 'fixReferenceIndent'
+        'addReferencePeriod', 'fixReferenceIndent',
+        'addSerialComma', 'fixListNumbering', 'fixComplexSeries',
+        'replaceLatinAbbr', 'fixPluralAbbr', 'capitalizeSubtitle',
+        'fixBlockQuote', 'fixStatSymbol', 'fixNumberFormat', 'replaceBiasedTerm'
       ];
       
       if (clientContentFixes.includes(issue.fixAction)) {
@@ -572,6 +575,69 @@ export const useDocumentStore = create((set, get) => ({
             replacementText = 'Note. ' + issue.text;
           } else {
             replacementText = issue.text;
+          }
+          break;
+          
+        // Lists and seriation fixes
+        case 'addSerialComma':
+          // Add comma before 'and' in series
+          replacementText = issue.text.replace(/(\w+)\s+and\s+/, '$1, and ');
+          break;
+          
+        case 'fixListNumbering':
+          // This would require context of the whole list
+          console.log('List numbering fix requires document-level changes');
+          replacementText = issue.text;
+          break;
+          
+        case 'fixComplexSeries':
+          // Add semicolon before 'and' in complex series
+          replacementText = issue.text.replace(/;\s*and\s+/, '; and ');
+          break;
+          
+        // Abbreviation fixes
+        case 'replaceLatinAbbr':
+          if (issue.fixValue) {
+            replacementText = issue.text.replace(issue.fixValue.original, issue.fixValue.replacement);
+          }
+          break;
+          
+        case 'fixPluralAbbr':
+          // Remove apostrophe from plural abbreviations
+          replacementText = issue.text.replace(/'s\b/g, 's');
+          break;
+          
+        // Title/heading fixes
+        case 'capitalizeSubtitle':
+          // Capitalize first word after colon
+          replacementText = issue.text.replace(/(:\s*)([a-z])/g, (match, colon, letter) => colon + letter.toUpperCase());
+          break;
+          
+        // Quotation fixes
+        case 'fixBlockQuote':
+          // Add block quote formatting indicator
+          replacementText = '\n' + issue.text + '\n';
+          break;
+          
+        // Statistical fixes
+        case 'fixStatSymbol':
+          // Italicize statistical symbols
+          if (issue.fixValue && issue.fixValue.symbol) {
+            replacementText = issue.text.replace(new RegExp(`\\b${issue.fixValue.symbol}\\b`, 'g'), `*${issue.fixValue.symbol}*`);
+          }
+          break;
+          
+        case 'fixNumberFormat':
+          // Fix number formatting issues
+          if (issue.fixValue && issue.fixValue.corrected) {
+            replacementText = issue.text.replace(issue.fixValue.original, issue.fixValue.corrected);
+          }
+          break;
+          
+        // Bias-free language fixes
+        case 'replaceBiasedTerm':
+          if (issue.fixValue && issue.fixValue.replacement) {
+            replacementText = issue.text.replace(new RegExp(issue.fixValue.term, 'gi'), issue.fixValue.replacement);
           }
           break;
           

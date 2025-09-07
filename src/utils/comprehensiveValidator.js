@@ -235,7 +235,8 @@ export class ComprehensiveValidator {
     const pluralAbbrs = text.match(pluralAbbrPattern) || [];
     
     pluralAbbrs.forEach(plural => {
-      if (!plural.includes("'s") || plural.includes("'s")) {
+      // Check if it has apostrophe (it shouldn't for plurals)
+      if (plural.includes("'")) {
         issues.push({
           title: "Incorrect plural abbreviation",
           description: "Plural abbreviations don't use apostrophes",

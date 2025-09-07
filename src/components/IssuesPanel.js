@@ -23,8 +23,11 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  Download,
+  FileDown
 } from 'lucide-react';
+import { reportGenerator } from '@/utils/issueReportGenerator';
 
 export default function IssuesPanel() {
   const { 
@@ -77,6 +80,39 @@ export default function IssuesPanel() {
       [category]: !prev[category]
     }));
   }, []);
+  
+  // Export report functionality
+  const [exportFormat, setExportFormat] = useState('html');
+  const [isExporting, setIsExporting] = useState(false);
+  
+  const handleExportReport = useCallback(() => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    
+    try {
+      const documentName = 'APA Analysis Report';
+      const stats = {
+        wordCount: documentStats?.wordCount || 0,
+        paragraphCount: documentStats?.paragraphCount || 0,
+        complianceScore: analysisScore || 0
+      };
+      
+      const filename = reportGenerator.exportReport(
+        issues,
+        stats,
+        exportFormat,
+        documentName
+      );
+      
+      console.log(`✅ Report exported: ${filename}`);
+    } catch (error) {
+      console.error('Error exporting report:', error);
+      alert('Failed to export report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [issues, documentStats, analysisScore, exportFormat, isExporting]);
   
   // Auto-scroll and auto-expand when activeIssueId changes
   useEffect(() => {
@@ -164,8 +200,8 @@ export default function IssuesPanel() {
           )}
         </div>
         
-        {/* Tab Navigation */}
-        <div className="flex space-x-2">
+        {/* Tab Navigation and Export */}
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => setActiveTab('issues')}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -188,6 +224,42 @@ export default function IssuesPanel() {
             <BarChart3 className="h-4 w-4" />
             <span>Statistics</span>
           </button>
+          
+          {/* Export Button with Format Selector */}
+          {issues.length > 0 && (
+            <div className="flex items-center space-x-2 ml-auto">
+              <select
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value)}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={isExporting}
+              >
+                <option value="html">HTML Report</option>
+                <option value="markdown">Markdown</option>
+              </select>
+              <button
+                onClick={handleExportReport}
+                disabled={isExporting}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  isExporting
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-lg'
+                }`}
+              >
+                {isExporting ? (
+                  <>
+                    <Clock className="h-4 w-4 animate-spin" />
+                    <span>Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="h-4 w-4" />
+                    <span>Export Report</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
       

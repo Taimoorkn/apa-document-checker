@@ -398,7 +398,7 @@ export default function IssuesPanel() {
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm font-medium text-gray-600">Margins</span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {documentFormatting.document?.margins?.top || 'Not specified'}"
+                        {documentFormatting.document?.margins?.top || 'Not specified'}&quot;
                       </span>
                     </div>
                   </div>
@@ -508,7 +508,7 @@ const IssueItem = React.memo(function IssueItem({
           
           {issue.text && (
             <div className="mt-3 p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200">
-              <p className="text-xs font-mono text-gray-700">"{issue.text}"</p>
+              <p className="text-xs font-mono text-gray-700">&ldquo;{issue.text}&rdquo;</p>
             </div>
           )}
           

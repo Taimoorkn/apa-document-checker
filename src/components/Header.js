@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
-import { 
-  Upload, 
+import {
   Download, 
   FileText, 
   ChevronDown, 
-  CheckCircle, 
-  Sparkles,
+  CheckCircle,
   FileCheck,
   X,
   AlertCircle,
@@ -18,7 +16,6 @@ import {
   HelpCircle,
   Bell,
   CreditCard,
-  Menu,
   Plus,
   History,
   Share2
@@ -27,13 +24,10 @@ import {
 export default function Header() {
   const { 
     uploadDocument, 
-    documentName, 
-    analyzeDocument, 
+    documentName,
     analyzeDocumentDebounced, 
-    analysisScore, 
     exportDocument, 
     processingState,
-    issues
   } = useDocumentStore();
   
   const [uploadError, setUploadError] = useState(null);

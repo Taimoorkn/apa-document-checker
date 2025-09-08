@@ -1,15 +1,13 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { createEditor, Editor, Transforms, Text, Element as SlateElement, Range } from 'slate';
-import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { createEditor, Editor, Transforms, Text } from 'slate';
+import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { 
-  FileText, 
-  InfoIcon, 
-  CheckCircle2, 
-  Play, 
+  FileText,
+  CheckCircle2,
   Eye, 
   EyeOff, 
   FileSearch, 

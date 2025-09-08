@@ -11,7 +11,6 @@ import { StatisticalValidator } from './statisticalValidator';
 import { BiasFreeLanguageValidator } from './biasFreeLanguageValidator';
 import { ComprehensiveValidator } from './comprehensiveValidator';
 import { AdditionalAPARules } from './additionalApaRules';
-import { OptimizedValidator } from './optimizedValidator';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {

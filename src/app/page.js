@@ -2,14 +2,12 @@
 import './globals.css';
 import { useState } from 'react'; 
 import IssuesPanel from '@/components/IssuesPanel';
-import Header from '@/components/Header'; 
-import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import Header from '@/components/Header';
 import DocumentEditor from '@/components/DocumentEditor';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
-  const { documentText, issues } = useDocumentStore();
 
   return (
     <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">

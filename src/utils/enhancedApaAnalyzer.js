@@ -182,14 +182,21 @@ export class EnhancedAPAAnalyzer {
           !fontFamily.includes('liberation serif')) {
         // Find first paragraph with text to highlight
         const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
+        const paraIndex = firstParagraphWithText ? paragraphs.indexOf(firstParagraphWithText) : 0;
         issues.push({
           title: "Incorrect font family",
           description: `Document uses "${font.family}" instead of Times New Roman`,
-          text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Font: ${font.family}`,
+          text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
           highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
           severity: "Major",
           category: "formatting",
-          location: { type: "document", section: "font", paragraphIndex: 0 },
+          location: { 
+            type: "document", 
+            section: "font", 
+            paragraphIndex: paraIndex,
+            charOffset: 0,
+            length: firstParagraphWithText ? Math.min(50, firstParagraphWithText.text.length) : 50
+          },
           hasFix: true,
           fixAction: "fixFont",
           explanation: "APA 7th edition requires Times New Roman 12pt font throughout the document."
@@ -211,14 +218,21 @@ export class EnhancedAPAAnalyzer {
     if (font.size && Math.abs(font.size - 12) > 0.5) {
       // Find first paragraph with text to highlight
       const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
+      const paraIndex = firstParagraphWithText ? paragraphs.indexOf(firstParagraphWithText) : 0;
       issues.push({
         title: "Incorrect font size",
         description: `Font size is ${font.size}pt instead of 12pt`,
-        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Font size: ${font.size}pt`,
+        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         severity: "Major",
         category: "formatting", 
-        location: { type: "document", section: "font", paragraphIndex: 0 },
+        location: { 
+          type: "document", 
+          section: "font", 
+          paragraphIndex: paraIndex,
+          charOffset: 0,
+          length: firstParagraphWithText ? Math.min(50, firstParagraphWithText.text.length) : 50
+        },
         hasFix: true,
         fixAction: "fixFontSize",
         explanation: "APA 7th edition requires 12-point font size."
@@ -229,14 +243,21 @@ export class EnhancedAPAAnalyzer {
     if (spacing.line && Math.abs(spacing.line - 2.0) > 0.1) {
       // Find first paragraph with text to highlight
       const firstParagraphWithText = paragraphs.find(p => p.text && p.text.trim().length > 0);
+      const paraIndex = firstParagraphWithText ? paragraphs.indexOf(firstParagraphWithText) : 0;
       issues.push({
         title: "Incorrect line spacing",
         description: `Line spacing is ${spacing.line} instead of double (2.0)`,
-        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : `Line spacing: ${spacing.line}`,
+        text: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         highlightText: firstParagraphWithText ? firstParagraphWithText.text.substring(0, 50) : null,
         severity: "Major",
         category: "formatting", 
-        location: { type: "document", section: "spacing", paragraphIndex: 0 },
+        location: { 
+          type: "document", 
+          section: "spacing", 
+          paragraphIndex: paraIndex,
+          charOffset: 0,
+          length: firstParagraphWithText ? Math.min(50, firstParagraphWithText.text.length) : 50
+        },
         hasFix: true,
         fixAction: "fixLineSpacing",
         explanation: "APA 7th edition requires double spacing (2.0) throughout the document."
@@ -477,81 +498,102 @@ export class EnhancedAPAAnalyzer {
   }
   
   /**
-   * Fallback citation analysis
+   * Fallback citation analysis with position tracking
    */
   analyzeBasicCitations(text) {
     const issues = [];
     
     if (!text) return issues;
     
+    // Split text into paragraphs to track positions
+    const paragraphs = text.split('\n');
+    let globalOffset = 0;
     
-    // Enhanced citation patterns to catch all APA violations
-    
-    // 1. Check for citations missing commas (Author YEAR) format - but exclude et al. cases
-    const missingCommaPattern = /\(([A-Za-z][A-Za-z\s&.]+(?<!et\s+al))\s+(\d{4})\)/g;
-    let missingCommaMatch;
-    while ((missingCommaMatch = missingCommaPattern.exec(text)) !== null) {
-      const fullCitation = missingCommaMatch[0];
-      const authorPart = missingCommaMatch[1];
+    paragraphs.forEach((paragraphText, paragraphIndex) => {
+      // Enhanced citation patterns to catch all APA violations
       
-      // Skip if this contains et al. - handle separately
-      if (authorPart.includes('et al')) continue;
-      
-      
-      issues.push({
-        title: "Missing comma in citation",
-        description: "Citations must have a comma between author and year",
-        text: fullCitation,
-        highlightText: fullCitation,
-        severity: "Minor", 
-        category: "citations",
-        hasFix: true,
-        fixAction: "addCitationComma",
-        explanation: "APA format requires a comma between author name(s) and year: (Author, YEAR)."
-      });
-    }
-    
-    // 2. Standard citation pattern with comma (Author, YEAR)
-    const citationPattern = /\(([^)]+),\s*(\d{4})[^)]*\)/g;
-    let match;
-    let citationCount = 0;
-    
-    while ((match = citationPattern.exec(text)) !== null) {
-      citationCount++;
-      const fullCitation = match[0];
-      const authorPart = match[1];
-      
-      
-      // Check for incorrect ampersand usage
-      if (authorPart.includes(' and ') && fullCitation.includes('(')) {
+      // 1. Check for citations missing commas (Author YEAR) format - but exclude et al. cases
+      const missingCommaPattern = /\(([A-Za-z][A-Za-z\s&.]+(?<!et\s+al))\s+(\d{4})\)/g;
+      let missingCommaMatch;
+      while ((missingCommaMatch = missingCommaPattern.exec(paragraphText)) !== null) {
+        const fullCitation = missingCommaMatch[0];
+        const authorPart = missingCommaMatch[1];
+        
+        // Skip if this contains et al. - handle separately
+        if (authorPart.includes('et al')) continue;
+        
         issues.push({
-          title: "Incorrect connector in parenthetical citation",
-          description: "Use '&' instead of 'and' in parenthetical citations",
+          title: "Missing comma in citation",
+          description: "Citations must have a comma between author and year",
           text: fullCitation,
           highlightText: fullCitation,
-          severity: "Minor",
+          severity: "Minor", 
           category: "citations",
+          location: {
+            paragraphIndex: paragraphIndex,
+            charOffset: missingCommaMatch.index,
+            length: fullCitation.length,
+            type: 'text'
+          },
           hasFix: true,
-          fixAction: "fixParentheticalConnector",
-          explanation: "In parenthetical citations, use & to connect author names."
+          fixAction: "addCitationComma",
+          explanation: "APA format requires a comma between author name(s) and year: (Author, YEAR)."
         });
+      }
+    
+      // 2. Standard citation pattern with comma (Author, YEAR)
+      const citationPattern = /\(([^)]+),\s*(\d{4})[^)]*\)/g;
+      let match;
+      
+      while ((match = citationPattern.exec(paragraphText)) !== null) {
+        const fullCitation = match[0];
+        const authorPart = match[1];
+        
+        // Check for incorrect ampersand usage
+        if (authorPart.includes(' and ') && fullCitation.includes('(')) {
+          issues.push({
+            title: "Incorrect connector in parenthetical citation",
+            description: "Use '&' instead of 'and' in parenthetical citations",
+            text: fullCitation,
+            highlightText: fullCitation,
+            severity: "Minor",
+            category: "citations",
+            location: {
+              paragraphIndex: paragraphIndex,
+              charOffset: match.index,
+              length: fullCitation.length,
+              type: 'text'
+            },
+            hasFix: true,
+            fixAction: "fixParentheticalConnector",
+            explanation: "In parenthetical citations, use & to connect author names."
+          });
+        }
+        
+        // Check for incorrect et al. formatting - APA 7th edition does NOT use comma before et al.
+        if (authorPart.includes(', et al.')) {
+          issues.push({
+            title: "Incorrect comma before et al.",
+            description: "APA 7th edition does not use comma before 'et al.' in citations",
+            text: fullCitation,
+            highlightText: fullCitation,
+            severity: "Minor",
+            category: "citations",
+            location: {
+              paragraphIndex: paragraphIndex,
+              charOffset: match.index,
+              length: fullCitation.length,
+              type: 'text'
+            },
+            hasFix: true,
+            fixAction: "fixEtAlFormatting",
+            explanation: "APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021)."
+          });
+        }
       }
       
-      // Check for incorrect et al. formatting - APA 7th edition does NOT use comma before et al.
-      if (authorPart.includes(', et al.')) {
-        issues.push({
-          title: "Incorrect comma before et al.",
-          description: "APA 7th edition does not use comma before 'et al.' in citations",
-          text: fullCitation,
-          highlightText: fullCitation,
-          severity: "Minor",
-          category: "citations", 
-          hasFix: true,
-          fixAction: "fixEtAlFormatting",
-          explanation: "APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021)."
-        });
-      }
-    }
+      globalOffset += paragraphText.length + 1; // +1 for newline
+    });
     
     
     // 3. Analyze References section for consistency issues

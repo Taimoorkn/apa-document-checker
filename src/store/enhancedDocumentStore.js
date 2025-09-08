@@ -1043,9 +1043,20 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
   
-  // Set active issue and scroll to it
+  // Set active issue and trigger re-highlighting
   setActiveIssue: (issueId) => {
+    const prevActiveId = get().activeIssueId;
     set({ activeIssueId: issueId });
+    
+    // If the active issue changed, trigger re-highlighting
+    if (prevActiveId !== issueId) {
+      console.log(`🎯 Active issue changed from ${prevActiveId} to ${issueId}`);
+      
+      // Dispatch event to trigger re-highlighting in DocumentEditor
+      window.dispatchEvent(new CustomEvent('activeIssueChanged', {
+        detail: { previousId: prevActiveId, currentId: issueId }
+      }));
+    }
     
     // Scroll to the issue in the document
     if (issueId) {
@@ -1061,7 +1072,7 @@ export const useDocumentStore = create((set, get) => ({
         } else {
           console.warn(`⚠️ Could not find element for issue: ${issueId}`);
         }
-      }, 100); // Small delay to ensure DOM is updated
+      }, 200); // Small delay to ensure DOM is updated after highlighting
     }
   },
 

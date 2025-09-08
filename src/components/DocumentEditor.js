@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { createEditor, Editor, Transforms, Text } from 'slate';
-import { Slate, Editable, withReact } from 'slate-react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { createEditor, Editor, Transforms, Text, Node, Path, Range, Point } from 'slate';
+import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import { positionMapper } from '@/utils/documentPositionMapper';
 import { 
   FileText,
   CheckCircle2,
@@ -246,63 +247,170 @@ export default function DocumentEditor() {
     return ELEMENT_TYPES.PARAGRAPH;
   }, []);
 
-  // Apply issue highlighting to Slate editor
+  // Apply issue highlighting using position mapping
   const applyIssueHighlighting = useCallback(() => {
-    if (!issues.length || !editor) return;
+    if (!issues.length || !editor || !value) return;
+    
+    console.log('🎨 Applying issue highlighting with position mapping');
+    
+    // Build position mapping first
+    positionMapper.buildMapping(documentFormatting?.paragraphs || [], value);
     
     // Remove existing highlights first
     Editor.removeMark(editor, MARKS.APA_ISSUE);
     
-    // Only highlight issues that have real text (not descriptive text)
-    const highlightableIssues = issues.filter(issue => {
-      const text = issue.highlightText || issue.text;
-      return text && 
-             !text.startsWith('Font:') && 
-             !text.startsWith('Font size:') && 
-             !text.startsWith('Line spacing:') &&
-             !text.startsWith('Expected:') &&
-             !text.startsWith('Found ') &&
-             !text.includes('varies') &&
-             text.length > 3;
-    });
-
-    // Simple approach: just try to highlight whatever text we have
-    highlightableIssues.forEach(issue => {
-      try {
-        const searchText = issue.highlightText || issue.text;
-        if (!searchText) return;
-        
-        // Search for this text in the document
-        const textNodes = Array.from(Editor.nodes(editor, {
-          at: [],
-          match: n => Text.isText(n) && n.text && n.text.includes(searchText)
-        }));
-        
-        // Highlight each occurrence
-        textNodes.forEach(([node, path]) => {
-          const index = node.text.indexOf(searchText);
-          if (index !== -1) {
-            const range = {
-              anchor: { path, offset: index },
-              focus: { path, offset: index + searchText.length }
-            };
-            
-            Transforms.select(editor, range);
-            Editor.addMark(editor, MARKS.APA_ISSUE, {
-              issueId: issue.id,
-              severity: issue.severity,
-              active: issue.id === activeIssueId
-            });
+    // Process each issue with position-based highlighting
+    Editor.withoutNormalizing(editor, () => {
+      issues.forEach(issue => {
+        try {
+          // Skip document-level formatting issues that don't map to text
+          if (issue.location?.type === 'document' && !issue.highlightText) {
+            console.log(`⏭️ Skipping document-level issue: ${issue.title}`);
+            return;
           }
-        });
-      } catch (error) {
-        // Silently skip errors
-      }
+          
+          // Try to map issue to Slate position
+          const position = positionMapper.mapIssueToSlatePosition(issue);
+          
+          if (position) {
+            console.log(`📍 Highlighting issue "${issue.title}" at position:`, position);
+            
+            // Handle different position types
+            if (position.wholeParagraph) {
+              // Highlight entire paragraph for structural issues
+              const [node] = Editor.node(editor, position.path);
+              if (node && node.children) {
+                node.children.forEach((child, index) => {
+                  if (Text.isText(child) && child.text) {
+                    const childPath = [...position.path, index];
+                    const range = {
+                      anchor: { path: childPath, offset: 0 },
+                      focus: { path: childPath, offset: child.text.length }
+                    };
+                    
+                    Transforms.select(editor, range);
+                    Editor.addMark(editor, MARKS.APA_ISSUE, {
+                      issueId: issue.id,
+                      severity: issue.severity,
+                      active: issue.id === activeIssueId
+                    });
+                  }
+                });
+              }
+            } else if (position.isDocumentLevel) {
+              // Highlight first 50 chars for document-level issues
+              const [node] = Editor.node(editor, position.path);
+              if (node && node.children && node.children[0]) {
+                const firstChild = node.children[0];
+                if (Text.isText(firstChild) && firstChild.text) {
+                  const childPath = [...position.path, 0];
+                  const range = {
+                    anchor: { path: childPath, offset: 0 },
+                    focus: { path: childPath, offset: Math.min(position.length, firstChild.text.length) }
+                  };
+                  
+                  Transforms.select(editor, range);
+                  Editor.addMark(editor, MARKS.APA_ISSUE, {
+                    issueId: issue.id,
+                    severity: issue.severity,
+                    active: issue.id === activeIssueId,
+                    isDocumentLevel: true
+                  });
+                }
+              }
+            } else {
+              // Precise text highlighting
+              const [node] = Editor.node(editor, position.path);
+              
+              // For paragraph-level paths, find the text node
+              if (node && !Text.isText(node) && node.children) {
+                // Search within paragraph children for the text
+                let currentOffset = 0;
+                const searchText = issue.highlightText || issue.text;
+                
+                for (let i = 0; i < node.children.length; i++) {
+                  const child = node.children[i];
+                  if (Text.isText(child) && child.text) {
+                    const childLength = child.text.length;
+                    
+                    // Check if the target text starts in this child
+                    if (position.offset >= currentOffset && position.offset < currentOffset + childLength) {
+                      const childPath = [...position.path, i];
+                      const startOffset = position.offset - currentOffset;
+                      const endOffset = Math.min(startOffset + position.length, childLength);
+                      
+                      const range = {
+                        anchor: { path: childPath, offset: startOffset },
+                        focus: { path: childPath, offset: endOffset }
+                      };
+                      
+                      Transforms.select(editor, range);
+                      Editor.addMark(editor, MARKS.APA_ISSUE, {
+                        issueId: issue.id,
+                        severity: issue.severity,
+                        active: issue.id === activeIssueId
+                      });
+                      break;
+                    }
+                    
+                    currentOffset += childLength;
+                  }
+                }
+              } else if (Text.isText(node)) {
+                // Direct text node highlighting
+                const range = {
+                  anchor: { path: position.path, offset: position.offset },
+                  focus: { path: position.path, offset: position.offset + position.length }
+                };
+                
+                Transforms.select(editor, range);
+                Editor.addMark(editor, MARKS.APA_ISSUE, {
+                  issueId: issue.id,
+                  severity: issue.severity,
+                  active: issue.id === activeIssueId
+                });
+              }
+            }
+          } else {
+            // Fallback to text search if position mapping fails
+            const searchText = issue.highlightText || issue.text;
+            if (searchText && searchText.length > 3) {
+              console.log(`⚠️ Position mapping failed for "${issue.title}", using text search`);
+              
+              const textNodes = Array.from(Editor.nodes(editor, {
+                at: [],
+                match: n => Text.isText(n) && n.text && n.text.includes(searchText)
+              }));
+              
+              if (textNodes.length > 0) {
+                const [node, path] = textNodes[0];
+                const index = node.text.indexOf(searchText);
+                if (index !== -1) {
+                  const range = {
+                    anchor: { path, offset: index },
+                    focus: { path, offset: index + searchText.length }
+                  };
+                  
+                  Transforms.select(editor, range);
+                  Editor.addMark(editor, MARKS.APA_ISSUE, {
+                    issueId: issue.id,
+                    severity: issue.severity,
+                    active: issue.id === activeIssueId
+                  });
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to highlight issue "${issue.title}":`, error);
+        }
+      });
     });
 
     // Deselect after highlighting
     Transforms.deselect(editor);
-  }, [editor, issues, activeIssueId]);
+    console.log('✅ Issue highlighting completed');
+  }, [editor, issues, activeIssueId, value, documentFormatting]);
 
   // Remove all issue highlighting from Slate editor
   const removeIssueHighlighting = useCallback(() => {
@@ -597,6 +705,22 @@ export default function DocumentEditor() {
     return () => window.removeEventListener('applyTextReplacement', handleTextReplacement);
   }, []);
 
+  // Listen for active issue change events
+  useEffect(() => {
+    const handleActiveIssueChange = (event) => {
+      const { previousId, currentId } = event.detail;
+      console.log(`🎯 Active issue changed: ${previousId} → ${currentId}`);
+      
+      // Re-apply highlighting when active issue changes
+      if (showIssueHighlighting) {
+        setTimeout(() => applyIssueHighlighting(), 50);
+      }
+    };
+
+    window.addEventListener('activeIssueChanged', handleActiveIssueChange);
+    return () => window.removeEventListener('activeIssueChanged', handleActiveIssueChange);
+  }, [showIssueHighlighting, applyIssueHighlighting]);
+
   // Apply text replacement directly in Slate editor
   const applyTextReplacementToEditor = useCallback((originalText, replacementText) => {
     try {
@@ -848,6 +972,15 @@ export default function DocumentEditor() {
   }, [getIssueClass, setActiveIssue]);
 
 
+  // Check for document-level formatting issues - MUST be before any conditional returns
+  const documentLevelIssues = useMemo(() => {
+    return issues.filter(issue => 
+      issue.location?.type === 'document' && 
+      ['formatting'].includes(issue.category) &&
+      ['fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins'].includes(issue.fixAction)
+    );
+  }, [issues]);
+
   // Ensure we have valid Slate value
   const safeValue = Array.isArray(value) && value.length > 0 ? value : [{
     type: 'paragraph',
@@ -930,6 +1063,42 @@ export default function DocumentEditor() {
         </div>
       ) : (
         <div className="h-full flex flex-col">
+          {/* Document-level Formatting Issues Banner */}
+          {documentLevelIssues.length > 0 && showIssueHighlighting && (
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">
+                      Document-wide formatting issues detected
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {documentLevelIssues.map(issue => (
+                        <span 
+                          key={issue.id}
+                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 cursor-pointer hover:bg-amber-200"
+                          onClick={() => setActiveIssue(issue.id)}
+                        >
+                          {issue.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const firstIssue = documentLevelIssues[0];
+                    if (firstIssue) setActiveIssue(firstIssue.id);
+                  }}
+                  className="text-sm text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  View in Issues Panel →
+                </button>
+              </div>
+            </div>
+          )}
+          
           {/* Document Controls - Fixed Header */}
           <div className="bg-white border-b border-gray-200 flex-shrink-0">
             {/* Top Bar with Title and Actions */}

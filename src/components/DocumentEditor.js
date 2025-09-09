@@ -71,24 +71,6 @@ export default function DocumentEditor() {
         showHighlighting: showIssueHighlighting,
         onIssueClick: (issueId) => setActiveIssue(issueId)
       })
-      // TextStyle,
-      // Color,
-      // FontFamily,
-      // TextAlign.configure({
-      //   types: ['heading', 'paragraph'],
-      //   alignments: ['left', 'center', 'right', 'justify']
-      // }),
-      // Typography,
-      // DocumentFormatting.configure({
-      //   documentFormatting: documentFormatting
-      // }),
-      // IssueHighlighter.configure({
-      //   issues: issues,
-      //   activeIssueId: activeIssueId,
-      //   showHighlighting: showIssueHighlighting,
-      //   onIssueClick: (issueId) => setActiveIssue(issueId),
-      //   documentFormatting: documentFormatting
-      // })
     ],
     content: '<p>Initial content</p>',
     immediatelyRender: false,

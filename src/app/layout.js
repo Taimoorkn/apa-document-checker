@@ -1,4 +1,5 @@
 import './globals.css'
+import '@/styles/tiptap.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 export const metadata = {

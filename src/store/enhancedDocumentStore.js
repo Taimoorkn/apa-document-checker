@@ -18,7 +18,7 @@ export const useDocumentStore = create((set, get) => ({
   currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
   
   // Editor state
-  editorContent: null,      // Slate.js editor content
+  editorContent: null,      // Tiptap editor content (JSON)
   editorChanged: false,     // Track if editor content has changed
   documentStats: {
     wordCount: 0,
@@ -1129,16 +1129,34 @@ export const useDocumentStore = create((set, get) => ({
   },
 
 
-  // Convert editor content back to text for analysis
+  // Convert Tiptap editor content back to text for analysis
   getTextFromEditorContent: (editorContent) => {
-    if (!editorContent || !Array.isArray(editorContent)) return '';
+    if (!editorContent) return '';
     
-    return editorContent.map(node => {
-      if (node.children) {
-        return node.children.map(child => child.text || '').join('');
+    // Handle Tiptap JSON format
+    const extractText = (node) => {
+      if (node.type === 'text') {
+        return node.text || '';
       }
-      return node.text || '';
-    }).join('\n');
+      
+      if (node.content && Array.isArray(node.content)) {
+        return node.content.map(child => extractText(child)).join('');
+      }
+      
+      return '';
+    };
+    
+    // If it's a Tiptap document
+    if (editorContent.type === 'doc' && editorContent.content) {
+      return editorContent.content.map(node => extractText(node)).join('\n');
+    }
+    
+    // Fallback for array format (legacy)
+    if (Array.isArray(editorContent)) {
+      return editorContent.map(node => extractText(node)).join('\n');
+    }
+    
+    return extractText(editorContent);
   },
 
   // Real-time analysis for editor changes

@@ -13,7 +13,8 @@
       "Bash(curl:*)",
       "Bash(rm:*)",
       "Bash(sed:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,6 +10,15 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tiptap/extension-color": "^3.4.2",
+    "@tiptap/extension-font-family": "^3.4.2",
+    "@tiptap/extension-highlight": "^3.4.2",
+    "@tiptap/extension-text-align": "^3.4.2",
+    "@tiptap/extension-text-style": "^3.4.2",
+    "@tiptap/extension-typography": "^3.4.2",
+    "@tiptap/extension-underline": "^3.4.2",
+    "@tiptap/react": "^3.4.2",
+    "@tiptap/starter-kit": "^3.4.2",
     "@xmldom/xmldom": "^0.8.11",
     "cors": "^2.8.5",
     "express": "^4.21.2",
@@ -23,9 +32,6 @@
     "pizzip": "^3.2.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "slate": "^0.103.0",
-    "slate-react": "^0.108.0",
-    "slate-history": "^0.93.0",
     "uuid": "^11.1.0",
     "xml2js": "^0.6.2",
     "zustand": "^5.0.8"

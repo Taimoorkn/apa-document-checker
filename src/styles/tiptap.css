@@ -1,0 +1,103 @@
+/* Tiptap/ProseMirror Editor Styles */
+
+/* Basic editor styles */
+.ProseMirror {
+  min-height: 500px;
+  outline: none;
+  padding: 2rem;
+  /* Don't override document fonts - let the content decide */
+  /* font-family: 'Times New Roman', serif; */
+  /* font-size: 12pt; */
+  /* line-height: 2; */
+}
+
+.ProseMirror p[data-style-name] {
+  /* Paragraphs with style names should use their own formatting */
+  margin: 0;
+  padding: 0;
+}
+
+.ProseMirror p {
+  /* Default paragraph styles - will be overridden by inline styles */
+  margin: 0;
+  padding: 0;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  margin: 1em 0 0.5em 0;
+  font-weight: bold;
+}
+
+.ProseMirror h1 { font-size: 2em; }
+.ProseMirror h2 { font-size: 1.5em; }
+.ProseMirror h3 { font-size: 1.3em; }
+.ProseMirror h4 { font-size: 1.1em; }
+.ProseMirror h5 { font-size: 1em; }
+.ProseMirror h6 { font-size: 0.9em; }
+
+/* Focus styles */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Issue highlighting styles */
+.apa-issue-highlight {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  background: rgba(99, 102, 241, 0.2);
+}
+
+/* Fix for proper text rendering */
+.ProseMirror-focused {
+  outline: none;
+}
+
+/* Don't override paragraph spacing - let the document formatting decide */
+/* .ProseMirror p + p {
+  margin-top: 0;
+} */
+
+/* Preserve all inline styles */
+.ProseMirror span[style] {
+  /* Ensure inline styles are respected */
+}
+
+/* Formatted paragraph node */
+.ProseMirror p[style] {
+  /* Ensure paragraph styles are respected */
+}
+
+/* Code and pre styles if needed */
+.ProseMirror pre {
+  background: #f5f5f5;
+  color: #333;
+  font-family: 'Courier New', monospace;
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+}
+
+.ProseMirror code {
+  background: #f5f5f5;
+  color: #333;
+  font-family: 'Courier New', monospace;
+  padding: 0.2em 0.4em;
+  border-radius: 0.125rem;
+}

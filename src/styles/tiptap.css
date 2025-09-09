@@ -46,9 +46,68 @@
 }
 
 /* Issue highlighting styles */
-.apa-issue-highlight {
+.apa-issue {
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
+  border-bottom-width: 2px;
+  border-bottom-style: solid;
+}
+
+/* Critical issues - Red */
+.apa-critical {
+  background-color: rgba(254, 202, 202, 0.5);
+  border-bottom-color: rgb(239, 68, 68);
+}
+
+.apa-critical:hover {
+  background-color: rgba(254, 202, 202, 0.8);
+}
+
+.apa-critical.apa-active {
+  background-color: rgba(254, 202, 202, 1);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Major issues - Orange */
+.apa-major {
+  background-color: rgba(254, 215, 170, 0.5);
+  border-bottom-color: rgb(251, 146, 60);
+}
+
+.apa-major:hover {
+  background-color: rgba(254, 215, 170, 0.8);
+}
+
+.apa-major.apa-active {
+  background-color: rgba(254, 215, 170, 1);
+  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.2);
+}
+
+/* Minor issues - Blue */
+.apa-minor {
+  background-color: rgba(191, 219, 254, 0.5);
+  border-bottom-color: rgb(59, 130, 246);
+}
+
+.apa-minor:hover {
+  background-color: rgba(191, 219, 254, 0.8);
+}
+
+.apa-minor.apa-active {
+  background-color: rgba(191, 219, 254, 1);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Default issues */
+.apa-default {
+  background-color: rgba(229, 231, 235, 0.5);
+  border-bottom-color: rgb(107, 114, 128);
+}
+
+/* Overlapping highlights */
+.apa-issue + .apa-issue {
+  margin-left: 2px;
 }
 
 /* Placeholder */

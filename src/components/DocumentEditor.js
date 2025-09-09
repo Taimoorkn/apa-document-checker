@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
 import { FormattedParagraph, FontFormatting, DocumentDefaults } from '@/utils/tiptapFormattingExtensions';
 import { tiptapConverter } from '@/utils/tiptapDocumentConverter';
+import { IssueHighlighter } from '@/utils/tiptapIssueHighlighter';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { 
   FileText,
@@ -63,7 +64,13 @@ export default function DocumentEditor() {
       FormattedParagraph, // Our custom paragraph with formatting
       FontFormatting,     // Custom mark for font properties
       DocumentDefaults,   // Document-wide defaults
-      Underline
+      Underline,
+      IssueHighlighter.configure({
+        issues: issues,
+        activeIssueId: activeIssueId,
+        showHighlighting: showIssueHighlighting,
+        onIssueClick: (issueId) => setActiveIssue(issueId)
+      })
       // TextStyle,
       // Color,
       // FontFamily,
@@ -157,21 +164,23 @@ export default function DocumentEditor() {
     }
   }, [editor, documentText, documentFormatting]); // Include formatting in dependencies
 
-  // Issue highlighting disabled for now
-  // useEffect(() => {
-  //   if (!editor) return;
-  //   
-  //   // Update highlighter options
-  //   editor.commands.setHighlightOptions({
-  //     issues: issues,
-  //     activeIssueId: activeIssueId,
-  //     showHighlighting: showIssueHighlighting,
-  //     documentFormatting: documentFormatting
-  //   });
-  //   
-  //   // Trigger decoration update
-  //   editor.commands.updateIssueHighlights();
-  // }, [editor, issues, activeIssueId, showIssueHighlighting, documentFormatting]);
+  // Update issue highlighting when issues or settings change
+  useEffect(() => {
+    if (!editor) return;
+    
+    console.log('Updating issue highlights:', {
+      issueCount: issues.length,
+      showIssueHighlighting,
+      activeIssueId
+    });
+    
+    // Update highlights with current issues
+    editor.commands.updateIssueHighlights({
+      issues: issues,
+      activeIssueId: activeIssueId,
+      showHighlighting: showIssueHighlighting
+    });
+  }, [editor, issues, activeIssueId, showIssueHighlighting]);
 
   // Handle manual analysis
   const handleManualAnalysis = useCallback(async () => {
@@ -185,31 +194,55 @@ export default function DocumentEditor() {
 
   // Apply text replacement for fixes
   const applyTextReplacement = useCallback((originalText, replacementText) => {
-    if (!editor) return;
+    if (!editor || !originalText) return;
+    
+    console.log('Applying text replacement:', { originalText, replacementText });
     
     const { state } = editor;
-    const { doc } = state;
+    const { doc, tr } = state;
     let replaced = false;
     
     // Search and replace in the document
     doc.descendants((node, pos) => {
-      if (node.isText && !replaced) {
-        const text = node.text;
-        const index = text.indexOf(originalText);
-        
-        if (index !== -1) {
-          // Calculate positions
-          const from = pos + index;
-          const to = from + originalText.length;
+      if (!replaced) {
+        if (node.isText) {
+          const text = node.text;
+          const index = text.indexOf(originalText);
           
-          // Replace text
-          editor.chain()
-            .focus()
-            .setTextSelection({ from, to })
-            .insertContent(replacementText)
-            .run();
+          if (index !== -1) {
+            const from = pos + index;
+            const to = from + originalText.length;
+            
+            // Use transaction to replace text
+            editor.chain()
+              .focus()
+              .setTextSelection({ from, to })
+              .deleteSelection()
+              .insertContent(replacementText)
+              .run();
+            
+            replaced = true;
+            console.log('Text replaced at position:', from);
+          }
+        } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+          // For block nodes, check text content
+          const text = node.textContent;
+          const index = text.indexOf(originalText);
           
-          replaced = true;
+          if (index !== -1) {
+            const from = pos + index + 1; // +1 for block node boundary
+            const to = from + originalText.length;
+            
+            editor.chain()
+              .focus()
+              .setTextSelection({ from, to })
+              .deleteSelection()
+              .insertContent(replacementText)
+              .run();
+            
+            replaced = true;
+            console.log('Text replaced in block at position:', from);
+          }
         }
       }
     });
@@ -217,10 +250,24 @@ export default function DocumentEditor() {
     if (replaced) {
       // Update highlights after replacement
       setTimeout(() => {
-        editor.commands.updateIssueHighlights();
+        editor.commands.updateIssueHighlights({
+          issues: issues,
+          activeIssueId: activeIssueId,
+          showHighlighting: showIssueHighlighting
+        });
       }, 100);
+    } else {
+      console.warn('Text not found for replacement:', originalText);
     }
-  }, [editor]);
+  }, [editor, issues, activeIssueId, showIssueHighlighting]);
+
+  // Listen for active issue changes from store
+  useEffect(() => {
+    if (!editor || !activeIssueId) return;
+    
+    // Update active issue highlight
+    editor.commands.setActiveIssue(activeIssueId);
+  }, [editor, activeIssueId]);
 
   // Listen for text replacement events
   useEffect(() => {

@@ -14,7 +14,8 @@
       "Bash(rm:*)",
       "Bash(sed:*)",
       "Bash(taskkill:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": [],
     "ask": []

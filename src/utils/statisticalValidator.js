@@ -214,19 +214,38 @@ export class StatisticalValidator {
   validateNumberPresentation(text) {
     const issues = [];
     
-    // Find numbers at beginning of sentences
-    const sentenceStartNumbers = text.match(/(?:^|\. )\d+/g) || [];
-    sentenceStartNumbers.forEach(match => {
-      const number = match.replace(/[^0-9]/g, '');
-      issues.push({
-        title: "Number at sentence beginning",
-        description: "Spell out numbers that begin sentences",
-        text: match + '...',
-        severity: "Major",
-        category: "statistical",
-        hasFix: false,
-        explanation: `Write "Twenty-three participants..." not "${number} participants..."`
-      });
+    // Find numbers at beginning of sentences with position tracking
+    const paragraphs = text.split('\n');
+    paragraphs.forEach((para, paraIndex) => {
+      const sentenceStartPattern = /(?:^|\. )(\d+)/g;
+      let match;
+      
+      while ((match = sentenceStartPattern.exec(para)) !== null) {
+        const fullMatch = match[0];
+        const number = match[1];
+        const charOffset = match.index;
+        
+        // Get more context for highlighting
+        const contextEnd = Math.min(charOffset + 50, para.length);
+        const contextText = para.substring(charOffset, contextEnd);
+        
+        issues.push({
+          title: "Number at sentence beginning",
+          description: "Spell out numbers that begin sentences",
+          text: fullMatch.trim() + '...',
+          highlightText: contextText,
+          severity: "Major",
+          category: "statistical",
+          location: {
+            paragraphIndex: paraIndex,
+            charOffset: charOffset,
+            length: Math.min(50, contextText.length),
+            type: 'text'
+          },
+          hasFix: false,
+          explanation: `Write "Twenty-three participants..." not "${number} participants..."`
+        });
+      }
     });
     
     // Find single digit numbers (1-9) that should be spelled out

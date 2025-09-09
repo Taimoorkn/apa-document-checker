@@ -351,6 +351,10 @@ export class ReferenceValidator {
   crossCheckCitationsAndReferences(text, referenceEntries) {
     const issues = [];
     
+    // Split text into paragraphs for position tracking
+    const paragraphs = text.split('\n');
+    const referencesStartIndex = paragraphs.findIndex(p => /^references/i.test(p.trim()));
+    
     // Extract all in-text citations
     const citationPattern = /\(([A-Za-z][A-Za-z\s&.,'-]+?)(?:,?\s+et\s+al\.)?(?:,\s+)?(\d{4}[a-z]?|n\.d\.)\)/g;
     const citations = new Map();
@@ -425,14 +429,49 @@ export class ReferenceValidator {
       }
     });
     
-    // Report orphaned references (max 3)
+    // Report orphaned references (max 3) with position tracking
     orphanedRefs.slice(0, 3).forEach(ref => {
+      // Find the paragraph containing this reference
+      let paragraphIndex = -1;
+      let charOffset = 0;
+      
+      if (referencesStartIndex >= 0) {
+        for (let i = referencesStartIndex; i < paragraphs.length; i++) {
+          const para = paragraphs[i];
+          if (para.includes(ref.firstAuthor) && para.includes(ref.year)) {
+            paragraphIndex = i;
+            charOffset = para.indexOf(ref.firstAuthor);
+            break;
+          }
+        }
+      }
+      
+      // If we couldn't find it in paragraphs, search in the full reference text
+      if (paragraphIndex === -1) {
+        const refIndex = text.indexOf(ref.text);
+        if (refIndex !== -1) {
+          // Count newlines before this position to get paragraph index
+          const textBefore = text.substring(0, refIndex);
+          paragraphIndex = (textBefore.match(/\n/g) || []).length;
+          // Get offset within the paragraph
+          const lastNewline = textBefore.lastIndexOf('\n');
+          charOffset = refIndex - lastNewline - 1;
+        }
+      }
+      
       issues.push({
         title: "Orphaned reference",
         description: `Reference for ${ref.firstAuthor} (${ref.year}) not cited in text`,
         text: ref.text.substring(0, 60) + '...',
+        highlightText: ref.text.substring(0, 100), // More text for better matching
         severity: "Major",
         category: "references",
+        location: {
+          paragraphIndex: paragraphIndex >= 0 ? paragraphIndex : null,
+          charOffset: charOffset >= 0 ? charOffset : 0,
+          length: Math.min(100, ref.text.length),
+          type: 'text'
+        },
         hasFix: false,
         explanation: "Only include references that are cited in the document text."
       });

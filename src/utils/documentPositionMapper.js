@@ -91,18 +91,35 @@ export class DocumentPositionMapper {
   findTextPosition(searchText, paragraphIndex = null) {
     const positions = [];
     
+    // Clean up search text - handle truncated text with "..."
+    let cleanSearchText = searchText;
+    let isTruncated = false;
+    if (searchText && searchText.endsWith('...')) {
+      cleanSearchText = searchText.slice(0, -3).trim();
+      isTruncated = true;
+    }
+    
     // If paragraph index is specified, search only in that paragraph
     if (paragraphIndex !== null) {
       const path = this.getSlatePathForParagraph(paragraphIndex);
       if (path) {
         const nodeData = this.nodeMap.get(path.toString());
         if (nodeData && nodeData.text) {
-          const index = nodeData.text.indexOf(searchText);
+          let index = -1;
+          
+          if (isTruncated) {
+            // For truncated text, look for the start of the text
+            index = nodeData.text.indexOf(cleanSearchText);
+          } else {
+            // Exact match
+            index = nodeData.text.indexOf(searchText);
+          }
+          
           if (index !== -1) {
             positions.push({
               path: path,
               offset: index,
-              length: searchText.length,
+              length: isTruncated ? Math.min(cleanSearchText.length + 20, nodeData.text.length - index) : searchText.length,
               paragraphIndex: paragraphIndex
             });
           }
@@ -112,16 +129,31 @@ export class DocumentPositionMapper {
       // Search across all nodes
       for (const [pathStr, nodeData] of this.nodeMap) {
         if (nodeData.text) {
-          let index = nodeData.text.indexOf(searchText);
+          let index = -1;
+          
+          if (isTruncated) {
+            // For truncated text, look for the start of the text
+            index = nodeData.text.indexOf(cleanSearchText);
+          } else {
+            // Exact match
+            index = nodeData.text.indexOf(searchText);
+          }
+          
           while (index !== -1) {
             const path = pathStr.split(',').map(Number);
             positions.push({
               path: path,
               offset: index,
-              length: searchText.length,
+              length: isTruncated ? Math.min(cleanSearchText.length + 20, nodeData.text.length - index) : searchText.length,
               paragraphIndex: nodeData.paragraphIndex
             });
-            index = nodeData.text.indexOf(searchText, index + 1);
+            
+            // Look for more occurrences
+            if (isTruncated) {
+              index = nodeData.text.indexOf(cleanSearchText, index + 1);
+            } else {
+              index = nodeData.text.indexOf(searchText, index + 1);
+            }
           }
         }
       }
@@ -201,9 +233,10 @@ export class DocumentPositionMapper {
   mapIssueToSlatePosition(issue) {
     // Handle different issue location formats
     if (!issue.location) {
-      // No location info, try text search
-      if (issue.text) {
-        const positions = this.findTextPosition(issue.text);
+      // No location info, try text search with both text and highlightText
+      const searchText = issue.highlightText || issue.text;
+      if (searchText) {
+        const positions = this.findTextPosition(searchText);
         return positions.length > 0 ? positions[0] : null;
       }
       return null;
@@ -223,8 +256,9 @@ export class DocumentPositionMapper {
       }
       
       // Otherwise, search for text within the paragraph
-      if (issue.text) {
-        const positions = this.findTextPosition(issue.text, location.paragraphIndex);
+      const searchText = issue.highlightText || issue.text;
+      if (searchText) {
+        const positions = this.findTextPosition(searchText, location.paragraphIndex);
         return positions.length > 0 ? positions[0] : null;
       }
       

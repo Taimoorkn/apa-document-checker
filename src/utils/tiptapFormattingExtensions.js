@@ -299,8 +299,12 @@ export function createFormattedContent(paraFormatting) {
   const content = [];
   
   if (paraFormatting.runs && paraFormatting.runs.length > 0) {
-    paraFormatting.runs.forEach(run => {
-      if (!run.text) return;
+    // Process all runs but optimize for performance
+    const runsToProcess = paraFormatting.runs;
+    
+    runsToProcess.forEach(run => {
+      // Skip completely empty runs
+      if (!run.text || run.text.length === 0) return;
       
       const textNode = {
         type: 'text',
@@ -309,7 +313,7 @@ export function createFormattedContent(paraFormatting) {
       
       const marks = [];
       
-      // Add font formatting mark
+      // Add font formatting mark - always preserve formatting
       const fontAttrs = {};
       if (run.font?.family) {
         fontAttrs.fontFamily = run.font.family;
@@ -373,5 +377,14 @@ export function createFormattedContent(paraFormatting) {
     content.push(textNode);
   }
   
-  return content.length > 0 ? content : [{ type: 'text', text: '' }];
+  // Ensure no empty text nodes - Tiptap doesn't allow them
+  const validContent = content.filter(node => {
+    if (node.type === 'text' && (!node.text || node.text.length === 0)) {
+      return false;
+    }
+    return true;
+  });
+  
+  // If no valid content, return a text node with at least a space
+  return validContent.length > 0 ? validContent : [{ type: 'text', text: ' ' }];
 }

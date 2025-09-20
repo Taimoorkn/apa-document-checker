@@ -4,7 +4,6 @@
       "WebSearch",
       "Bash(npm install:*)",
       "Bash(npm run lint)",
-      "Bash(npm run build:*)",
       "Bash(where:*)",
       "Bash(tree:*)",
       "Bash(npx eslint:*)",

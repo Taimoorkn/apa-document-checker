@@ -13,28 +13,55 @@ export class TiptapDocumentConverter {
           type: 'paragraph',
           content: [{
             type: 'text',
-            text: documentText || ''
+            text: documentText || ' ' // Ensure non-empty text
           }]
         }]
       };
     }
 
     const content = [];
+    // Process all paragraphs - we'll optimize performance differently
+    const paragraphsToProcess = documentFormatting.paragraphs;
     
-    documentFormatting.paragraphs.forEach((paraFormatting) => {
-      const paragraph = this.createParagraphNode(paraFormatting);
-      if (paragraph) {
-        content.push(paragraph);
+    // Process in batches for better performance with large documents
+    const batchSize = 100;
+    for (let i = 0; i < paragraphsToProcess.length; i += batchSize) {
+      const batch = paragraphsToProcess.slice(i, Math.min(i + batchSize, paragraphsToProcess.length));
+      
+      batch.forEach((paraFormatting, batchIndex) => {
+        const index = i + batchIndex;
+        try {
+          const paragraph = this.createParagraphNode(paraFormatting);
+          if (paragraph) {
+            content.push(paragraph);
+          }
+        } catch (error) {
+          console.warn(`Failed to create paragraph ${index}:`, error);
+          // Add a simple fallback paragraph - ensure text is not empty
+          const fallbackText = paraFormatting.text || ' '; // Use space if empty
+          content.push({
+            type: 'paragraph',
+            content: [{
+              type: 'text',
+              text: fallbackText
+            }]
+          });
+        }
+      });
+      
+      // Log progress for large documents
+      if (paragraphsToProcess.length > 500 && i % 500 === 0) {
+        console.log(`Processed ${i} of ${paragraphsToProcess.length} paragraphs...`);
       }
-    });
+    }
 
-    // Ensure at least one paragraph
+    // Ensure at least one paragraph with non-empty text
     if (content.length === 0) {
       content.push({
         type: 'paragraph',
         content: [{
           type: 'text',
-          text: ''
+          text: ' ' // Use space instead of empty string
         }]
       });
     }

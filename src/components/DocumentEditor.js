@@ -110,37 +110,111 @@ export default function DocumentEditor() {
       paragraphCount: documentFormatting?.paragraphs?.length
     });
     
-    // Convert document with full formatting preservation
+    // Always try to use Tiptap formatting for better preservation
     if (documentFormatting && documentFormatting.paragraphs) {
       try {
-        const tiptapDoc = tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
-        console.log('Converted Tiptap document:', tiptapDoc);
+        const paragraphCount = documentFormatting.paragraphs.length;
+        console.log(`Converting document with ${paragraphCount} paragraphs...`);
         
-        // Use a timeout to ensure editor is ready
+        // Always convert to Tiptap format to preserve formatting
+        const tiptapDoc = tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
+        console.log('Converted Tiptap document');
+        
+        // Set content with a delay to ensure editor is ready
         setTimeout(() => {
           if (editor && !editor.isDestroyed) {
             editor.commands.setContent(tiptapDoc);
-            console.log('Formatted content set successfully');
+            console.log('Document content set with formatting');
+            
+            // After content is set, update highlighting
+            setTimeout(() => {
+              if (issues.length > 0) {
+                editor.commands.updateIssueHighlights({
+                  issues: issues,
+                  activeIssueId: activeIssueId,
+                  showHighlighting: showIssueHighlighting
+                });
+              }
+            }, 200);
           }
         }, 100);
       } catch (error) {
         console.error('Error converting document:', error);
-        // Fallback to simple HTML
-        const paragraphs = documentText.split('\n').filter(p => p.trim());
-        const htmlContent = paragraphs.map(p => `<p>${p}</p>`).join('');
+        // Fallback to HTML with preserved styling
+        let htmlContent = '';
+        
+        if (documentFormatting && documentFormatting.paragraphs) {
+          documentFormatting.paragraphs.forEach((para, index) => {
+            if (index > 2000) return; // Limit for performance
+            
+            let paraText = '';
+            let styleAttr = '';
+            
+            // Extract text
+            if (para.runs && para.runs.length > 0) {
+              paraText = para.runs.map(run => run.text || '').join('');
+            } else if (para.text) {
+              paraText = para.text;
+            }
+            
+            // Build style attribute
+            const styles = [];
+            if (para.spacing?.line) {
+              styles.push(`line-height: ${para.spacing.line}`);
+            }
+            if (para.spacing?.before) {
+              styles.push(`margin-top: ${para.spacing.before}pt`);
+            }
+            if (para.spacing?.after) {
+              styles.push(`margin-bottom: ${para.spacing.after}pt`);
+            }
+            if (para.indentation?.firstLine) {
+              styles.push(`text-indent: ${para.indentation.firstLine}in`);
+            }
+            if (para.alignment && para.alignment !== 'left') {
+              styles.push(`text-align: ${para.alignment}`);
+            }
+            
+            if (styles.length > 0) {
+              styleAttr = ` style="${styles.join('; ')}"`;
+            }
+            
+            // Only add non-empty paragraphs
+            if (paraText && paraText.trim()) {
+              // Escape HTML characters
+              paraText = paraText
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+              
+              htmlContent += `<p${styleAttr}>${paraText}</p>`;
+            }
+          });
+        }
+        
+        // Ensure we have some content
+        if (!htmlContent) {
+          const paragraphs = (documentText || '').split('\n').filter(p => p.trim()).slice(0, 500);
+          htmlContent = paragraphs.map(p => `<p>${p.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`).join('') || '<p>Document could not be displayed</p>';
+        }
+        
         setTimeout(() => {
           if (editor && !editor.isDestroyed) {
-            editor.commands.setContent(htmlContent || '<p>Empty document</p>');
+            editor.commands.setContent(htmlContent);
+            console.log('Document rendered as HTML with styles');
           }
         }, 100);
       }
     } else {
-      // No formatting data, use simple HTML
-      const paragraphs = documentText.split('\n').filter(p => p.trim());
-      const htmlContent = paragraphs.map(p => `<p>${p}</p>`).join('');
+      // No formatting data, use document text
+      const paragraphs = (documentText || '').split('\n').filter(p => p.trim()).slice(0, 500);
+      const htmlContent = paragraphs.map(p => `<p>${p.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`).join('') || '<p>No content to display</p>';
+      
       setTimeout(() => {
         if (editor && !editor.isDestroyed) {
-          editor.commands.setContent(htmlContent || '<p>Empty document</p>');
+          editor.commands.setContent(htmlContent);
         }
       }, 100);
     }
@@ -148,7 +222,7 @@ export default function DocumentEditor() {
 
   // Update issue highlighting when issues or settings change
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !editor.commands) return;
     
     console.log('Updating issue highlights:', {
       issueCount: issues.length,
@@ -156,13 +230,56 @@ export default function DocumentEditor() {
       activeIssueId
     });
     
-    // Update highlights with current issues
-    editor.commands.updateIssueHighlights({
-      issues: issues,
-      activeIssueId: activeIssueId,
-      showHighlighting: showIssueHighlighting
-    });
+    // Small delay to ensure content is rendered
+    const timer = setTimeout(() => {
+      if (editor && !editor.isDestroyed) {
+        // Update highlights with current issues
+        editor.commands.updateIssueHighlights({
+          issues: issues,
+          activeIssueId: activeIssueId,
+          showHighlighting: showIssueHighlighting
+        });
+        
+        // Scroll to active issue if there is one
+        if (activeIssueId) {
+          scrollToIssue(activeIssueId);
+        }
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
   }, [editor, issues, activeIssueId, showIssueHighlighting]);
+  
+  // Function to scroll to an issue in the document
+  const scrollToIssue = useCallback((issueId) => {
+    if (!editor) return;
+    
+    const { state } = editor;
+    const { doc } = state;
+    const issue = issues.find(i => i.id === issueId);
+    
+    if (!issue) return;
+    
+    // Find the issue text in the document
+    const searchText = issue.highlightText || issue.text;
+    if (!searchText) return;
+    
+    let found = false;
+    doc.descendants((node, pos) => {
+      if (found) return false;
+      
+      if (node.isText && node.text.includes(searchText)) {
+        // Focus the editor and set selection
+        editor.chain()
+          .focus()
+          .setTextSelection({ from: pos, to: pos + searchText.length })
+          .scrollIntoView()
+          .run();
+        found = true;
+        return false;
+      }
+    });
+  }, [editor, issues]);
 
   // Handle manual analysis
   const handleManualAnalysis = useCallback(async () => {

@@ -6,6 +6,51 @@ import { v4 as uuidv4 } from 'uuid';
 // Import the enhanced APA analyzer
 import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
 
+// Simple event emitter for internal store communication
+class StoreEventEmitter {
+  constructor() {
+    this.listeners = new Map();
+  }
+
+  on(event, callback) {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(callback);
+
+    // Return cleanup function
+    return () => this.off(event, callback);
+  }
+
+  off(event, callback) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).delete(callback);
+      if (this.listeners.get(event).size === 0) {
+        this.listeners.delete(event);
+      }
+    }
+  }
+
+  emit(event, data) {
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+
+  clear() {
+    this.listeners.clear();
+  }
+}
+
+// Global store event emitter
+const storeEvents = new StoreEventEmitter();
+
 export const useDocumentStore = create((set, get) => ({
   // Document state - now includes rich formatting data
   documentText: null,
@@ -20,6 +65,9 @@ export const useDocumentStore = create((set, get) => ({
   // Fix application state to prevent race conditions
   fixInProgress: false,
   fixQueue: [], // Queue of pending fixes
+
+  // Event emitter for component communication
+  events: storeEvents,
   
   // Editor state
   editorContent: null,      // Tiptap editor content (JSON)
@@ -717,15 +765,12 @@ export const useDocumentStore = create((set, get) => ({
       if (replacementText && replacementText !== issue.text) {
         console.log(`📝 Replacement text: "${replacementText}"`);
         
-        // Signal to DocumentEditor to apply the text replacement
-        // We'll use a custom event or store method to communicate with the editor
-        window.dispatchEvent(new CustomEvent('applyTextReplacement', {
-          detail: {
-            originalText: issue.text,
-            replacementText: replacementText,
-            issueId: issueId
-          }
-        }));
+        // Signal to DocumentEditor to apply the text replacement using store events
+        get().events.emit('applyTextReplacement', {
+          originalText: issue.text,
+          replacementText: replacementText,
+          issueId: issueId
+        });
         
         // Remove the issue from the list
         const updatedIssues = issues.filter(i => i.id !== issueId);
@@ -979,22 +1024,41 @@ export const useDocumentStore = create((set, get) => ({
       // Convert Uint8Array to base64 for JSON transport with error handling
       let base64Buffer;
       try {
-        // Handle large buffers that might exceed call stack
-        if (currentDocumentBuffer.length > 100000) {
-          // Process in chunks for large buffers
-          let binaryString = '';
-          const chunkSize = 8192;
-          for (let i = 0; i < currentDocumentBuffer.length; i += chunkSize) {
-            const chunk = currentDocumentBuffer.slice(i, i + chunkSize);
-            binaryString += String.fromCharCode.apply(null, chunk);
-          }
-          base64Buffer = btoa(binaryString);
-        } else {
-          base64Buffer = btoa(String.fromCharCode(...currentDocumentBuffer));
+        // Always use chunked processing to prevent call stack overflow
+        // This approach is safe for all buffer sizes
+        let binaryString = '';
+        const chunkSize = 8192; // 8KB chunks to prevent call stack issues
+
+        for (let i = 0; i < currentDocumentBuffer.length; i += chunkSize) {
+          const chunk = currentDocumentBuffer.slice(i, i + chunkSize);
+          // Use apply with smaller chunks to avoid call stack overflow
+          binaryString += String.fromCharCode.apply(null, chunk);
         }
+
+        base64Buffer = btoa(binaryString);
+        console.log(`✅ Buffer conversion successful: ${currentDocumentBuffer.length} bytes processed in chunks`);
+
       } catch (bufferError) {
         console.error('Error converting buffer to base64:', bufferError);
-        throw new Error(`Failed to convert document buffer: ${bufferError.message}`);
+
+        // Fallback to even smaller chunks if first attempt fails
+        try {
+          console.log('Retrying with smaller chunks...');
+          let binaryString = '';
+          const smallerChunkSize = 1024; // 1KB chunks as fallback
+
+          for (let i = 0; i < currentDocumentBuffer.length; i += smallerChunkSize) {
+            const chunk = currentDocumentBuffer.slice(i, i + smallerChunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+          }
+
+          base64Buffer = btoa(binaryString);
+          console.log(`✅ Buffer conversion successful with smaller chunks: ${currentDocumentBuffer.length} bytes`);
+
+        } catch (secondError) {
+          console.error('Buffer conversion failed even with small chunks:', secondError);
+          throw new Error(`Failed to convert document buffer: ${secondError.message}`);
+        }
       }
       
       // Send fix request to server with document buffer
@@ -1118,10 +1182,11 @@ export const useDocumentStore = create((set, get) => ({
     if (prevActiveId !== issueId) {
       console.log(`🎯 Active issue changed from ${prevActiveId} to ${issueId}`);
       
-      // Dispatch event to trigger re-highlighting in DocumentEditor
-      window.dispatchEvent(new CustomEvent('activeIssueChanged', {
-        detail: { previousId: prevActiveId, currentId: issueId }
-      }));
+      // Emit event to trigger re-highlighting in DocumentEditor using store events
+      get().events.emit('activeIssueChanged', {
+        previousId: prevActiveId,
+        currentId: issueId
+      });
     }
     
     // Scroll to the issue in the document
@@ -1496,5 +1561,64 @@ export const useDocumentStore = create((set, get) => ({
       console.error('Export failed:', error);
       throw error;
     }
+  },
+
+  // Cleanup function to clear all event listeners
+  clearEventListeners: () => {
+    const state = get();
+    if (state.events) {
+      state.events.clear();
+      console.log('🧹 All event listeners cleared');
+    }
+  },
+
+  // Reset store with proper cleanup
+  resetStore: () => {
+    const state = get();
+
+    // Clear event listeners first
+    if (state.events) {
+      state.events.clear();
+    }
+
+    // Reset all state
+    set({
+      documentText: null,
+      documentHtml: null,
+      documentName: null,
+      documentFormatting: null,
+      documentStructure: null,
+      documentStyles: null,
+      originalDocumentBuffer: null,
+      currentDocumentBuffer: null,
+      fixInProgress: false,
+      fixQueue: [],
+      editorContent: null,
+      editorChanged: false,
+      documentStats: {
+        wordCount: 0,
+        charCount: 0,
+        paragraphCount: 0,
+        processingTime: 0
+      },
+      issues: [],
+      analysisScore: 0,
+      activeIssueId: null,
+      showIssueHighlighting: true,
+      processingState: {
+        isUploading: false,
+        isAnalyzing: false,
+        isApplyingFix: false,
+        progress: 0,
+        stage: null,
+        lastError: null,
+        currentFixId: null
+      },
+      lastFixAppliedAt: null,
+      complianceDetails: null,
+      events: storeEvents // Preserve the event emitter instance
+    });
+
+    console.log('📄 Document store reset complete with event cleanup');
   }
 }));

@@ -8,6 +8,7 @@ import { FormattedParagraph, FontFormatting, DocumentDefaults } from '@/utils/ti
 import { tiptapConverter } from '@/utils/tiptapDocumentConverter';
 import { IssueHighlighter } from '@/utils/tiptapIssueHighlighter';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import ErrorBoundary from './ErrorBoundary';
 import { 
   FileText,
   CheckCircle2,
@@ -46,13 +47,15 @@ export default function DocumentEditor() {
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
   const lastContentUpdate = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [editorError, setEditorError] = useState(null);
+  const [editorInitialized, setEditorInitialized] = useState(false);
 
   // Ensure client-side only rendering
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Initialize Tiptap editor with SSR fix
+  // Initialize Tiptap editor with SSR fix and error handling
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -81,12 +84,28 @@ export default function DocumentEditor() {
       }
     },
     onUpdate: ({ editor }) => {
-      // Track content changes for analysis
-      const currentContent = editor.getJSON();
-      lastContentUpdate.current = currentContent;
+      try {
+        // Track content changes for analysis
+        const currentContent = editor.getJSON();
+        lastContentUpdate.current = currentContent;
+      } catch (error) {
+        console.error('Error in editor onUpdate:', error);
+        setEditorError(error);
+      }
     },
     onCreate: ({ editor }) => {
-      console.log('Editor created successfully, isEditable:', editor.isEditable);
+      try {
+        console.log('Editor created successfully, isEditable:', editor.isEditable);
+        setEditorInitialized(true);
+        setEditorError(null);
+      } catch (error) {
+        console.error('Error in editor onCreate:', error);
+        setEditorError(error);
+      }
+    },
+    onError: ({ error }) => {
+      console.error('Editor encountered an error:', error);
+      setEditorError(error);
     }
   });
 
@@ -112,33 +131,35 @@ export default function DocumentEditor() {
     
     // Always try to use Tiptap formatting for better preservation
     if (documentFormatting && documentFormatting.paragraphs) {
-      try {
-        const paragraphCount = documentFormatting.paragraphs.length;
-        console.log(`Converting document with ${paragraphCount} paragraphs...`);
-        
-        // Always convert to Tiptap format to preserve formatting
-        const tiptapDoc = tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
-        console.log('Converted Tiptap document');
-        
-        // Set content with a delay to ensure editor is ready
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            editor.commands.setContent(tiptapDoc);
-            console.log('Document content set with formatting');
-            
-            // After content is set, update highlighting
-            setTimeout(() => {
-              if (issues.length > 0) {
-                editor.commands.updateIssueHighlights({
-                  issues: issues,
-                  activeIssueId: activeIssueId,
-                  showHighlighting: showIssueHighlighting
-                });
-              }
-            }, 200);
-          }
-        }, 100);
-      } catch (error) {
+      // Use async function to handle document conversion
+      const convertAndSetContent = async () => {
+        try {
+          const paragraphCount = documentFormatting.paragraphs.length;
+          console.log(`Converting document with ${paragraphCount} paragraphs...`);
+
+          // Always convert to Tiptap format to preserve formatting (now async)
+          const tiptapDoc = await tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
+          console.log('Converted Tiptap document');
+
+          // Set content with a delay to ensure editor is ready
+          setTimeout(() => {
+            if (editor && !editor.isDestroyed) {
+              editor.commands.setContent(tiptapDoc);
+              console.log('Document content set with formatting');
+
+              // After content is set, update highlighting
+              setTimeout(() => {
+                if (issues.length > 0) {
+                  editor.commands.updateIssueHighlights({
+                    issues: issues,
+                    activeIssueId: activeIssueId,
+                    showHighlighting: showIssueHighlighting
+                  });
+                }
+              }, 200);
+            }
+          }, 100);
+        } catch (error) {
         console.error('Error converting document:', error);
         // Fallback to HTML with preserved styling
         let htmlContent = '';
@@ -206,7 +227,11 @@ export default function DocumentEditor() {
             console.log('Document rendered as HTML with styles');
           }
         }, 100);
-      }
+        }
+      };
+
+      // Start async conversion
+      convertAndSetContent();
     } else {
       // No formatting data, use document text
       const paragraphs = (documentText || '').split('\n').filter(p => p.trim()).slice(0, 500);
@@ -368,15 +393,18 @@ export default function DocumentEditor() {
     editor.commands.setActiveIssue(activeIssueId);
   }, [editor, activeIssueId]);
 
-  // Listen for text replacement events
+  // Listen for text replacement events using store event system
   useEffect(() => {
-    const handleTextReplacement = (event) => {
-      const { originalText, replacementText } = event.detail;
+    const handleTextReplacement = (data) => {
+      const { originalText, replacementText } = data;
       applyTextReplacement(originalText, replacementText);
     };
 
-    window.addEventListener('applyTextReplacement', handleTextReplacement);
-    return () => window.removeEventListener('applyTextReplacement', handleTextReplacement);
+    // Use store event system instead of window events for better scoping
+    const { events } = useDocumentStore.getState();
+    const cleanup = events.on('applyTextReplacement', handleTextReplacement);
+
+    return cleanup; // Automatic cleanup when component unmounts
   }, [applyTextReplacement]);
 
   // Keyboard shortcuts
@@ -533,10 +561,10 @@ export default function DocumentEditor() {
               {/* Force Update Button - Debug */}
               {documentText && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (editor && documentText && documentFormatting) {
                       try {
-                        const tiptapDoc = tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
+                        const tiptapDoc = await tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
                         editor.commands.setContent(tiptapDoc);
                         console.log('Forced formatted content update');
                       } catch (error) {
@@ -673,17 +701,54 @@ export default function DocumentEditor() {
               ref={editorRef}
               className="bg-white rounded-lg shadow-sm border border-gray-200"
             >
-              {editor ? (
-                <>
-                  <EditorContent editor={editor} />
-                  {/* Debug info */}
-                  <div className="p-4 bg-gray-100 border-t text-xs text-gray-600">
-                    <div>Editor ready: {editor.isEditable ? 'Yes' : 'No'}</div>
-                    <div>Document text length: {documentText?.length || 0}</div>
-                    <div>Editor HTML length: {editor.getHTML()?.length || 0}</div>
-                    <div>First 100 chars: {documentText?.substring(0, 100)}</div>
+              {editorError ? (
+                // Show editor error fallback
+                <div className="p-8 min-h-[500px] bg-red-50 border border-red-200 rounded-lg">
+                  <div className="text-center">
+                    <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-red-700 mb-2">Editor Error</h3>
+                    <p className="text-sm text-red-600 mb-4">
+                      The document editor encountered an error and could not load properly.
+                    </p>
+                    <p className="text-xs text-red-500 mb-4 font-mono">
+                      {editorError.message}
+                    </p>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          setEditorError(null);
+                          setEditorInitialized(false);
+                          window.location.reload();
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                      >
+                        Reload Editor
+                      </button>
+                      {documentText && (
+                        <div className="mt-4 p-4 bg-white rounded border text-left max-h-60 overflow-auto">
+                          <h4 className="font-medium text-gray-700 mb-2">Document Text Preview:</h4>
+                          <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                            {documentText.substring(0, 1000)}
+                            {documentText.length > 1000 && '...'}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </>
+                </div>
+              ) : editor && editorInitialized ? (
+                <ErrorBoundary showDetails={true}>
+                  <>
+                    <EditorContent editor={editor} />
+                    {/* Debug info */}
+                    <div className="p-4 bg-gray-100 border-t text-xs text-gray-600">
+                      <div>Editor ready: {editor.isEditable ? 'Yes' : 'No'}</div>
+                      <div>Document text length: {documentText?.length || 0}</div>
+                      <div>Editor HTML length: {editor.getHTML()?.length || 0}</div>
+                      <div>First 100 chars: {documentText?.substring(0, 100)}</div>
+                    </div>
+                  </>
+                </ErrorBoundary>
               ) : (
                 <div className="p-8 min-h-[500px]">
                   <div className="text-center">

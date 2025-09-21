@@ -52,101 +52,212 @@ export class EnhancedAPAAnalyzer {
    */
   analyzeDocument(documentData) {
     const issues = [];
-    
-    // Safely extract data with defaults
-    const { 
-      text = '', 
-      html = '', 
-      formatting = null, 
-      structure = null 
-    } = documentData || {};
-    
-    
-    // 1. Analyze formatting with precise data (if available)
-    if (formatting) {
-      issues.push(...this.analyzeFormatting(formatting));
-    } else {
-      console.warn('⚠️ No formatting data available - using basic analysis');
-      issues.push(...this.analyzeBasicFormatting(html));
+
+    // Comprehensive input validation
+    if (!documentData) {
+      console.error('❌ analyzeDocument called with null/undefined documentData');
+      issues.push({
+        id: 'invalid-document-data',
+        title: 'Invalid document data',
+        description: 'Document analysis failed due to missing document data',
+        severity: 'Critical',
+        category: 'document',
+        hasFix: false,
+        explanation: 'The document could not be analyzed because no document data was provided.'
+      });
+      return issues;
     }
-    
-    // 2. Analyze document structure
-    if (structure && text) {
-      issues.push(...this.analyzeStructure(structure, text));
-    } else if (text) {
-      console.warn('⚠️ No structure data available - using text-based analysis');
-      issues.push(...this.analyzeBasicStructure(text));
+
+    // Safely extract data with defaults and type checking
+    const {
+      text = '',
+      html = '',
+      formatting = null,
+      structure = null
+    } = documentData;
+
+    // Validate required fields
+    if (!text && !html) {
+      console.error('❌ Document has no text or HTML content');
+      issues.push({
+        id: 'no-content',
+        title: 'Empty document',
+        description: 'Document contains no readable text content',
+        severity: 'Critical',
+        category: 'document',
+        hasFix: false,
+        explanation: 'The document appears to be empty or could not be processed properly.'
+      });
+      return issues;
     }
-    
-    // 3. Analyze citations - use basic analysis for better results
-    if (text) {
-      console.log('📚 Using basic citation analysis for better coverage...');
-      issues.push(...this.analyzeBasicCitations(text));
+
+    // Validate text content
+    if (typeof text !== 'string') {
+      console.warn('⚠️ Document text is not a string, converting...');
+      text = String(text || '');
     }
-    
-    // 4. Analyze references with enhanced validation including deep formatting
-    if (text) {
-      // Pass italicized text for deep formatting validation
-      const italicizedText = structure?.italicizedText || [];
-      const referenceIssues = this.referenceValidator.validateReferences(text, structure, italicizedText);
-      issues.push(...referenceIssues);
+
+    // Validate HTML content
+    if (typeof html !== 'string') {
+      console.warn('⚠️ Document HTML is not a string, converting...');
+      html = String(html || '');
     }
-    
-    // 5. Analyze tables and figures including border validation
-    if (text) {
-      // Enhanced validation with table border information from XML
-      const tableFigureIssues = this.tableFigureValidator.validateTablesAndFigures(text, structure, formatting);
-      
-      // Add table border validation if XML data is available
-      if (structure?.tables) {
-        tableFigureIssues.push(...this.validateTableBorders(structure.tables));
+
+    console.log(`📊 Analyzing document: ${text.length} chars text, ${html.length} chars HTML, formatting: ${!!formatting}, structure: ${!!structure}`);
+
+    try {
+      // 1. Analyze formatting with precise data (if available)
+      if (formatting && typeof formatting === 'object') {
+        issues.push(...this.analyzeFormatting(formatting));
+      } else {
+        console.warn('⚠️ No valid formatting data available - using basic analysis');
+        issues.push(...this.analyzeBasicFormatting(html));
       }
-      
-      issues.push(...tableFigureIssues);
+    } catch (error) {
+      console.error('❌ Error in formatting analysis:', error);
+      issues.push(this.createErrorIssue('formatting-analysis-error', 'Formatting analysis failed', error.message));
     }
-    
-    // 6. Analyze headers, footers, running heads, and page numbers
-    if (text && structure) {
-      const headerFooterIssues = this.headerFooterValidator.validateHeadersFooters(text, structure);
-      issues.push(...headerFooterIssues);
+
+    try {
+      // 2. Analyze document structure
+      if (structure && typeof structure === 'object' && text) {
+        issues.push(...this.analyzeStructure(structure, text));
+      } else if (text) {
+        console.warn('⚠️ No valid structure data available - using text-based analysis');
+        issues.push(...this.analyzeBasicStructure(text));
+      }
+    } catch (error) {
+      console.error('❌ Error in structure analysis:', error);
+      issues.push(this.createErrorIssue('structure-analysis-error', 'Structure analysis failed', error.message));
     }
-    
-    // 7. Advanced citation validation
-    if (text) {
-      const advancedCitationIssues = this.advancedCitationValidator.validateAdvancedCitations(text, structure);
-      issues.push(...advancedCitationIssues);
+
+    try {
+      // 3. Analyze citations - use basic analysis for better results
+      if (text) {
+        console.log('📚 Using basic citation analysis for better coverage...');
+        issues.push(...this.analyzeBasicCitations(text));
+      }
+    } catch (error) {
+      console.error('❌ Error in citation analysis:', error);
+      issues.push(this.createErrorIssue('citation-analysis-error', 'Citation analysis failed', error.message));
     }
-    
-    // 8. Quotation handling validation
-    if (text) {
-      const quotationIssues = this.quotationValidator.validateQuotations(text, structure);
-      issues.push(...quotationIssues);
+
+    try {
+      // 4. Analyze references with enhanced validation including deep formatting
+      if (text) {
+        // Safely extract italicized text
+        const italicizedText = (structure && Array.isArray(structure.italicizedText)) ? structure.italicizedText : [];
+        const referenceIssues = this.referenceValidator.validateReferences(text, structure, italicizedText);
+        issues.push(...(Array.isArray(referenceIssues) ? referenceIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in reference validation:', error);
+      issues.push(this.createErrorIssue('reference-validation-error', 'Reference validation failed', error.message));
     }
-    
-    // 9. Statistical and numerical formatting
-    if (text) {
-      const statisticalIssues = this.statisticalValidator.validateStatistical(text, structure);
-      issues.push(...statisticalIssues);
+
+    try {
+      // 5. Analyze tables and figures including border validation
+      if (text) {
+        // Enhanced validation with table border information from XML
+        const tableFigureIssues = this.tableFigureValidator.validateTablesAndFigures(text, structure, formatting);
+        issues.push(...(Array.isArray(tableFigureIssues) ? tableFigureIssues : []));
+
+        // Add table border validation if XML data is available
+        if (structure && Array.isArray(structure.tables)) {
+          const borderIssues = this.validateTableBorders(structure.tables);
+          issues.push(...(Array.isArray(borderIssues) ? borderIssues : []));
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in table/figure validation:', error);
+      issues.push(this.createErrorIssue('table-figure-error', 'Table/figure validation failed', error.message));
     }
-    
-    // 10. Bias-free language detection
-    if (text) {
-      const biasFreeIssues = this.biasFreeLanguageValidator.validateBiasFreeLanguage(text, structure);
-      issues.push(...biasFreeIssues);
+
+    try {
+      // 6. Analyze headers, footers, running heads, and page numbers
+      if (text && structure && typeof structure === 'object') {
+        const headerFooterIssues = this.headerFooterValidator.validateHeadersFooters(text, structure);
+        issues.push(...(Array.isArray(headerFooterIssues) ? headerFooterIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in header/footer validation:', error);
+      issues.push(this.createErrorIssue('header-footer-error', 'Header/footer validation failed', error.message));
     }
-    
-    // 11. Lists, abbreviations, and appendices
-    if (text) {
-      issues.push(...this.comprehensiveValidator.validateListsAndSeriation(text));
-      issues.push(...this.comprehensiveValidator.validateAbbreviations(text));
-      issues.push(...this.comprehensiveValidator.validateAppendixAndSupplements(text, structure));
-      issues.push(...this.comprehensiveValidator.validateTitleAndHeadings(text));
+
+    try {
+      // 7. Advanced citation validation
+      if (text) {
+        const advancedCitationIssues = this.advancedCitationValidator.validateAdvancedCitations(text, structure);
+        issues.push(...(Array.isArray(advancedCitationIssues) ? advancedCitationIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in advanced citation validation:', error);
+      issues.push(this.createErrorIssue('advanced-citation-error', 'Advanced citation validation failed', error.message));
     }
-    
-    // 12. Additional APA rules (footnotes, equations, legal, social media, etc.)
-    if (text) {
-      const additionalRulesValidator = new AdditionalAPARules();
-      issues.push(...additionalRulesValidator.validateAdditionalRules(text, structure));
+
+    try {
+      // 8. Quotation handling validation
+      if (text) {
+        const quotationIssues = this.quotationValidator.validateQuotations(text, structure);
+        issues.push(...(Array.isArray(quotationIssues) ? quotationIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in quotation validation:', error);
+      issues.push(this.createErrorIssue('quotation-error', 'Quotation validation failed', error.message));
+    }
+
+    try {
+      // 9. Statistical and numerical formatting
+      if (text) {
+        const statisticalIssues = this.statisticalValidator.validateStatistical(text, structure);
+        issues.push(...(Array.isArray(statisticalIssues) ? statisticalIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in statistical validation:', error);
+      issues.push(this.createErrorIssue('statistical-error', 'Statistical validation failed', error.message));
+    }
+
+    try {
+      // 10. Bias-free language detection
+      if (text) {
+        const biasFreeIssues = this.biasFreeLanguageValidator.validateBiasFreeLanguage(text, structure);
+        issues.push(...(Array.isArray(biasFreeIssues) ? biasFreeIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in bias-free language validation:', error);
+      issues.push(this.createErrorIssue('bias-free-error', 'Bias-free language validation failed', error.message));
+    }
+
+    try {
+      // 11. Lists, abbreviations, and appendices
+      if (text) {
+        const listIssues = this.comprehensiveValidator.validateListsAndSeriation(text);
+        issues.push(...(Array.isArray(listIssues) ? listIssues : []));
+
+        const abbrIssues = this.comprehensiveValidator.validateAbbreviations(text);
+        issues.push(...(Array.isArray(abbrIssues) ? abbrIssues : []));
+
+        const appendixIssues = this.comprehensiveValidator.validateAppendixAndSupplements(text, structure);
+        issues.push(...(Array.isArray(appendixIssues) ? appendixIssues : []));
+
+        const titleIssues = this.comprehensiveValidator.validateTitleAndHeadings(text);
+        issues.push(...(Array.isArray(titleIssues) ? titleIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in comprehensive validation:', error);
+      issues.push(this.createErrorIssue('comprehensive-error', 'Comprehensive validation failed', error.message));
+    }
+
+    try {
+      // 12. Additional APA rules (footnotes, equations, legal, social media, etc.)
+      if (text) {
+        const additionalRulesValidator = new AdditionalAPARules();
+        const additionalIssues = additionalRulesValidator.validateAdditionalRules(text, structure);
+        issues.push(...(Array.isArray(additionalIssues) ? additionalIssues : []));
+      }
+    } catch (error) {
+      console.error('❌ Error in additional rules validation:', error);
+      issues.push(this.createErrorIssue('additional-rules-error', 'Additional rules validation failed', error.message));
     }
     
     // 13. Analyze content compliance (original basic content check)
@@ -155,9 +266,26 @@ export class EnhancedAPAAnalyzer {
     }
     
     
+    console.log(`✅ Analysis complete: ${issues.length} issues found`);
     return this.prioritizeAndDeduplicateIssues(issues);
   }
-  
+
+  /**
+   * Create a standardized error issue for analysis failures
+   */
+  createErrorIssue(id, title, errorMessage) {
+    return {
+      id: id,
+      title: title,
+      description: `Analysis failed: ${errorMessage}`,
+      severity: 'Major',
+      category: 'system',
+      hasFix: false,
+      explanation: 'An error occurred during document analysis. The validator may have encountered invalid data or a processing error.',
+      error: errorMessage
+    };
+  }
+
   /**
    * Analyze formatting with precise measurements - FIXED with safe property access
    */

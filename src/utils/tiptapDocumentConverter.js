@@ -2,10 +2,62 @@
 import { createFormattedParagraph, createFormattedContent } from './tiptapFormattingExtensions';
 
 export class TiptapDocumentConverter {
+  constructor() {
+    this.memoryMonitor = {
+      enabled: typeof performance !== 'undefined' && performance.memory,
+      initialMemory: 0,
+      peakMemory: 0
+    };
+  }
+
   /**
-   * Convert server document formatting to Tiptap JSON format
+   * Yield control back to the UI thread
    */
-  convertToTiptapDocument(documentText, documentFormatting) {
+  async yieldToUI() {
+    return new Promise(resolve => {
+      // Use MessageChannel for proper yielding if available, otherwise setTimeout
+      if (typeof MessageChannel !== 'undefined') {
+        const channel = new MessageChannel();
+        channel.port2.onmessage = () => resolve();
+        channel.port1.postMessage(null);
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+  }
+
+  /**
+   * Monitor memory usage during processing
+   */
+  checkMemoryUsage() {
+    if (this.memoryMonitor.enabled) {
+      const currentMemory = performance.memory.usedJSHeapSize;
+      this.memoryMonitor.peakMemory = Math.max(this.memoryMonitor.peakMemory, currentMemory);
+
+      // Warn if memory usage is high
+      if (currentMemory > 100 * 1024 * 1024) { // 100MB threshold
+        console.warn(`⚠️ High memory usage detected: ${Math.round(currentMemory / 1024 / 1024)}MB`);
+      }
+
+      return {
+        current: currentMemory,
+        peak: this.memoryMonitor.peakMemory,
+        initial: this.memoryMonitor.initialMemory
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Convert server document formatting to Tiptap JSON format (async with UI yielding)
+   */
+  async convertToTiptapDocument(documentText, documentFormatting) {
+    // Initialize memory monitoring
+    if (this.memoryMonitor.enabled) {
+      this.memoryMonitor.initialMemory = performance.memory.usedJSHeapSize;
+      this.memoryMonitor.peakMemory = this.memoryMonitor.initialMemory;
+    }
+
     if (!documentFormatting?.paragraphs?.length) {
       return {
         type: 'doc',
@@ -20,14 +72,26 @@ export class TiptapDocumentConverter {
     }
 
     const content = [];
-    // Process all paragraphs - we'll optimize performance differently
     const paragraphsToProcess = documentFormatting.paragraphs;
-    
-    // Process in batches for better performance with large documents
-    const batchSize = 100;
+
+    // Dynamic batch sizing based on document size
+    const batchSize = paragraphsToProcess.length > 1000 ? 50 : 100;
+    const yieldInterval = 10; // Yield to UI every 10 batches
+    let processedBatches = 0;
+    const startTime = performance.now();
+
+    console.log(`📄 Processing ${paragraphsToProcess.length} paragraphs in batches of ${batchSize}...`);
+
+    // Log initial memory usage
+    const initialMemory = this.checkMemoryUsage();
+    if (initialMemory) {
+      console.log(`💾 Initial memory usage: ${Math.round(initialMemory.current / 1024 / 1024)}MB`);
+    }
+
     for (let i = 0; i < paragraphsToProcess.length; i += batchSize) {
       const batch = paragraphsToProcess.slice(i, Math.min(i + batchSize, paragraphsToProcess.length));
-      
+
+      // Process batch synchronously but yield to UI between batches
       batch.forEach((paraFormatting, batchIndex) => {
         const index = i + batchIndex;
         try {
@@ -48,11 +112,35 @@ export class TiptapDocumentConverter {
           });
         }
       });
-      
-      // Log progress for large documents
-      if (paragraphsToProcess.length > 500 && i % 500 === 0) {
-        console.log(`Processed ${i} of ${paragraphsToProcess.length} paragraphs...`);
+
+      processedBatches++;
+
+      // Yield to UI thread every few batches for large documents
+      if (processedBatches % yieldInterval === 0) {
+        await this.yieldToUI();
+
+        // Check memory usage
+        const memoryInfo = this.checkMemoryUsage();
+
+        // Log progress for large documents
+        if (paragraphsToProcess.length > 500) {
+          const processed = Math.min(i + batchSize, paragraphsToProcess.length);
+          const percent = Math.round((processed / paragraphsToProcess.length) * 100);
+          const memoryText = memoryInfo ? ` | Memory: ${Math.round(memoryInfo.current / 1024 / 1024)}MB` : '';
+          console.log(`📊 Processed ${processed} of ${paragraphsToProcess.length} paragraphs (${percent}%)${memoryText}`);
+        }
       }
+    }
+
+    // Log completion statistics
+    const endTime = performance.now();
+    const processingTime = endTime - startTime;
+    const finalMemory = this.checkMemoryUsage();
+
+    console.log(`✅ Document conversion completed in ${Math.round(processingTime)}ms`);
+    if (finalMemory) {
+      const memoryUsed = Math.round((finalMemory.peak - finalMemory.initial) / 1024 / 1024);
+      console.log(`💾 Peak memory usage: ${Math.round(finalMemory.peak / 1024 / 1024)}MB (+${memoryUsed}MB)`);
     }
 
     // Ensure at least one paragraph with non-empty text

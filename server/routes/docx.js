@@ -6,6 +6,8 @@ const fs = require('fs').promises;
 const os = require('os');
 const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
+const { ErrorResponses, sendErrorResponse, ERROR_CODES } = require('../utils/errorHandler');
+const healthMonitor = require('../utils/healthMonitor');
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();
@@ -58,16 +60,13 @@ const docxModifier = new DocxModifier();
  * Upload and process a DOCX file
  */
 router.post('/upload-docx', upload.single('document'), async (req, res) => {
+  const startTime = Date.now();
   let filePath = null;
   
   try {
     // Validate file upload
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No file uploaded',
-        code: 'NO_FILE'
-      });
+      return ErrorResponses.noFile(res);
     }
     
     filePath = req.file.path;
@@ -122,9 +121,15 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       document: result,
       message: 'Document processed successfully'
     });
-    
+
+    // Record successful processing
+    const totalProcessingTime = Date.now() - startTime;
+    healthMonitor.recordRequest(totalProcessingTime);
+    console.log(`✅ Document processed successfully in ${processingTime}ms (total: ${totalProcessingTime}ms)`);
+
   } catch (error) {
     console.error('Error processing document:', error);
+    healthMonitor.recordError(error, 'upload-docx');
     
     // Clean up uploaded file if it exists
     if (filePath) {
@@ -183,11 +188,7 @@ router.post('/apply-fix', async (req, res) => {
   const contentLength = req.get('content-length');
   if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB limit
     console.warn(`⚠️ Request too large: ${Math.round(parseInt(contentLength) / 1024 / 1024)}MB`);
-    return res.status(413).json({
-      success: false,
-      error: 'Request too large. Maximum file size is 50MB.',
-      code: 'REQUEST_TOO_LARGE'
-    });
+    return ErrorResponses.fileTooLarge(res, '50MB');
   }
   
   try {
@@ -413,6 +414,71 @@ router.post('/apply-fix', async (req, res) => {
       console.error('❌ Failed to send error response:', responseError);
       res.status(500).end('Internal server error');
     }
+  }
+});
+
+/**
+ * GET /api/health
+ * Health check endpoint for monitoring server status
+ */
+router.get('/health', async (req, res) => {
+  const healthCheck = {
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    status: 'ok',
+    memory: process.memoryUsage(),
+    environment: process.env.NODE_ENV || 'development',
+    version: process.env.npm_package_version || '1.0.0',
+    services: {}
+  };
+
+  try {
+    // Check XmlDocxProcessor availability
+    try {
+      const testProcessor = new XmlDocxProcessor();
+      healthCheck.services.xmlProcessor = 'healthy';
+    } catch (error) {
+      healthCheck.services.xmlProcessor = 'unhealthy';
+      healthCheck.status = 'degraded';
+    }
+
+    // Check DocxModifier availability
+    try {
+      const testModifier = new DocxModifier();
+      healthCheck.services.docxModifier = 'healthy';
+    } catch (error) {
+      healthCheck.services.docxModifier = 'unhealthy';
+      healthCheck.status = 'degraded';
+    }
+
+    // Check file system access
+    try {
+      const os = require('os');
+      const tempDir = os.tmpdir();
+      await require('fs').promises.access(tempDir);
+      healthCheck.services.fileSystem = 'healthy';
+    } catch (error) {
+      healthCheck.services.fileSystem = 'unhealthy';
+      healthCheck.status = 'degraded';
+    }
+
+    // Memory health check
+    const memoryUsagePercent = (healthCheck.memory.heapUsed / healthCheck.memory.heapTotal) * 100;
+    if (memoryUsagePercent > 90) {
+      healthCheck.status = 'degraded';
+      healthCheck.warnings = healthCheck.warnings || [];
+      healthCheck.warnings.push('High memory usage detected');
+    }
+
+    res.json(healthCheck);
+
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
   }
 });
 

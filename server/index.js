@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs').promises;
+const logger = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,9 +28,14 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Add logging middleware
+app.use(logger.requestMiddleware());
+
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
-fs.mkdir(uploadsDir, { recursive: true }).catch(console.error);
+fs.mkdir(uploadsDir, { recursive: true }).catch(error =>
+  logger.error('Failed to create uploads directory', error, { uploadsDir })
+);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -45,15 +51,17 @@ const docxRoutes = require('./routes/docx');
 app.use('/api', docxRoutes);
 
 // Error handling middleware
+app.use(logger.errorMiddleware());
 app.use((error, req, res, next) => {
-  console.error('Server Error:', error);
+  const correlationId = req.correlationId || logger.generateCorrelationId();
   
   // Handle multer errors (file upload errors)
   if (error.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
       success: false,
       error: 'File too large. Maximum size is 10MB.',
-      code: 'FILE_TOO_LARGE'
+      code: 'FILE_TOO_LARGE',
+      correlationId
     });
   }
   
@@ -86,21 +94,25 @@ app.use('/api/*', (req, res) => {
 // Start server
 app.listen(PORT, (err) => {
   if (err) {
-    console.error('Failed to start server:', err);
+    logger.error('Failed to start server', err, { port: PORT });
     process.exit(1);
   }
-  
-  console.log(`🚀 Server running on port ${PORT}`); 
+
+  logger.info('Server started successfully', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version
+  });
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');  
+  logger.info('SIGINT received, shutting down gracefully');
   process.exit(0);
 });
 

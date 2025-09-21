@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState, memo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
@@ -25,16 +25,18 @@ import {
 } from 'lucide-react';
 
 export default function DocumentEditor() {
-  const { 
-    documentText, 
-    activeIssueId, 
-    issues, 
-    setActiveIssue, 
-    lastFixAppliedAt, 
-    processingState, 
+  const {
+    documentText,
+    activeIssueId,
+    issues,
+    setActiveIssue,
+    lastFixAppliedAt,
+    processingState,
     documentFormatting,
     showIssueHighlighting,
-    toggleIssueHighlighting
+    toggleIssueHighlighting,
+    analyzeDocumentRealtime,
+    cancelRealtimeAnalysis
   } = useDocumentStore();
   
   console.log('DocumentEditor render:', {
@@ -88,6 +90,14 @@ export default function DocumentEditor() {
         // Track content changes for analysis
         const currentContent = editor.getJSON();
         lastContentUpdate.current = currentContent;
+
+        // Trigger debounced real-time analysis for performance
+        if (documentText && currentContent) {
+          analyzeDocumentRealtime(currentContent, {
+            debounceMs: 3000, // 3 second debounce for real-time
+            minChangeThreshold: 100 // Only analyze if significant changes
+          });
+        }
       } catch (error) {
         console.error('Error in editor onUpdate:', error);
         setEditorError(error);
@@ -406,6 +416,13 @@ export default function DocumentEditor() {
 
     return cleanup; // Automatic cleanup when component unmounts
   }, [applyTextReplacement]);
+
+  // Cleanup real-time analysis on unmount
+  useEffect(() => {
+    return () => {
+      cancelRealtimeAnalysis();
+    };
+  }, [cancelRealtimeAnalysis]);
 
   // Keyboard shortcuts
   useEffect(() => {

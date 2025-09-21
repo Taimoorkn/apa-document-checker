@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Import the enhanced APA analyzer
 import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
+import { getUserFriendlyMessage, handleApiError, formatErrorForLogging } from '@/utils/errorHandler';
 
 // Simple event emitter for internal store communication
 class StoreEventEmitter {
@@ -159,6 +160,11 @@ export const useDocumentStore = create((set, get) => ({
   fixInProgress: false,
   fixQueue: [], // Queue of pending fixes
 
+  // Document history for undo/rollback functionality
+  documentHistory: [],
+  maxHistorySize: 10, // Keep last 10 states
+  canUndo: false,
+
   // Event emitter for component communication
   events: storeEvents,
   
@@ -265,8 +271,10 @@ export const useDocumentStore = create((set, get) => ({
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        const errorData = await handleApiError(response);
+        const userMessage = getUserFriendlyMessage(errorData);
+        console.error('Upload error:', formatErrorForLogging(errorData, 'uploadDocument'));
+        throw new Error(userMessage);
       }
       
       const result = await response.json();
@@ -527,6 +535,73 @@ export const useDocumentStore = create((set, get) => ({
     // For server-side processing, we can analyze immediately since processing is faster
     return await get().analyzeDocument();
   },
+
+  // Real-time analysis with debouncing for performance
+  _realtimeAnalysisTimeout: null,
+  _lastAnalysisContent: null,
+
+  analyzeDocumentRealtime: async (editorContent, options = {}) => {
+    const {
+      debounceMs = 2000, // 2 second debounce
+      minChangeThreshold = 50, // Minimum characters changed
+      force = false
+    } = options;
+
+    const state = get();
+
+    // Skip if analysis is already in progress
+    if (state.processingState.isAnalyzing && !force) {
+      console.log('⏳ Analysis already in progress, skipping realtime analysis');
+      return;
+    }
+
+    // Content-based throttling
+    const currentContent = JSON.stringify(editorContent);
+    if (!force && state._lastAnalysisContent) {
+      const contentDiff = Math.abs(currentContent.length - state._lastAnalysisContent.length);
+      if (contentDiff < minChangeThreshold) {
+        console.log(`⏭️ Content change too small (${contentDiff} chars), skipping analysis`);
+        return;
+      }
+    }
+
+    // Clear existing timeout
+    if (state._realtimeAnalysisTimeout) {
+      clearTimeout(state._realtimeAnalysisTimeout);
+    }
+
+    // Set new debounced timeout
+    const timeoutId = setTimeout(async () => {
+      try {
+        console.log('🔍 Running debounced real-time analysis...');
+
+        // Update the last analyzed content
+        set({ _lastAnalysisContent: currentContent });
+
+        // Run analysis only if content has changed significantly
+        const result = await get().analyzeDocument();
+
+        if (result.success) {
+          console.log(`✅ Real-time analysis completed: ${result.issueCount} issues found`);
+        }
+      } catch (error) {
+        console.error('❌ Real-time analysis failed:', error);
+      }
+    }, debounceMs);
+
+    // Store timeout ID for cleanup
+    set({ _realtimeAnalysisTimeout: timeoutId });
+  },
+
+  // Cancel pending real-time analysis
+  cancelRealtimeAnalysis: () => {
+    const state = get();
+    if (state._realtimeAnalysisTimeout) {
+      clearTimeout(state._realtimeAnalysisTimeout);
+      set({ _realtimeAnalysisTimeout: null });
+      console.log('🚫 Real-time analysis cancelled');
+    }
+  },
   
   // Enhanced fix application with document regeneration
   applyFix: async (issueId) => {
@@ -598,7 +673,10 @@ export const useDocumentStore = create((set, get) => ({
       
       if (clientContentFixes.includes(issue.fixAction)) {
         console.log(`🔧 Applying client-side content fix: ${issue.fixAction}`);
-        
+
+        // Save current state before applying fix for undo functionality
+        get().saveDocumentState();
+
         // Apply fix directly to current editor content (no server involved)
         const success = await get().applyClientSideFix(issue, issueId);
         
@@ -606,7 +684,10 @@ export const useDocumentStore = create((set, get) => ({
         
       } else if (serverFormattingFixes.includes(issue.fixAction)) {
         console.log(`🔄 Regenerating document with fix: ${issue.fixAction}`);
-        
+
+        // Save current state before applying fix for undo functionality
+        get().saveDocumentState();
+
         // Apply the fix to the formatting data and regenerate HTML
         const result = await get().applyFormattingFix(issue, documentFormatting, documentText);
         
@@ -1290,7 +1371,9 @@ export const useDocumentStore = create((set, get) => ({
           headers: Object.fromEntries(response.headers.entries())
         });
         
-        throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
+        const userMessage = getUserFriendlyMessage(errorData);
+        console.error('Fix application error:', formatErrorForLogging(errorData, 'applyFormattingFix'));
+        throw new Error(userMessage);
       }
       
       const result = await response.json();
@@ -1388,7 +1471,113 @@ export const useDocumentStore = create((set, get) => ({
       };
     }
   },
-  
+
+  // Document history management for undo/rollback functionality
+  saveDocumentState: () => {
+    const state = get();
+
+    // Create a snapshot of the current document state
+    const snapshot = {
+      id: uuidv4(),
+      timestamp: Date.now(),
+      documentHtml: state.documentHtml,
+      documentText: state.documentText,
+      documentFormatting: state.documentFormatting,
+      documentStructure: state.documentStructure,
+      documentStyles: state.documentStyles,
+      currentDocumentBuffer: state.currentDocumentBuffer,
+      issues: [...state.issues], // Deep copy of issues
+      analysisScore: state.analysisScore,
+      documentStats: { ...state.documentStats },
+      complianceDetails: state.complianceDetails ? { ...state.complianceDetails } : null,
+      description: `Saved at ${new Date().toLocaleTimeString()}`
+    };
+
+    // Add to history and maintain max size
+    set(currentState => {
+      const newHistory = [...currentState.documentHistory, snapshot];
+
+      // Keep only the last maxHistorySize states
+      if (newHistory.length > currentState.maxHistorySize) {
+        // Remove the oldest states
+        const statesToRemove = newHistory.length - currentState.maxHistorySize;
+        newHistory.splice(0, statesToRemove);
+      }
+
+      return {
+        documentHistory: newHistory,
+        canUndo: newHistory.length > 0
+      };
+    });
+
+    console.log(`📄 Document state saved to history (${state.documentHistory.length + 1}/${state.maxHistorySize})`);
+  },
+
+  // Restore document to a previous state
+  undoLastChange: () => {
+    const state = get();
+
+    if (state.documentHistory.length === 0) {
+      console.warn('⚠️ No previous states to undo to');
+      return false;
+    }
+
+    // Get the most recent state
+    const previousState = state.documentHistory[state.documentHistory.length - 1];
+    const remainingHistory = state.documentHistory.slice(0, -1);
+
+    console.log(`🔄 Undoing to state: ${previousState.description}`);
+
+    // Restore the document state
+    set({
+      documentHtml: previousState.documentHtml,
+      documentText: previousState.documentText,
+      documentFormatting: previousState.documentFormatting,
+      documentStructure: previousState.documentStructure,
+      documentStyles: previousState.documentStyles,
+      currentDocumentBuffer: previousState.currentDocumentBuffer,
+      issues: previousState.issues,
+      analysisScore: previousState.analysisScore,
+      documentStats: previousState.documentStats,
+      complianceDetails: previousState.complianceDetails,
+      documentHistory: remainingHistory,
+      canUndo: remainingHistory.length > 0,
+      activeIssueId: null, // Clear active issue
+      lastFixAppliedAt: Date.now() // Trigger re-render
+    });
+
+    // Emit event for UI components
+    get().events.emit('documentRestored', {
+      restoredStateId: previousState.id,
+      timestamp: previousState.timestamp,
+      description: previousState.description
+    });
+
+    return true;
+  },
+
+  // Clear document history
+  clearHistory: () => {
+    set({
+      documentHistory: [],
+      canUndo: false
+    });
+    console.log('🗑️ Document history cleared');
+  },
+
+  // Get history summary for UI
+  getHistorySummary: () => {
+    const state = get();
+    return state.documentHistory.map((snapshot, index) => ({
+      id: snapshot.id,
+      index: index,
+      timestamp: snapshot.timestamp,
+      description: snapshot.description,
+      issueCount: snapshot.issues.length,
+      score: snapshot.analysisScore
+    }));
+  },
+
   // Set active issue and trigger re-highlighting
   setActiveIssue: (issueId) => {
     const prevActiveId = get().activeIssueId;
@@ -1805,6 +1994,11 @@ export const useDocumentStore = create((set, get) => ({
       DataUtils.clearBuffer(state.currentDocumentBuffer);
     }
 
+    // Cancel any pending real-time analysis
+    if (state._realtimeAnalysisTimeout) {
+      clearTimeout(state._realtimeAnalysisTimeout);
+    }
+
     // Reset all state
     set({
       documentText: null,
@@ -1816,8 +2010,12 @@ export const useDocumentStore = create((set, get) => ({
       originalDocumentBuffer: null,
       currentDocumentBuffer: null,
       isBufferCompressed: false,
+      documentHistory: [],
+      canUndo: false,
       fixInProgress: false,
       fixQueue: [],
+      _realtimeAnalysisTimeout: null,
+      _lastAnalysisContent: null,
       editorContent: null,
       editorChanged: false,
       documentStats: {

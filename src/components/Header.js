@@ -22,14 +22,14 @@ import {
 } from 'lucide-react';
 
 export default function Header() {
-  const { 
-    uploadDocument, 
+  const {
+    uploadDocument,
     documentName,
-    analyzeDocumentDebounced, 
-    exportDocument, 
+    analyzeDocumentDebounced,
+    exportDocument,
     processingState,
   } = useDocumentStore();
-  
+
   const [uploadError, setUploadError] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -37,6 +37,43 @@ export default function Header() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const exportDropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
+
+  // User configuration - should be replaced with proper authentication system
+  // TODO: Replace with authentication provider (e.g., NextAuth.js, Auth0, Firebase Auth)
+  const userConfig = {
+    isAuthenticated: false, // TODO: Implement actual authentication
+    name: 'Guest User',
+    email: 'guest@example.com',
+    initials: 'GU',
+    plan: 'Free',
+    avatar: null
+  };
+
+  // Authentication handlers - placeholders for future implementation
+  const handleLogin = () => {
+    // TODO: Implement login functionality
+    console.log('Login functionality not yet implemented');
+  };
+
+  const handleLogout = () => {
+    // TODO: Implement logout functionality
+    console.log('Logout functionality not yet implemented');
+  };
+
+  const handleProfile = () => {
+    // TODO: Implement profile functionality
+    console.log('Profile functionality not yet implemented');
+  };
+
+  const handleSettings = () => {
+    // TODO: Implement settings functionality
+    console.log('Settings functionality not yet implemented');
+  };
+
+  const handleBilling = () => {
+    // TODO: Implement billing functionality
+    console.log('Billing functionality not yet implemented');
+  };
   const fileInputRef = useRef(null);
 
   // Close dropdowns when clicking outside
@@ -242,11 +279,11 @@ export default function Header() {
                 className="flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-white">JD</span>
+                  <span className="text-sm font-medium text-white">{userConfig.initials}</span>
                 </div>
                 <div className="text-left hidden md:block">
-                  <p className="text-sm font-medium text-gray-900">John Doe</p>
-                  <p className="text-xs text-gray-500">Free Plan</p>
+                  <p className="text-sm font-medium text-gray-900">{userConfig.name}</p>
+                  <p className="text-xs text-gray-500">{userConfig.plan} Plan</p>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
               </button>
@@ -256,24 +293,33 @@ export default function Header() {
                 <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
                   {/* User Info */}
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">John Doe</p>
-                    <p className="text-xs text-gray-500">john.doe@example.com</p>
+                    <p className="text-sm font-medium text-gray-900">{userConfig.name}</p>
+                    <p className="text-xs text-gray-500">{userConfig.email}</p>
                   </div>
 
                   {/* Menu Items */}
                   <div className="py-1">
-                    <button className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                      onClick={handleProfile}
+                      className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
                       <User className="h-4 w-4 mr-3 text-gray-400" />
                       <span>Profile</span>
                     </button>
-                    <button className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                      onClick={handleSettings}
+                      className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
                       <Settings className="h-4 w-4 mr-3 text-gray-400" />
                       <span>Settings</span>
                     </button>
-                    <button className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                      onClick={handleBilling}
+                      className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
                       <CreditCard className="h-4 w-4 mr-3 text-gray-400" />
                       <span>Billing & Plans</span>
-                      <span className="ml-auto px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded-full">Free</span>
+                      <span className="ml-auto px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded-full">{userConfig.plan}</span>
                     </button>
                   </div>
 
@@ -282,7 +328,10 @@ export default function Header() {
 
                   {/* Logout */}
                   <div className="py-1">
-                    <button className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
                       <LogOut className="h-4 w-4 mr-3 text-gray-400" />
                       <span>Log out</span>
                     </button>

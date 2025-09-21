@@ -14,7 +14,7 @@ import { AdditionalAPARules } from './additionalApaRules';
 
 // Enhanced APA 7th Edition Analyzer that works with rich document formatting data
 export class EnhancedAPAAnalyzer {
-  constructor() {
+  constructor(validators = {}) {
     this.apaStandards = {
       font: {
         family: 'times new roman',
@@ -35,18 +35,35 @@ export class EnhancedAPAAnalyzer {
         firstLine: 0.5 // inches
       }
     };
-    
-    // Initialize specialized validators
-    this.referenceValidator = new ReferenceValidator();
-    this.tableFigureValidator = new TableFigureValidator();
-    this.headerFooterValidator = new HeaderFooterValidator();
-    this.advancedCitationValidator = new AdvancedCitationValidator();
-    this.quotationValidator = new QuotationValidator();
-    this.statisticalValidator = new StatisticalValidator();
-    this.biasFreeLanguageValidator = new BiasFreeLanguageValidator();
-    this.comprehensiveValidator = new ComprehensiveValidator();
+
+    // Initialize specialized validators with dependency injection
+    // Allow injection of custom validators for testing and modularity
+    this.referenceValidator = validators.referenceValidator || new ReferenceValidator();
+    this.tableFigureValidator = validators.tableFigureValidator || new TableFigureValidator();
+    this.headerFooterValidator = validators.headerFooterValidator || new HeaderFooterValidator();
+    this.advancedCitationValidator = validators.advancedCitationValidator || new AdvancedCitationValidator();
+    this.quotationValidator = validators.quotationValidator || new QuotationValidator();
+    this.statisticalValidator = validators.statisticalValidator || new StatisticalValidator();
+    this.biasFreeLanguageValidator = validators.biasFreeLanguageValidator || new BiasFreeLanguageValidator();
+    this.comprehensiveValidator = validators.comprehensiveValidator || new ComprehensiveValidator();
   }
-  
+
+  /**
+   * Factory method to create analyzer with default validators
+   * Useful for production use while maintaining testability
+   */
+  static createDefault() {
+    return new EnhancedAPAAnalyzer();
+  }
+
+  /**
+   * Factory method to create analyzer with custom validators
+   * Useful for testing and modularity
+   */
+  static createWithValidators(validators) {
+    return new EnhancedAPAAnalyzer(validators);
+  }
+
   /**
    * Main analysis function - works with rich document data from server
    */

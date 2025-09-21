@@ -51,6 +51,98 @@ class StoreEventEmitter {
 // Global store event emitter
 const storeEvents = new StoreEventEmitter();
 
+// Utility functions for secure data handling
+const DataUtils = {
+  // Simple compression using browser-native compression
+  async compressBuffer(buffer) {
+    try {
+      if (typeof CompressionStream !== 'undefined') {
+        const stream = new CompressionStream('gzip');
+        const writer = stream.writable.getWriter();
+        const reader = stream.readable.getReader();
+
+        const chunks = [];
+        const readPromise = (async () => {
+          let result;
+          while (!(result = await reader.read()).done) {
+            chunks.push(result.value);
+          }
+        })();
+
+        await writer.write(buffer);
+        await writer.close();
+        await readPromise;
+
+        // Combine chunks
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const compressed = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          compressed.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        console.log(`📦 Buffer compressed: ${buffer.length} → ${compressed.length} bytes (${Math.round((1 - compressed.length / buffer.length) * 100)}% reduction)`);
+        return compressed;
+      } else {
+        // Fallback: return original buffer if compression not available
+        console.warn('⚠️ Compression not available, storing buffer as-is');
+        return buffer;
+      }
+    } catch (error) {
+      console.warn('⚠️ Compression failed, storing buffer as-is:', error);
+      return buffer;
+    }
+  },
+
+  // Decompression
+  async decompressBuffer(compressedBuffer) {
+    try {
+      if (typeof DecompressionStream !== 'undefined') {
+        const stream = new DecompressionStream('gzip');
+        const writer = stream.writable.getWriter();
+        const reader = stream.readable.getReader();
+
+        const chunks = [];
+        const readPromise = (async () => {
+          let result;
+          while (!(result = await reader.read()).done) {
+            chunks.push(result.value);
+          }
+        })();
+
+        await writer.write(compressedBuffer);
+        await writer.close();
+        await readPromise;
+
+        // Combine chunks
+        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const decompressed = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          decompressed.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        return decompressed;
+      } else {
+        // Assume buffer is not compressed
+        return compressedBuffer;
+      }
+    } catch (error) {
+      console.warn('⚠️ Decompression failed, using buffer as-is:', error);
+      return compressedBuffer;
+    }
+  },
+
+  // Clear sensitive data from memory (best effort)
+  clearBuffer(buffer) {
+    if (buffer && buffer.fill) {
+      buffer.fill(0); // Overwrite with zeros
+    }
+  }
+};
+
 export const useDocumentStore = create((set, get) => ({
   // Document state - now includes rich formatting data
   documentText: null,
@@ -61,6 +153,7 @@ export const useDocumentStore = create((set, get) => ({
   documentStyles: null,     // Document styles
   originalDocumentBuffer: null, // Original document buffer for first upload
   currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
+  isBufferCompressed: false,    // Track if buffers are compressed
 
   // Fix application state to prevent race conditions
   fixInProgress: false,
@@ -125,9 +218,15 @@ export const useDocumentStore = create((set, get) => ({
         throw new Error('File size must be less than 10MB');
       }
       
-      // Store the original file buffer for fixes
+      // Store the original file buffer for fixes with compression
       const fileBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(fileBuffer);
+
+      // Compress buffer for secure storage
+      const compressedBuffer = await DataUtils.compressBuffer(uint8Array);
+
+      // Clear original buffer from memory for security
+      DataUtils.clearBuffer(uint8Array);
       
       // Create FormData for file upload
       const formData = new FormData();
@@ -142,12 +241,20 @@ export const useDocumentStore = create((set, get) => ({
         }
       });
       
-      // Send to server for processing
+      // Send to server for processing with timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 120000); // 2 minute timeout for document upload/processing
+
       const response = await fetch(`${SERVER_URL}/api/upload-docx`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
         // Don't set Content-Type header - let browser set it with boundary
       });
+
+      clearTimeout(timeoutId); // Clear timeout on successful response
       
       set({
         processingState: {
@@ -205,8 +312,9 @@ export const useDocumentStore = create((set, get) => ({
         documentFormatting: documentData.formatting,
         documentStructure: documentData.structure,
         documentStyles: documentData.styles,
-        originalDocumentBuffer: uint8Array, // Store original buffer
-        currentDocumentBuffer: uint8Array,  // Initialize current buffer same as original
+        originalDocumentBuffer: compressedBuffer, // Store compressed buffer
+        currentDocumentBuffer: compressedBuffer,  // Initialize current buffer same as original
+        isBufferCompressed: true, // Track compression state
         documentStats: {
           wordCount: words,
           charCount: chars,
@@ -230,17 +338,28 @@ export const useDocumentStore = create((set, get) => ({
       
     } catch (error) {
       console.error('Error uploading document:', error);
-      
+
+      // Handle specific error types
+      let errorMessage = error.message || 'Failed to process document';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Upload timed out after 2 minutes. Please try again with a smaller document or check your internet connection.';
+      } else if (error.name === 'NetworkError' || error.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      }
+
       set(state => ({
         processingState: {
           ...state.processingState,
           isUploading: false,
-          lastError: error.message || 'Failed to process document',
+          isAnalyzing: false,         // Also reset analysis state if stuck
+          isApplyingFix: false,       // Also reset fix state if stuck
+          lastError: errorMessage,
           progress: 0,
-          stage: null
+          stage: null,
+          currentFixId: null
         }
       }));
-      
+
       return false;
     }
   },
@@ -277,21 +396,31 @@ export const useDocumentStore = create((set, get) => ({
         structure: documentStructure,
         styles: documentStyles
       };
-      
-      
-      // Use enhanced analyzer with rich document data
+
+
+      // Use enhanced analyzer with rich document data (with timeout protection)
       const analysisResults = await new Promise((resolve, reject) => {
+        // Set up timeout protection (30 seconds for large documents)
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Document analysis timed out after 30 seconds. Please try again with a smaller document.'));
+        }, 30000);
+
+        // Clear timeout on completion
+        const cleanup = () => clearTimeout(timeoutId);
+
         setTimeout(() => {
           try {
-            const analyzer = new EnhancedAPAAnalyzer();
+            const analyzer = EnhancedAPAAnalyzer.createDefault();
             const results = analyzer.analyzeDocument(documentData);
+            cleanup();
             resolve(results);
           } catch (error) {
+            cleanup();
             reject(error);
           }
         }, 100);
       });
-      
+
       // Map results to store format and add IDs
       let issues = analysisResults.map(issue => ({
         id: uuidv4(),
@@ -351,7 +480,8 @@ export const useDocumentStore = create((set, get) => ({
     } catch (error) {
       console.error('❌ Error analyzing document:', error);
       console.error('Error details:', error.message, error.stack);
-      
+
+      // Ensure we always reset the processing state on error
       set(state => ({
         issues: [],
         analysisScore: null,
@@ -359,12 +489,36 @@ export const useDocumentStore = create((set, get) => ({
           ...state.processingState,
           isAnalyzing: false,
           isSchedulingAnalysis: false,
+          isUploading: false,       // Also reset upload state if stuck
+          isApplyingFix: false,     // Also reset fix state if stuck
+          progress: 0,              // Reset progress
+          currentFixId: null,       // Clear current fix
           lastError: error.message || 'Document analysis failed',
           stage: null
         }
       }));
-      
-      return { success: false, error: error.message };
+
+      // Clear any fix queue that might be stuck
+      set(state => ({
+        fixInProgress: false,
+        fixQueue: []
+      }));
+
+      return { success: false, error: error.message || 'Document analysis failed' };
+    } finally {
+      // Ensure we always clean up the analyzing state even if error handling fails
+      const currentState = get();
+      if (currentState.processingState.isAnalyzing) {
+        console.warn('⚠️ Forcing cleanup of stuck analysis state');
+        set(state => ({
+          processingState: {
+            ...state.processingState,
+            isAnalyzing: false,
+            isSchedulingAnalysis: false,
+            stage: null
+          }
+        }));
+      }
     }
   },
   
@@ -921,7 +1075,7 @@ export const useDocumentStore = create((set, get) => ({
       ? 'http://localhost:3001' 
       : '';
     
-    const { currentDocumentBuffer, documentName } = get();
+    const { currentDocumentBuffer, documentName, isBufferCompressed } = get();
     
     try {
       console.log(`🔧 Applying memory-based formatting fix: ${issue.fixAction}`);
@@ -1021,6 +1175,19 @@ export const useDocumentStore = create((set, get) => ({
         throw new Error(`Server is not accessible: ${healthError.message}. Make sure the backend server is running on port 3001.`);
       }
       
+      // Decompress buffer if it's compressed before sending to server
+      let bufferToProcess = currentDocumentBuffer;
+      if (isBufferCompressed) {
+        console.log('🗜️ Decompressing buffer before sending to server...');
+        try {
+          bufferToProcess = await DataUtils.decompressBuffer(currentDocumentBuffer);
+          console.log(`✅ Buffer decompressed: ${currentDocumentBuffer.length} -> ${bufferToProcess.length} bytes`);
+        } catch (decompError) {
+          console.error('❌ Failed to decompress buffer:', decompError);
+          throw new Error('Failed to decompress document buffer for processing');
+        }
+      }
+
       // Convert Uint8Array to base64 for JSON transport with error handling
       let base64Buffer;
       try {
@@ -1029,14 +1196,14 @@ export const useDocumentStore = create((set, get) => ({
         let binaryString = '';
         const chunkSize = 8192; // 8KB chunks to prevent call stack issues
 
-        for (let i = 0; i < currentDocumentBuffer.length; i += chunkSize) {
-          const chunk = currentDocumentBuffer.slice(i, i + chunkSize);
+        for (let i = 0; i < bufferToProcess.length; i += chunkSize) {
+          const chunk = bufferToProcess.slice(i, i + chunkSize);
           // Use apply with smaller chunks to avoid call stack overflow
           binaryString += String.fromCharCode.apply(null, chunk);
         }
 
         base64Buffer = btoa(binaryString);
-        console.log(`✅ Buffer conversion successful: ${currentDocumentBuffer.length} bytes processed in chunks`);
+        console.log(`✅ Buffer conversion successful: ${bufferToProcess.length} bytes processed in chunks`);
 
       } catch (bufferError) {
         console.error('Error converting buffer to base64:', bufferError);
@@ -1047,13 +1214,13 @@ export const useDocumentStore = create((set, get) => ({
           let binaryString = '';
           const smallerChunkSize = 1024; // 1KB chunks as fallback
 
-          for (let i = 0; i < currentDocumentBuffer.length; i += smallerChunkSize) {
-            const chunk = currentDocumentBuffer.slice(i, i + smallerChunkSize);
+          for (let i = 0; i < bufferToProcess.length; i += smallerChunkSize) {
+            const chunk = bufferToProcess.slice(i, i + smallerChunkSize);
             binaryString += String.fromCharCode.apply(null, chunk);
           }
 
           base64Buffer = btoa(binaryString);
-          console.log(`✅ Buffer conversion successful with smaller chunks: ${currentDocumentBuffer.length} bytes`);
+          console.log(`✅ Buffer conversion successful with smaller chunks: ${bufferToProcess.length} bytes`);
 
         } catch (secondError) {
           console.error('Buffer conversion failed even with small chunks:', secondError);
@@ -1069,21 +1236,31 @@ export const useDocumentStore = create((set, get) => ({
         bufferSize: base64Buffer.length,
         filename: documentName
       });
-      
-      const response = await fetch(`${SERVER_URL}/api/apply-fix`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          documentBuffer: base64Buffer,
-          fixAction: issue.fixAction,
-          fixValue: fixValue,
-          originalFilename: documentName
-        })
-      });
-      
-      console.log('📡 Server response status:', response.status);
+
+      // Add timeout protection for server API calls
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 60000); // 60 second timeout for fix operations
+
+      try {
+        const response = await fetch(`${SERVER_URL}/api/apply-fix`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            documentBuffer: base64Buffer,
+            fixAction: issue.fixAction,
+            fixValue: fixValue,
+            originalFilename: documentName
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId); // Clear timeout on successful response
+
+        console.log('📡 Server response status:', response.status);
       console.log('📡 Server response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
@@ -1138,13 +1315,31 @@ export const useDocumentStore = create((set, get) => ({
           if (!binaryString || binaryString.length === 0) {
             throw new Error('Decoded buffer is empty');
           }
-          updatedBuffer = new Uint8Array(binaryString.length);
+          const decodedBuffer = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
-            updatedBuffer[i] = binaryString.charCodeAt(i);
+            decodedBuffer[i] = binaryString.charCodeAt(i);
           }
           // Validate the buffer is a valid DOCX (starts with PK)
-          if (updatedBuffer[0] !== 0x50 || updatedBuffer[1] !== 0x4B) {
+          if (decodedBuffer[0] !== 0x50 || decodedBuffer[1] !== 0x4B) {
             console.warn('Warning: Modified buffer may not be a valid DOCX file');
+          }
+
+          // Compress the updated buffer for secure storage
+          if (isBufferCompressed) {
+            console.log('🗜️ Compressing updated buffer for storage...');
+            try {
+              updatedBuffer = await DataUtils.compressBuffer(decodedBuffer);
+              console.log(`✅ Updated buffer compressed: ${decodedBuffer.length} -> ${updatedBuffer.length} bytes`);
+
+              // Clear the uncompressed buffer from memory
+              DataUtils.clearBuffer(decodedBuffer);
+            } catch (compError) {
+              console.error('❌ Failed to compress updated buffer:', compError);
+              // Fall back to uncompressed storage
+              updatedBuffer = decodedBuffer;
+            }
+          } else {
+            updatedBuffer = decodedBuffer;
           }
         } catch (decodeError) {
           console.error('Error decoding modified buffer:', decodeError);
@@ -1163,12 +1358,33 @@ export const useDocumentStore = create((set, get) => ({
         styles: result.document.styles,
         updatedBuffer: updatedBuffer // Include updated buffer for cumulative fixes
       };
-      
+
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error('❌ Fetch request failed:', fetchError);
+
+        // Handle fetch-specific errors
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out after 60 seconds. Please try again or contact support if the issue persists.');
+        } else {
+          throw fetchError; // Re-throw other fetch errors
+        }
+      }
+
     } catch (error) {
       console.error('Error applying memory-based formatting fix:', error);
+
+      // Handle specific error types
+      let errorMessage = error.message;
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out after 60 seconds. Please try again or contact support if the issue persists.';
+      } else if (error.name === 'NetworkError' || error.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network error: Please check your internet connection and try again.';
+      }
+
       return {
         success: false,
-        error: error.message
+        error: errorMessage
       };
     }
   },
@@ -1344,7 +1560,7 @@ export const useDocumentStore = create((set, get) => ({
       const analysisResults = await new Promise((resolve, reject) => {
         setTimeout(() => {
           try {
-            const analyzer = new EnhancedAPAAnalyzer();
+            const analyzer = EnhancedAPAAnalyzer.createDefault();
             const results = analyzer.analyzeDocument(documentData);
             resolve(results);
           } catch (error) {
@@ -1581,6 +1797,14 @@ export const useDocumentStore = create((set, get) => ({
       state.events.clear();
     }
 
+    // Clear sensitive buffers from memory before reset
+    if (state.originalDocumentBuffer) {
+      DataUtils.clearBuffer(state.originalDocumentBuffer);
+    }
+    if (state.currentDocumentBuffer && state.currentDocumentBuffer !== state.originalDocumentBuffer) {
+      DataUtils.clearBuffer(state.currentDocumentBuffer);
+    }
+
     // Reset all state
     set({
       documentText: null,
@@ -1591,6 +1815,7 @@ export const useDocumentStore = create((set, get) => ({
       documentStyles: null,
       originalDocumentBuffer: null,
       currentDocumentBuffer: null,
+      isBufferCompressed: false,
       fixInProgress: false,
       fixQueue: [],
       editorContent: null,

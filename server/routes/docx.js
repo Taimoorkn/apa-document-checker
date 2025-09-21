@@ -174,6 +174,21 @@ router.post('/apply-fix', async (req, res) => {
   console.log('Request content-type:', req.get('content-type'));
   console.log('Request body exists:', !!req.body);
   console.log('Request body size:', JSON.stringify(req.body || {}).length);
+
+  // Memory monitoring
+  const initialMemory = process.memoryUsage();
+  console.log(`🧠 Initial memory usage: ${Math.round(initialMemory.heapUsed / 1024 / 1024)}MB`);
+
+  // Request size validation (before processing)
+  const contentLength = req.get('content-length');
+  if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB limit
+    console.warn(`⚠️ Request too large: ${Math.round(parseInt(contentLength) / 1024 / 1024)}MB`);
+    return res.status(413).json({
+      success: false,
+      error: 'Request too large. Maximum file size is 50MB.',
+      code: 'REQUEST_TOO_LARGE'
+    });
+  }
   
   try {
     // Parse JSON body manually if needed
@@ -228,6 +243,16 @@ router.post('/apply-fix', async (req, res) => {
       try {
         docxBuffer = Buffer.from(documentBuffer, 'base64');
         console.log(`✅ Buffer conversion successful, size: ${docxBuffer.length} bytes`);
+
+        // Validate converted buffer size
+        if (docxBuffer.length > 50 * 1024 * 1024) { // 50MB limit
+          console.warn(`⚠️ Converted buffer too large: ${Math.round(docxBuffer.length / 1024 / 1024)}MB`);
+          return res.status(413).json({
+            success: false,
+            error: 'Document buffer too large. Maximum file size is 50MB.',
+            code: 'BUFFER_TOO_LARGE'
+          });
+        }
       } catch (error) {
         return res.status(400).json({
           success: false,
@@ -237,15 +262,38 @@ router.post('/apply-fix', async (req, res) => {
       }
     } else {
       docxBuffer = Buffer.from(documentBuffer);
+
+      // Validate buffer size
+      if (docxBuffer.length > 50 * 1024 * 1024) { // 50MB limit
+        console.warn(`⚠️ Buffer too large: ${Math.round(docxBuffer.length / 1024 / 1024)}MB`);
+        return res.status(413).json({
+          success: false,
+          error: 'Document buffer too large. Maximum file size is 50MB.',
+          code: 'BUFFER_TOO_LARGE'
+        });
+      }
     }
     
-    // Apply the fix using DocxModifier (memory-based)
+    // Monitor memory before heavy processing
+    const preProcessingMemory = process.memoryUsage();
+    console.log(`🧠 Pre-processing memory: ${Math.round(preProcessingMemory.heapUsed / 1024 / 1024)}MB`);
+
+    // Apply the fix using DocxModifier (memory-based) with timeout protection
     console.log('🔄 Calling DocxModifier.applyFormattingFix...');
-    const modificationResult = await docxModifier.applyFormattingFix(
+    const modificationPromise = docxModifier.applyFormattingFix(
       docxBuffer,
-      fixAction, 
+      fixAction,
       fixValue
     );
+
+    // Add timeout protection (60 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Document processing timed out after 60 seconds'));
+      }, 60000);
+    });
+
+    const modificationResult = await Promise.race([modificationPromise, timeoutPromise]);
     
     console.log('DocxModifier result:', {
       success: modificationResult.success,
@@ -268,24 +316,38 @@ router.post('/apply-fix', async (req, res) => {
     
     console.log(`✅ Fix applied successfully, reprocessing document...`);
     
+    // Monitor memory after modification
+    const postModificationMemory = process.memoryUsage();
+    console.log(`🧠 Post-modification memory: ${Math.round(postModificationMemory.heapUsed / 1024 / 1024)}MB`);
+
     // Reprocess the modified document buffer using XML processor
     console.log('Reprocessing with XML processor...');
     const startTime = Date.now();
-    
+
     const reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
-    
+
     const processingTime = Date.now() - startTime;
     console.log(`Document reprocessing completed in ${processingTime}ms`);
-    
+
+    // Monitor final memory usage
+    const finalMemory = process.memoryUsage();
+    const memoryUsed = Math.round((finalMemory.heapUsed - initialMemory.heapUsed) / 1024 / 1024);
+    console.log(`🧠 Final memory: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB (+${memoryUsed}MB)`);
+
     // Add processing metadata
     reprocessingResult.processingInfo = {
       ...reprocessingResult.processingInfo,
       processingTime: processingTime,
       originalFilename: originalFilename || 'unknown.docx',
       fixApplied: fixAction,
-      fixValue: fixValue
+      fixValue: fixValue,
+      memoryUsage: {
+        initial: Math.round(initialMemory.heapUsed / 1024 / 1024),
+        peak: Math.round(finalMemory.heapUsed / 1024 / 1024),
+        delta: memoryUsed
+      }
     };
-    
+
     // Return the reprocessed document with the modified buffer for further fixes
     res.json({
       success: true,
@@ -294,6 +356,12 @@ router.post('/apply-fix', async (req, res) => {
       fixApplied: fixAction,
       message: `Successfully applied ${fixAction} and reprocessed document`
     });
+
+    // Force garbage collection if available
+    if (global.gc) {
+      console.log('🗑️ Running garbage collection...');
+      global.gc();
+    }
     
   } catch (error) {
     console.error('❌ Critical error in apply-fix route:', error);
@@ -303,13 +371,38 @@ router.post('/apply-fix', async (req, res) => {
       message: error.message,
       code: error.code
     });
-    
+
+    // Monitor memory on error
+    const errorMemory = process.memoryUsage();
+    console.log(`🧠 Error memory usage: ${Math.round(errorMemory.heapUsed / 1024 / 1024)}MB`);
+
+    // Force garbage collection on error to free memory
+    if (global.gc) {
+      console.log('🗑️ Running garbage collection after error...');
+      global.gc();
+    }
+
+    // Handle specific error types
+    let statusCode = 500;
+    let errorMessage = 'Failed to apply fix to document';
+    let errorCode = 'APPLY_FIX_ERROR';
+
+    if (error.message.includes('timed out')) {
+      statusCode = 504;
+      errorMessage = 'Request timed out while processing document';
+      errorCode = 'PROCESSING_TIMEOUT';
+    } else if (error.message.includes('too large') || error.message.includes('ENOMEM')) {
+      statusCode = 413;
+      errorMessage = 'Document too large to process';
+      errorCode = 'DOCUMENT_TOO_LARGE';
+    }
+
     // Ensure we always send a JSON response
     try {
-      res.status(500).json({
+      res.status(statusCode).json({
         success: false,
-        error: 'Failed to apply fix to document',
-        code: 'APPLY_FIX_ERROR',
+        error: errorMessage,
+        code: errorCode,
         details: process.env.NODE_ENV === 'development' ? {
           message: error.message,
           stack: error.stack,

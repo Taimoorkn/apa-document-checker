@@ -16,6 +16,10 @@ export const useDocumentStore = create((set, get) => ({
   documentStyles: null,     // Document styles
   originalDocumentBuffer: null, // Original document buffer for first upload
   currentDocumentBuffer: null,  // Current document buffer (with applied fixes)
+
+  // Fix application state to prevent race conditions
+  fixInProgress: false,
+  fixQueue: [], // Queue of pending fixes
   
   // Editor state
   editorContent: null,      // Tiptap editor content (JSON)
@@ -324,18 +328,51 @@ export const useDocumentStore = create((set, get) => ({
   
   // Enhanced fix application with document regeneration
   applyFix: async (issueId) => {
+    const state = get();
+
+    // Check if another fix is in progress (mutex protection)
+    if (state.fixInProgress) {
+      console.log(`Fix already in progress, queueing fix for issue ${issueId}`);
+
+      // Add to queue and return promise that resolves when processed
+      return new Promise((resolve) => {
+        set(currentState => ({
+          fixQueue: [...currentState.fixQueue, { issueId, resolve }]
+        }));
+      });
+    }
+
+    // Set fix in progress to prevent race conditions
+    set(currentState => ({
+      fixInProgress: true,
+      processingState: {
+        ...currentState.processingState,
+        isApplyingFix: true,
+        currentFixId: issueId,
+        stage: `Applying fix: ${issueId}`
+      }
+    }));
+
+    try {
+      return await get()._executeFixInternal(issueId);
+    } finally {
+      // Process next fix in queue
+      await get()._processFixQueue();
+    }
+  },
+
+  // Internal fix execution (separated for queue processing)
+  _executeFixInternal: async (issueId) => {
     const { issues, documentHtml, documentText, documentFormatting } = get();
     const issue = issues.find(i => i.id === issueId);
-    
+
     if (!issue || !issue.hasFix) {
       return false;
     }
-    
+
     set(state => ({
       processingState: {
         ...state.processingState,
-        isApplyingFix: true,
-        currentFixId: issueId,
         stage: `Applying fix: ${issue.title}`
       }
     }));
@@ -495,6 +532,35 @@ export const useDocumentStore = create((set, get) => ({
       }));
       
       return false;
+    }
+  },
+
+  // Process queued fixes (called after fix completion)
+  _processFixQueue: async () => {
+    const { fixQueue } = get();
+
+    // Clear the current fix in progress flag
+    set(state => ({
+      fixInProgress: false
+    }));
+
+    // Process next fix in queue if any
+    if (fixQueue.length > 0) {
+      const nextFix = fixQueue[0];
+
+      // Remove from queue
+      set(state => ({
+        fixQueue: state.fixQueue.slice(1)
+      }));
+
+      // Execute the queued fix
+      try {
+        const result = await get().applyFix(nextFix.issueId);
+        nextFix.resolve(result);
+      } catch (error) {
+        console.error('Error processing queued fix:', error);
+        nextFix.resolve(false);
+      }
     }
   },
 

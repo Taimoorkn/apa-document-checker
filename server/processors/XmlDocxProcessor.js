@@ -5,6 +5,10 @@ const fs = require('fs').promises;
 const path = require('path');
 
 class XmlDocxProcessor {
+  // Static tracking of temporary files for emergency cleanup
+  static tempFiles = new Set();
+  static cleanupRegistered = false;
+
   constructor() {
     this.parser = new xml2js.Parser({
       explicitArray: false,
@@ -20,29 +24,87 @@ class XmlDocxProcessor {
       margins: { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 },
       indentation: { firstLine: 0.5 }
     };
+
+    // Register process cleanup handlers (only once)
+    if (!XmlDocxProcessor.cleanupRegistered) {
+      this.registerCleanupHandlers();
+      XmlDocxProcessor.cleanupRegistered = true;
+    }
+  }
+
+  // Register cleanup handlers for process exit events
+  registerCleanupHandlers() {
+    const cleanup = async () => {
+      if (XmlDocxProcessor.tempFiles.size > 0) {
+        console.log(`Cleaning up ${XmlDocxProcessor.tempFiles.size} temporary files...`);
+        await Promise.allSettled(
+          Array.from(XmlDocxProcessor.tempFiles).map(async (filePath) => {
+            try {
+              await fs.unlink(filePath);
+            } catch (error) {
+              // Ignore cleanup errors during shutdown
+            }
+          })
+        );
+        XmlDocxProcessor.tempFiles.clear();
+      }
+    };
+
+    // Handle various exit scenarios
+    process.on('exit', cleanup);
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught exception, cleaning up temp files:', error);
+      cleanup().finally(() => process.exit(1));
+    });
   }
 
   /**
    * Process a DOCX document buffer and extract all necessary data
    */
   async processDocumentBuffer(buffer, filename = 'document.docx') {
-    const tempFilePath = path.join(require('os').tmpdir(), `temp_${Date.now()}_${filename}`);
-    
+    const tempFilePath = path.join(require('os').tmpdir(), `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${filename}`);
+    let tempFileCreated = false;
+
+    // Set up cleanup function
+    const cleanup = async () => {
+      if (tempFileCreated) {
+        try {
+          await fs.unlink(tempFilePath);
+          XmlDocxProcessor.tempFiles.delete(tempFilePath);
+          console.log('Temporary file cleaned up:', tempFilePath);
+        } catch (error) {
+          console.warn('Could not clean up temporary file:', tempFilePath, error.message);
+        }
+      }
+    };
+
+    // Set up timeout cleanup (5 minutes max)
+    const timeoutId = setTimeout(async () => {
+      console.warn('Temp file cleanup timeout triggered for:', tempFilePath);
+      await cleanup();
+    }, 5 * 60 * 1000);
+
     try {
       // Write buffer to temporary file for processing
       await fs.writeFile(tempFilePath, buffer);
-      
-      // Process the temporary file
-      const result = await this.processDocument(tempFilePath);
-      
+      tempFileCreated = true;
+      XmlDocxProcessor.tempFiles.add(tempFilePath);
+
+      // Process the temporary file with timeout
+      const result = await Promise.race([
+        this.processDocument(tempFilePath),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Document processing timeout')), 2 * 60 * 1000)
+        )
+      ]);
+
       return result;
     } finally {
-      // Clean up temporary file
-      try {
-        await fs.unlink(tempFilePath);
-      } catch (error) {
-        console.warn('Could not clean up temporary file:', tempFilePath, error.message);
-      }
+      // Clear timeout and clean up
+      clearTimeout(timeoutId);
+      await cleanup();
     }
   }
 

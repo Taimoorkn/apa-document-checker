@@ -1,5 +1,6 @@
 // server/processors/DocxModifier.js - DOCX modification for APA fixes (Memory-based)
 const PizZip = require('pizzip');
+const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
 
 class DocxModifier {
   constructor() {
@@ -264,7 +265,7 @@ class DocxModifier {
   }
 
   /**
-   * Fix text content in document XML (for citation and content fixes)
+   * Fix text content in document XML using proper DOM manipulation (for citation and content fixes)
    */
   fixTextContent(xmlContent, fixValue) {
     try {
@@ -274,46 +275,89 @@ class DocxModifier {
       }
 
       const { originalText, replacementText } = fixValue;
-      
-      console.log(`🔄 Replacing text in XML: "${originalText}" → "${replacementText}"`);
-      
-      // Simple and safe text replacement approach
-      let modifiedContent = xmlContent;
-      
-      // Method 1: Replace the exact text as it appears in the XML
-      // This handles most cases where text is within single w:t elements
-      if (modifiedContent.includes(originalText)) {
-        // IMPORTANT: Escape the replacement text for XML
-        const xmlSafeReplacement = this.escapeXml(replacementText);
-        modifiedContent = modifiedContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), xmlSafeReplacement);
-        console.log('✅ Direct text replacement successful with XML escaping');
-        console.log(`📝 Replaced: "${originalText}" → "${xmlSafeReplacement}"`);
-        return modifiedContent;
+
+      console.log(`🔄 Replacing text in XML using DOM: "${originalText}" → "${replacementText}"`);
+
+      // Parse XML with proper DOM parser
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+
+      if (!xmlDoc || xmlDoc.getElementsByTagName('parsererror').length > 0) {
+        console.warn('⚠️ XML parsing failed, falling back to safe regex replacement');
+        return this.safeFallbackTextReplacement(xmlContent, originalText, replacementText);
       }
-      
-      // Method 2: Replace text within w:t tags (handling XML structure)
-      const escapedReplacement = this.escapeXml(replacementText);
-      
-      const replaced = modifiedContent.replace(
-        new RegExp(`(<w:t[^>]*>)([^<]*${this.escapeRegex(originalText)}[^<]*)(</w:t>)`, 'g'),
-        (match, openTag, textContent, closeTag) => {
-          const newTextContent = textContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), escapedReplacement);
+
+      // Find all w:t (text) elements
+      const textElements = xmlDoc.getElementsByTagName('w:t');
+      let replacementsMade = 0;
+
+      // Process each text element
+      for (let i = 0; i < textElements.length; i++) {
+        const textElement = textElements[i];
+        const textContent = textElement.textContent || '';
+
+        if (textContent.includes(originalText)) {
+          // Replace text content while preserving XML structure
+          const newTextContent = textContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), replacementText);
+
+          // Clear existing text nodes and create new one
+          while (textElement.firstChild) {
+            textElement.removeChild(textElement.firstChild);
+          }
+
+          textElement.appendChild(xmlDoc.createTextNode(newTextContent));
+          replacementsMade++;
+        }
+      }
+
+      if (replacementsMade > 0) {
+        // Serialize back to XML
+        const serializer = new XMLSerializer();
+        const modifiedXml = serializer.serializeToString(xmlDoc);
+
+        console.log(`✅ DOM-based text replacement successful: ${replacementsMade} replacement(s) made`);
+        console.log(`📝 Replaced: "${originalText}" → "${replacementText}"`);
+
+        return modifiedXml;
+      } else {
+        console.warn('⚠️ No text replacement occurred - text not found in w:t elements');
+        return xmlContent;
+      }
+
+    } catch (error) {
+      console.error('Error in DOM-based fixTextContent:', error);
+      console.warn('⚠️ Falling back to safe regex replacement');
+      return this.safeFallbackTextReplacement(xmlContent, originalText, replacementText);
+    }
+  }
+
+  /**
+   * Safe fallback text replacement using regex with proper escaping
+   */
+  safeFallbackTextReplacement(xmlContent, originalText, replacementText) {
+    try {
+      // Only replace text within w:t elements to avoid breaking XML structure
+      const xmlSafeReplacement = this.escapeXml(replacementText);
+      const escapedOriginal = this.escapeRegex(originalText);
+
+      // Replace text within w:t tags only
+      const replaced = xmlContent.replace(
+        new RegExp(`(<w:t[^>]*>)([^<]*?)(${escapedOriginal})([^<]*?)(</w:t>)`, 'g'),
+        (match, openTag, beforeText, matchedText, afterText, closeTag) => {
+          const newTextContent = beforeText + xmlSafeReplacement + afterText;
           return openTag + newTextContent + closeTag;
         }
       );
-      
-      if (replaced !== modifiedContent) {
-        console.log('✅ XML-aware text replacement successful with XML escaping');
-        console.log(`📝 Replaced within tags: "${originalText}" → "${escapedReplacement}"`);
+
+      if (replaced !== xmlContent) {
+        console.log('✅ Safe fallback text replacement successful');
         return replaced;
       }
-      
-      console.warn('⚠️ No text replacement occurred - text might span multiple elements');
-      return modifiedContent;
-      
+
+      return xmlContent;
     } catch (error) {
-      console.error('Error in fixTextContent:', error);
-      return xmlContent; // Return original content on error
+      console.error('Error in safe fallback text replacement:', error);
+      return xmlContent;
     }
   }
 

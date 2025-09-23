@@ -6,24 +6,27 @@ const fs = require('fs').promises;
 const os = require('os');
 const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
-const { ErrorResponses, sendErrorResponse, ERROR_CODES } = require('../utils/errorHandler');
-const healthMonitor = require('../utils/healthMonitor');
+// Removed utility dependencies for serverless compatibility
+// const { ErrorResponses, sendErrorResponse, ERROR_CODES } = require('../utils/errorHandler');
+// const healthMonitor = require('../utils/healthMonitor');
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads/'));
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const extension = path.extname(file.originalname);
-    cb(null, `document-${uniqueSuffix}${extension}`);
-  }
-});
+// Configure multer for file uploads - Use memory storage for Vercel compatibility
+const storage = process.env.VERCEL
+  ? multer.memoryStorage() // Memory storage for Vercel serverless
+  : multer.diskStorage({   // Disk storage for local development
+      destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, '../uploads/'));
+      },
+      filename: (req, file, cb) => {
+        // Generate unique filename with timestamp
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const extension = path.extname(file.originalname);
+        cb(null, `document-${uniqueSuffix}${extension}`);
+      }
+    });
 
 // File filter to only allow DOCX files
 const fileFilter = (req, file, cb) => {
@@ -62,76 +65,122 @@ const docxModifier = new DocxModifier();
 router.post('/upload-docx', upload.single('document'), async (req, res) => {
   const startTime = Date.now();
   let filePath = null;
-  
+
   try {
     // Validate file upload
     if (!req.file) {
-      return ErrorResponses.noFile(res);
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded. Please select a DOCX file.',
+        code: 'NO_FILE'
+      });
     }
-    
-    filePath = req.file.path;
-    console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
-    
-    // XML-based processing
-    
-    // Validate file exists and is readable
-    try {
-      await fs.access(filePath, fs.constants.R_OK);
-    } catch (error) {
-      throw new Error('Uploaded file is not readable');
-    }
-    
-    // Additional DOCX validation - check file header
-    const fileBuffer = await fs.readFile(filePath);
-    if (!isValidDocxFile(fileBuffer)) {
-      throw new Error('File is not a valid DOCX document');
-    }
-    
-    // Process the document using XML parser
-    console.log('Starting XML-based document processing...');
-    const startTime = Date.now();
-    
-    const result = await xmlDocxProcessor.processDocument(filePath);
-    const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
-    
-    const processingTime = Date.now() - startTime;
-    console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
-    
-    // Add processing metadata
-    result.processingInfo = {
-      ...result.processingInfo,
-      processingTime: processingTime,
-      originalFilename: req.file.originalname,
-      fileSize: req.file.size
-      // No server file path - we're processing in memory only
-    };
-    
-    // Validate processing results
-    if (!result.text || !result.html) {
-      throw new Error('Document processing produced incomplete results');
-    }
-    
-    // Clean up uploaded file immediately since we're processing in memory
-    await fs.unlink(filePath);
-    filePath = null; // Mark as cleaned up
-    
-    // Return success response
-    res.json({
-      success: true,
-      document: result,
-      message: 'Document processed successfully'
-    });
 
-    // Record successful processing
+    console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
+
+    let fileBuffer;
+    let processingStartTime = Date.now();
+
+    if (process.env.VERCEL && req.file.buffer) {
+      // Vercel serverless: Use buffer directly
+      console.log('Processing in Vercel serverless mode with memory buffer');
+      fileBuffer = req.file.buffer;
+
+      // Additional DOCX validation - check file header
+      if (!isValidDocxFile(fileBuffer)) {
+        throw new Error('File is not a valid DOCX document');
+      }
+
+      // Process the document buffer using XML processor
+      console.log('Starting XML-based document processing...');
+      const result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, req.file.originalname);
+      const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
+
+      const processingTime = Date.now() - processingStartTime;
+      console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
+
+      // Add processing metadata
+      result.processingInfo = {
+        ...result.processingInfo,
+        processingTime: processingTime,
+        originalFilename: req.file.originalname,
+        fileSize: req.file.size,
+        serverless: true,
+        platform: 'vercel'
+      };
+
+      // Validate processing results
+      if (!result.text || !result.html) {
+        throw new Error('Document processing produced incomplete results');
+      }
+
+      // Return success response
+      res.json({
+        success: true,
+        document: result,
+        message: 'Document processed successfully'
+      });
+
+    } else {
+      // Local development: Use file path
+      filePath = req.file.path;
+      console.log('Processing in local development mode with file system');
+
+      // Validate file exists and is readable
+      try {
+        await fs.access(filePath, fs.constants.R_OK);
+      } catch (error) {
+        throw new Error('Uploaded file is not readable');
+      }
+
+      // Additional DOCX validation - check file header
+      fileBuffer = await fs.readFile(filePath);
+      if (!isValidDocxFile(fileBuffer)) {
+        throw new Error('File is not a valid DOCX document');
+      }
+
+      // Process the document using XML parser
+      console.log('Starting XML-based document processing...');
+      const result = await xmlDocxProcessor.processDocument(filePath);
+      const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
+
+      const processingTime = Date.now() - processingStartTime;
+      console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
+
+      // Add processing metadata
+      result.processingInfo = {
+        ...result.processingInfo,
+        processingTime: processingTime,
+        originalFilename: req.file.originalname,
+        fileSize: req.file.size,
+        serverless: false,
+        platform: 'local'
+      };
+
+      // Validate processing results
+      if (!result.text || !result.html) {
+        throw new Error('Document processing produced incomplete results');
+      }
+
+      // Clean up uploaded file immediately since we're processing in memory
+      await fs.unlink(filePath);
+      filePath = null; // Mark as cleaned up
+
+      // Return success response
+      res.json({
+        success: true,
+        document: result,
+        message: 'Document processed successfully'
+      });
+    }
+
     const totalProcessingTime = Date.now() - startTime;
-    healthMonitor.recordRequest(totalProcessingTime);
-    console.log(`✅ Document processed successfully in ${processingTime}ms (total: ${totalProcessingTime}ms)`);
+    console.log(`✅ Document processed successfully (total: ${totalProcessingTime}ms)`);
 
   } catch (error) {
     console.error('Error processing document:', error);
-    healthMonitor.recordError(error, 'upload-docx');
-    
-    // Clean up uploaded file if it exists
+
+    // Clean up uploaded file if it exists (local development only)
     if (filePath) {
       try {
         await fs.unlink(filePath);

@@ -6,9 +6,7 @@ const fs = require('fs').promises;
 const os = require('os');
 const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
-// Removed utility dependencies for serverless compatibility
-// const { ErrorResponses, sendErrorResponse, ERROR_CODES } = require('../utils/errorHandler');
-// const healthMonitor = require('../utils/healthMonitor');
+// Simplified for serverless compatibility - utilities removed
 
 // Create router instance - IMPORTANT: This must be the default export
 const router = express.Router();

@@ -1,27 +1,13 @@
 {
-  "version": 2,
-  "name": "apa-document-checker",
-  "builds": [
+  "rewrites": [
     {
-      "src": "server/index.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
+      "source": "/api/(.*)",
+      "destination": "/api/serverless"
     }
   ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server/index.js"
+  "functions": {
+    "api/serverless.js": {
+      "maxDuration": 60
     }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "VERCEL": "1"
   }
 }

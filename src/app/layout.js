@@ -1,6 +1,7 @@
 import './globals.css'
 import '@/styles/tiptap.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { Analytics } from '@vercel/analytics/react'
 
 export const metadata = {
   title: 'APA 7th Edition Document Checker',
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
           {children}
         </ErrorBoundary>
+        <Analytics />
       </body>
     </html>
   );

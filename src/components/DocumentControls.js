@@ -35,32 +35,6 @@ const DocumentControls = memo(({
             )}
           </div>
           <div className="flex items-center space-x-3">
-            {/* Force Update Button - Debug */}
-            {documentText && (
-              <button
-                onClick={async () => {
-                  if (editor && documentText && documentFormatting) {
-                    try {
-                      const tiptapDoc = await tiptapConverter.convertToTiptapDocument(documentText, documentFormatting);
-                      editor.commands.setContent(tiptapDoc);
-                      if (process.env.NODE_ENV === 'development') {
-                        console.log('Forced formatted content update');
-                      }
-                    } catch (error) {
-                      if (process.env.NODE_ENV === 'development') {
-                        console.error('Force update error:', error);
-                      }
-                      const paragraphs = documentText.split('\n').filter(p => p.trim());
-                      const htmlContent = paragraphs.map(p => `<p>${p}</p>`).join('');
-                      editor.commands.setContent(htmlContent);
-                    }
-                  }
-                }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors duration-200"
-              >
-                Force Update Content
-              </button>
-            )}
 
             {/* Run Check Button */}
             <button

@@ -88,7 +88,9 @@ export default function IssuesPanel() {
     // Auto-expand the category if it's collapsed
     setExpandedCategories(prev => {
       if (!prev[severity]) {
-        console.log(`📂 Auto-expanding ${severity} category for issue: ${activeIssueId}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📂 Auto-expanding ${severity} category for issue: ${activeIssueId}`);
+        }
         return { ...prev, [severity]: true };
       }
       return prev;
@@ -96,38 +98,41 @@ export default function IssuesPanel() {
     
     // Delay scrolling to allow for category expansion animation
     const scrollTimer = setTimeout(() => {
-      // First, ensure we're on the issues tab
-      if (activeTab !== 'issues') {
-        setActiveTab('issues');
-      }
-      
-      // Scroll to the issue element
-      const issueElement = issueRefs.current[activeIssueId];
-      if (issueElement) {
-        console.log(`📍 Auto-scrolling to issue: ${activeIssueId}`);
-        
-        // Calculate the position relative to the panel content
-        const panelContent = panelContentRef.current;
-        if (panelContent) {
-          // Get the issue element's position relative to the panel
-          const issueRect = issueElement.getBoundingClientRect();
-          const panelRect = panelContent.getBoundingClientRect();
-          
-          // Calculate scroll position to center the issue in view
-          const scrollTop = issueElement.offsetTop - panelRect.height / 2 + issueElement.offsetHeight / 2;
-          
-          // Smooth scroll to the issue
-          panelContent.scrollTo({
-            top: Math.max(0, scrollTop),
-            behavior: 'smooth'
-          });
+      // Only switch to issues tab if we're currently scrolling to show an issue
+      // Don't force tab switch if user is viewing statistics
+      const shouldScrollToIssue = activeTab === 'issues';
+
+      if (shouldScrollToIssue) {
+        // Scroll to the issue element
+        const issueElement = issueRefs.current[activeIssueId];
+        if (issueElement) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📍 Auto-scrolling to issue: ${activeIssueId}`);
+          }
+
+          // Calculate the position relative to the panel content
+          const panelContent = panelContentRef.current;
+          if (panelContent) {
+            // Get the issue element's position relative to the panel
+            const issueRect = issueElement.getBoundingClientRect();
+            const panelRect = panelContent.getBoundingClientRect();
+
+            // Calculate scroll position to center the issue in view
+            const scrollTop = issueElement.offsetTop - panelRect.height / 2 + issueElement.offsetHeight / 2;
+
+            // Smooth scroll to the issue
+            panelContent.scrollTo({
+              top: Math.max(0, scrollTop),
+              behavior: 'smooth'
+            });
+          }
+
+          // Add a highlight animation to draw attention
+          issueElement.classList.add('issue-highlight-animation');
+          setTimeout(() => {
+            issueElement.classList.remove('issue-highlight-animation');
+          }, 2000);
         }
-        
-        // Add a highlight animation to draw attention
-        issueElement.classList.add('issue-highlight-animation');
-        setTimeout(() => {
-          issueElement.classList.remove('issue-highlight-animation');
-        }, 2000);
       }
     }, expandedCategories[severity] ? 100 : 400); // Longer delay if category needs to expand
     
@@ -165,7 +170,7 @@ export default function IssuesPanel() {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setActiveTab('issues')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 relative ${
               activeTab === 'issues'
                 ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
                 : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
@@ -173,6 +178,9 @@ export default function IssuesPanel() {
           >
             <AlertCircle className="h-4 w-4" />
             <span>Issues ({totalIssues})</span>
+            {activeIssueId && activeTab !== 'issues' && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white"></div>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('stats')}

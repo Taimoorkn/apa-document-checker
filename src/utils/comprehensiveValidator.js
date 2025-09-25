@@ -35,28 +35,6 @@ export class ComprehensiveValidator {
         bulletPatterns.some(p => p.test(line))
       );
       
-      if (bulletLines.length > 2) {
-        const startsWithVerb = bulletLines.filter(line => 
-          /^[•·▪▫◦‣⁃*-]\s+[A-Z][a-z]+ing\b/.test(line)
-        ).length;
-        
-        const startsWithNoun = bulletLines.filter(line => 
-          /^[•·▪▫◦‣⁃*-]\s+[A-Z][a-z]+\s/.test(line) && 
-          !/ing\b/.test(line.split(/\s+/)[1])
-        ).length;
-        
-        if (startsWithVerb > 0 && startsWithNoun > 0) {
-          issues.push({
-            title: "Inconsistent list structure",
-            description: "List items should have parallel grammatical structure",
-            text: bulletLines[0].substring(0, 50),
-            severity: "Minor",
-            category: "lists",
-            hasFix: false,
-            explanation: "Start all items with same part of speech (all verbs or all nouns)"
-          });
-        }
-      }
       
       // Check for punctuation consistency
       const withPeriods = bulletLines.filter(line => line.trim().endsWith('.')).length;

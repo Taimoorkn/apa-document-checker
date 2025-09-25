@@ -1098,22 +1098,6 @@ export class EnhancedAPAAnalyzer {
     if (!text) return issues;
     
     
-    // Check for excessive first person usage
-    const firstPersonPattern = /\b(I|me|my|mine|we|us|our|ours)\b/gi;
-    const firstPersonMatches = text.match(firstPersonPattern) || [];
-    const wordCount = text.split(/\s+/).length;
-    
-    if (firstPersonMatches.length > wordCount * 0.02) { // More than 2%
-      issues.push({
-        title: "Excessive first-person usage",
-        description: "Consider reducing first-person pronouns in formal academic writing",
-        text: `Found ${firstPersonMatches.length} instances`,
-        severity: "Minor",
-        category: "content",
-        hasFix: false,
-        explanation: "While not prohibited, excessive first-person usage should be avoided in formal academic writing."
-      });
-    }
     
     return issues;
   }

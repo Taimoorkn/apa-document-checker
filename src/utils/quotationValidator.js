@@ -269,49 +269,9 @@ export class QuotationValidator {
     
     sentences.forEach(sentence => {
       if (sentence.trim().startsWith('"') || sentence.trim().startsWith('"')) {
-        // Check if previous sentence introduces the quote
-        const sentenceIndex = sentences.indexOf(sentence);
-        if (sentenceIndex > 0) {
-          const prevSentence = sentences[sentenceIndex - 1];
-          const hasIntroduction = prevSentence.includes('states') || 
-                                 prevSentence.includes('argues') || 
-                                 prevSentence.includes('notes') ||
-                                 prevSentence.includes('writes') ||
-                                 prevSentence.includes('according to') ||
-                                 prevSentence.includes('said') ||
-                                 prevSentence.includes('explained');
-          
-          if (!hasIntroduction && sentence.length > 20) {
-            issues.push({
-              title: "Floating quotation",
-              description: "Quote appears without proper introduction",
-              text: sentence.trim().substring(0, 50) + '...',
-              severity: "Minor",
-              category: "quotations",
-              hasFix: false,
-              explanation: "Introduce quotes with signal phrases: 'Smith (2023) noted that...'"
-            });
-          }
-        }
       }
     });
     
-    // Check for overuse of quotes
-    const quoteCount = (text.match(/[""][^""]+[""]/g) || []).length;
-    const paragraphCount = (text.match(/\n\n/g) || []).length + 1;
-    const quotesPerParagraph = quoteCount / paragraphCount;
-    
-    if (quotesPerParagraph > 2) {
-      issues.push({
-        title: "Excessive use of direct quotes",
-        description: `Average of ${quotesPerParagraph.toFixed(1)} quotes per paragraph`,
-        text: `${quoteCount} quotes in ${paragraphCount} paragraphs`,
-        severity: "Minor",
-        category: "quotations",
-        hasFix: false,
-        explanation: "Prefer paraphrasing over direct quotes. Use quotes sparingly for impact."
-      });
-    }
     
     return issues;
   }

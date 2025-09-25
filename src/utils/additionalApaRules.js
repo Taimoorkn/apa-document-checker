@@ -247,21 +247,6 @@ export class AdditionalAPARules {
     const hasResultsSection = /\bResults?\b/i.test(text);
     
     if (hasMethodSection && hasResultsSection) {
-      // Check for data availability statement
-      const hasDataStatement = this.patterns.dataStatement.test(text);
-      const hasOpenData = this.patterns.openData.test(text);
-      
-      if (!hasDataStatement && !hasOpenData) {
-        issues.push({
-          title: "Missing data availability statement",
-          description: "Research papers should include data availability information",
-          text: null,
-          severity: "Minor",
-          category: "content",
-          hasFix: false,
-          explanation: "Consider adding a data availability statement or noting if data is not publicly available"
-        });
-      }
     }
     
     return issues;

@@ -5,6 +5,9 @@
   min-height: 500px;
   outline: none;
   padding: 2rem;
+  /* Chrome cursor workaround */
+  cursor: text;
+  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1' height='16' viewBox='0 0 1 16'><rect width='1' height='16' fill='black'/></svg>") 1 8, text;
   /* Don't override document fonts - let the content decide */
   /* font-family: 'Times New Roman', serif; */
   /* font-size: 12pt; */

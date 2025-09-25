@@ -141,17 +141,12 @@ export default function IssuesPanel() {
   
   return (
     <div className="h-full bg-white flex flex-col">
-      {/* Header with Tabs */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <ClipboardList className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Analysis Panel</h2>
-              <p className="text-sm text-slate-500 font-medium">APA 7th Edition Compliance</p>
-            </div>
+      {/* Streamlined Header */}
+      <div className="bg-white border-b border-slate-200 px-6 py-5">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Analysis Results</h2>
+            <p className="text-sm text-slate-500 mt-1">APA 7th Edition Compliance Check</p>
           </div>
           
           {/* Compliance Badge */}
@@ -166,32 +161,50 @@ export default function IssuesPanel() {
           )}
         </div>
         
-        {/* Tab Navigation and Export */}
-        <div className="flex items-center space-x-2">
+        {/* Quick Overview */}
+        {totalIssues > 0 && (
+          <div className="flex items-center space-x-3 mt-3">
+            <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-sm font-medium text-red-700">{issueCounts.Critical} Critical</span>
+            </div>
+            <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+              <span className="text-sm font-medium text-amber-700">{issueCounts.Major} Major</span>
+            </div>
+            <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-sm font-medium text-blue-700">{issueCounts.Minor} Minor</span>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="flex items-center space-x-1 mt-4">
           <button
             onClick={() => setActiveTab('issues')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 relative ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
               activeTab === 'issues'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 border-emerald-500'
+                : 'text-slate-600 hover:bg-slate-50 border-slate-200'
             }`}
           >
             <AlertCircle className="h-4 w-4" />
-            <span>Issues ({totalIssues})</span>
-            {activeIssueId && activeTab !== 'issues' && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white animate-pulse"></div>
+            <span>Issues</span>
+            {totalIssues > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-red-500 text-white rounded-full">{totalIssues}</span>
             )}
           </button>
           <button
             onClick={() => setActiveTab('stats')}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border ${
               activeTab === 'stats'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 border-emerald-500'
+                : 'text-slate-600 hover:bg-slate-50 border-slate-200'
             }`}
           >
             <BarChart3 className="h-4 w-4" />
-            <span>Statistics</span>
+            <span>Overview</span>
           </button>
         </div>
       </div>
@@ -199,51 +212,21 @@ export default function IssuesPanel() {
       {/* Content Area */}
       <div className="flex-1 overflow-auto" ref={panelContentRef}>
         {activeTab === 'issues' ? (
-          <div className="p-6">
+          <div className="flex-1 overflow-auto">
             {totalIssues > 0 ? (
-              <div className="space-y-4">
-                {/* Quick Stats Cards */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  {issueCounts.Critical > 0 && (
-                    <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-2">
-                        <AlertOctagon className="h-5 w-5 text-red-600" />
-                        <span className="text-2xl font-bold text-red-700">{issueCounts.Critical}</span>
-                      </div>
-                      <p className="text-xs font-medium text-red-600">Critical Issues</p>
-                    </div>
-                  )}
-                  {issueCounts.Major > 0 && (
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-2">
-                        <AlertTriangle className="h-5 w-5 text-amber-600" />
-                        <span className="text-2xl font-bold text-amber-700">{issueCounts.Major}</span>
-                      </div>
-                      <p className="text-xs font-medium text-amber-600">Major Issues</p>
-                    </div>
-                  )}
-                  {issueCounts.Minor > 0 && (
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200 shadow-sm">
-                      <div className="flex items-center justify-between mb-2">
-                        <Info className="h-5 w-5 text-blue-600" />
-                        <span className="text-2xl font-bold text-blue-700">{issueCounts.Minor}</span>
-                      </div>
-                      <p className="text-xs font-medium text-blue-600">Minor Issues</p>
-                    </div>
-                  )}
-                </div>
+              <div className="p-6 space-y-6">
                 
-                {/* Issue Categories */}
+                {/* Priority Issues First */}
                 {issueCounts.Critical > 0 && (
-                  <IssueCategory 
-                    title="Critical Issues" 
-                    count={issueCounts.Critical} 
+                  <IssueCategory
+                    title="Critical Issues"
+                    count={issueCounts.Critical}
                     severity="Critical"
                     expanded={expandedCategories.Critical}
                     toggleExpanded={() => toggleCategory('Critical')}
                   >
                     {expandedCategories.Critical && groupedIssues.Critical.map(issue => (
-                      <IssueItem 
+                      <IssueItem
                         key={issue.id}
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
@@ -301,31 +284,27 @@ export default function IssuesPanel() {
                 )}
               </div>
             ) : issues.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl mb-6 flex items-center justify-center shadow-lg">
-                  <FileText className="h-12 w-12 text-slate-400" />
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <div className="w-16 h-16 bg-slate-100 rounded-2xl mb-4 flex items-center justify-center">
+                  <FileText className="h-8 w-8 text-slate-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">No Document Loaded</h3>
-                <p className="text-slate-500 text-center max-w-sm">
-                  Upload a document to check it against APA 7th Edition guidelines
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Document to Analyze</h3>
+                <p className="text-slate-500 text-center text-sm">
+                  Upload a document to see APA compliance analysis
                 </p>
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-2xl p-8 shadow-lg">
-                <div className="flex items-start space-x-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-xl shadow-emerald-500/25">
-                    <Check className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-emerald-900 mb-2">Perfect Compliance!</h3>
-                    <p className="text-emerald-700 mb-1 text-lg">
-                      Your document meets all APA 7th Edition requirements.
-                    </p>
-                    <p className="text-sm text-emerald-600">
-                      No formatting or citation issues detected.
-                    </p>
-                  </div>
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                  <Check className="h-10 w-10 text-white" />
                 </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">Excellent Work!</h3>
+                <p className="text-slate-600 text-center mb-2">
+                  Your document meets all APA 7th Edition requirements.
+                </p>
+                <p className="text-sm text-slate-500 text-center">
+                  No formatting or citation issues detected.
+                </p>
               </div>
             )}
           </div>

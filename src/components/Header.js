@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import { useAuthStore } from '@/store/authStore';
+import { useDocumentPersistenceStore } from '@/store/documentPersistenceStore';
+import AuthModal from './AuthModal';
 import {
   Download, 
   FileText, 
@@ -28,51 +31,48 @@ export default function Header() {
     analyzeDocumentDebounced,
     exportDocument,
     processingState,
+    documentHtml,
+    documentText,
+    documentFormatting,
+    documentStats,
+    issues,
+    analysisScore
   } = useDocumentStore();
+
+  const { user, userProfile, signOut } = useAuthStore();
+  const { saveDocument } = useDocumentPersistenceStore();
 
   const [uploadError, setUploadError] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const exportDropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
 
-  // User configuration - should be replaced with proper authentication system
-  // TODO: Replace with authentication provider (e.g., NextAuth.js, Auth0, Firebase Auth)
-  const userConfig = {
-    isAuthenticated: false, // TODO: Implement actual authentication
-    name: 'Guest User',
-    email: 'guest@example.com',
-    initials: 'GU',
-    plan: 'Free',
-    avatar: null
-  };
-
-  // Authentication handlers - placeholders for future implementation
-  const handleLogin = () => {
-    // TODO: Implement login functionality
-    console.log('Login functionality not yet implemented');
-  };
-
-  const handleLogout = () => {
-    // TODO: Implement logout functionality
-    console.log('Logout functionality not yet implemented');
+  // Authentication handlers
+  const handleLogout = async () => {
+    const result = await signOut();
+    if (result.success) {
+      setShowUserDropdown(false);
+      // User will be redirected to landing page by the main page auth check
+    }
   };
 
   const handleProfile = () => {
-    // TODO: Implement profile functionality
-    console.log('Profile functionality not yet implemented');
+    console.log('Profile clicked - TODO: Implement profile management');
+    setShowUserDropdown(false);
   };
 
   const handleSettings = () => {
-    // TODO: Implement settings functionality
-    console.log('Settings functionality not yet implemented');
+    console.log('Settings clicked - TODO: Implement settings page');
+    setShowUserDropdown(false);
   };
 
   const handleBilling = () => {
-    // TODO: Implement billing functionality
-    console.log('Billing functionality not yet implemented');
+    console.log('Billing clicked - TODO: Implement billing page');
+    setShowUserDropdown(false);
   };
   const fileInputRef = useRef(null);
 
@@ -281,11 +281,15 @@ export default function Header() {
                 className="flex items-center space-x-3 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all duration-200"
               >
                 <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                  <span className="text-sm font-semibold text-white">{userConfig.initials}</span>
+                  <span className="text-sm font-semibold text-white">
+                    {userProfile?.full_name?.[0] || user?.email?.[0] || 'U'}
+                  </span>
                 </div>
                 <div className="text-left hidden md:block">
-                  <p className="text-sm font-semibold text-slate-900">{userConfig.name}</p>
-                  <p className="text-xs text-slate-500 font-medium">{userConfig.plan} Plan</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {userProfile?.full_name || 'User'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">Free Plan</p>
                 </div>
                 <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
               </button>
@@ -295,8 +299,10 @@ export default function Header() {
                 <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
                   {/* User Info */}
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900">{userConfig.name}</p>
-                    <p className="text-xs text-gray-500">{userConfig.email}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {userProfile?.full_name || 'User'}
+                    </p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
 
                   {/* Menu Items */}
@@ -321,7 +327,7 @@ export default function Header() {
                     >
                       <CreditCard className="h-4 w-4 mr-3 text-gray-400" />
                       <span>Billing & Plans</span>
-                      <span className="ml-auto px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded-full">{userConfig.plan}</span>
+                      <span className="ml-auto px-2 py-0.5 text-xs bg-indigo-100 text-indigo-700 rounded-full">Free</span>
                     </button>
                   </div>
 
@@ -375,6 +381,13 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        initialMode="signin"
+      />
     </>
   );
 }

@@ -12,7 +12,7 @@ export default function AuthCallback() {
     // Give the auth store time to process the callback
     const timer = setTimeout(() => {
       if (isAuthenticated()) {
-        router.push('/dashboard');
+        router.push('/');
       } else {
         router.push('/');
       }

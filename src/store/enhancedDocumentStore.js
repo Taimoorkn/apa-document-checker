@@ -339,9 +339,9 @@ export const useDocumentStore = create((set, get) => ({
           stage: 'Upload complete'
         }
       }));
-      
+
       // No automatic analysis - user must click "Run Check" button
-      
+
       return true;
       
     } catch (error) {
@@ -476,10 +476,52 @@ export const useDocumentStore = create((set, get) => ({
           stage: null
         }
       }));
-      
-      
-      return { 
-        success: true, 
+
+      // Auto-save document to Supabase if user is authenticated
+      try {
+        // Import auth store dynamically to avoid circular dependencies
+        const { useAuthStore } = await import('./authStore');
+        const { useDocumentPersistenceStore } = await import('./documentPersistenceStore');
+
+        const authState = useAuthStore.getState();
+        const persistenceState = useDocumentPersistenceStore.getState();
+
+        if (authState.user) {
+          console.log('🔄 Auto-saving document to Supabase...');
+
+          const currentState = get();
+          const documentData = {
+            title: currentState.documentName || 'Untitled Document',
+            documentName: currentState.documentName,
+            documentText: currentState.documentText,
+            documentHtml: currentState.documentHtml,
+            documentFormatting: currentState.documentFormatting,
+            documentStructure: currentState.documentStructure,
+            documentStyles: currentState.documentStyles,
+            documentStats: currentState.documentStats,
+            editorContent: currentState.editorContent,
+            fileSize: currentState.originalDocumentBuffer ? currentState.originalDocumentBuffer.length : 0
+          };
+
+          const analysisResults = {
+            issues: issues,
+            analysisScore: analysisScore
+          };
+
+          const saveResult = await persistenceState.saveDocument(authState.user.id, documentData, analysisResults);
+          if (saveResult.success) {
+            console.log('✅ Document auto-saved to Supabase');
+          } else {
+            console.warn('⚠️ Failed to auto-save document:', saveResult.error);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Auto-save failed:', error);
+        // Don't fail the analysis if saving fails
+      }
+
+      return {
+        success: true,
         issueCount: issues.length,
         score: analysisScore,
         breakdown: { criticalCount, majorCount, minorCount }

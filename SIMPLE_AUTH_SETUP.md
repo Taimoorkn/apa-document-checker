@@ -27,7 +27,19 @@ This guide will help you set up email-only authentication with Supabase for the 
 1. In your Supabase dashboard, go to **SQL Editor**
 2. Copy the entire contents of `supabase-schema.sql` from your project
 3. Paste it in the SQL Editor and click **"Run"**
-4. Verify tables were created in **Database > Tables**
+4. You should see success messages with checkmarks ✅
+5. Verify tables were created in **Database > Tables**
+
+### 2.5. Create Storage Bucket (Manual Step)
+
+1. Go to **Storage** in your Supabase dashboard
+2. Click **"Create new bucket"**
+3. Set:
+   - **Name**: `documents`
+   - **Public**: ❌ **Uncheck** this (keep it private)
+   - **File size limit**: `50MB`
+   - **Allowed MIME types**: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+4. Click **"Create bucket"**
 
 ### 3. Configure Authentication
 

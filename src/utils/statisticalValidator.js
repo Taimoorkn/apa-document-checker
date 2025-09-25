@@ -157,7 +157,7 @@ export class StatisticalValidator {
     pValues.forEach(pValue => {
       const value = parseFloat(pValue);
       const decimalPlaces = pValue.split('.')[1].length;
-      
+
       // p-values should have 2-3 decimal places
       if (decimalPlaces > 3 || decimalPlaces < 2) {
         issues.push({
@@ -171,18 +171,18 @@ export class StatisticalValidator {
           explanation: "Report p-values to 2-3 decimal places: p = .045 or p = .001"
         });
       }
-      
-      // Check for leading zero
+
+      // FIXED: Check for leading zero - p-values CANNOT exceed 1.0, so no leading zero
       if (value < 1 && pValue.startsWith('0.')) {
         issues.push({
           title: "Leading zero in p-value",
-          description: "Omit leading zero for values that cannot exceed 1",
+          description: "Omit leading zero for p-values (cannot exceed 1)",
           text: `p = ${pValue}`,
           severity: "Minor",
           category: "statistical",
           hasFix: true,
           fixAction: "removeLeadingZero",
-          explanation: "Use p = .05 not p = 0.05"
+          explanation: "Use p = .05 not p = 0.05 (p-values cannot exceed 1.0)"
         });
       }
     });
@@ -190,21 +190,44 @@ export class StatisticalValidator {
     // Check correlation formatting
     correlations.forEach(correlation => {
       const value = parseFloat(correlation);
-      
+
+      // FIXED: Correlations CANNOT exceed 1.0 (range is -1.0 to +1.0), so no leading zero
       if (Math.abs(value) <= 1 && correlation.startsWith('0.')) {
         issues.push({
           title: "Leading zero in correlation",
-          description: "Omit leading zero for correlations",
+          description: "Omit leading zero for correlations (cannot exceed 1.0)",
           text: `r = ${correlation}`,
           severity: "Minor",
           category: "statistical",
           hasFix: true,
           fixAction: "removeLeadingZero",
-          explanation: "Use r = .45 not r = 0.45"
+          explanation: "Use r = .45 not r = 0.45 (correlations range from -1.0 to 1.0)"
         });
       }
     });
-    
+
+    // NEW: Check for values that SHOULD have leading zeros (can exceed 1.0)
+    // Examples: measurements, ages, test scores, effect sizes like Cohen's d
+    const measurementPattern = /(?:age|weight|height|score|time|distance|Cohen's d|effect size|mean|M|SD|SE)\s*[=:]\s*(\.\d+)/gi;
+    const measurementMatches = [...text.matchAll(measurementPattern)];
+
+    measurementMatches.forEach(match => {
+      const value = match[1]; // e.g., ".75" from "age = .75"
+      const measurementType = match[0].split(/[=:]/)[0].trim();
+
+      // These values CAN exceed 1.0, so they should have leading zeros
+      issues.push({
+        title: "Missing leading zero for measurement",
+        description: `${measurementType} should have leading zero (can exceed 1.0)`,
+        text: match[0],
+        severity: "Minor",
+        category: "statistical",
+        hasFix: true,
+        fixAction: "addLeadingZero",
+        explanation: `Use ${measurementType} = 0${value} not ${measurementType} = ${value} (measurements can exceed 1.0)`
+      });
+    });
+
     return issues.slice(0, 5); // Limit to avoid overwhelming
   }
 

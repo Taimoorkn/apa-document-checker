@@ -827,17 +827,20 @@ export class ReferenceValidator {
           reportedTypes.add('invalid-doi');
         }
         
-        // Check if formatted as hyperlink
-        if (!entry.text.includes('https://doi.org/') && !reportedTypes.has('doi-format')) {
+        // FIXED: Check if formatted properly - APA 7th allows both formats
+        const hasHyperlinkFormat = entry.text.includes('https://doi.org/');
+        const hasPlainFormat = entry.text.match(/doi:\s*10\./i);
+
+        if (!hasHyperlinkFormat && !hasPlainFormat && !reportedTypes.has('doi-format')) {
           issues.push({
-            title: "DOI not formatted as hyperlink",
-            description: "DOIs should be formatted as clickable hyperlinks",
+            title: "DOI format issue",
+            description: "DOI should be formatted as hyperlink or plain DOI",
             text: doiMatch[0],
             severity: "Minor",
             category: "references",
             hasFix: true,
             fixAction: "formatDOI",
-            explanation: "Format DOIs as: https://doi.org/10.xxxx/xxxxx"
+            explanation: "Format DOIs as: https://doi.org/10.xxxx/xxxxx (preferred) or doi:10.xxxx/xxxxx (acceptable)"
           });
           reportedTypes.add('doi-format');
         }

@@ -174,15 +174,15 @@ export class BiasFreeLanguageValidator {
         const context = text.substring(Math.max(0, position - 30), position + term.length + 30);
         
         issues.push({
-          title: "Non-person-first disability language",
-          description: `"${firstMatch}" should use person-first language`,
+          title: "Consider person-first disability language",
+          description: `"${firstMatch}" could use person-first language`,
           text: context,
-          severity: "Major",
+          severity: "Minor", // FIXED: Changed from "Major" to "Minor"
           category: "bias-free",
           hasFix: true,
           fixAction: "usePersonFirst",
           fixValue: { original: firstMatch, replacement: alternative },
-          explanation: `Use person-first: "${alternative}"`
+          explanation: `Consider person-first: "${alternative}" (though respect individual/community preferences)`
         });
         
         reportedTerms.add(term.toLowerCase());
@@ -199,13 +199,13 @@ export class BiasFreeLanguageValidator {
       const matches = text.match(pattern) || [];
       if (matches.length > 0 && !reportedTerms.has('disability-first')) {
         issues.push({
-          title: "Disability-first language",
-          description: "Use person-first language for disabilities",
+          title: "Consider language preference",
+          description: "Some prefer person-first, others identity-first language",
           text: matches[0],
-          severity: "Major",
+          severity: "Minor", // FIXED: Changed from "Major" to "Minor"
           category: "bias-free",
           hasFix: false,
-          explanation: "Say 'person with autism' not 'autistic person' (unless individual preference known)"
+          explanation: "APA 7th: Use 'person with autism' OR 'autistic person' based on individual/community preference. When unknown, person-first is safer."
         });
         reportedTerms.add('disability-first');
       }
@@ -363,15 +363,15 @@ export class BiasFreeLanguageValidator {
         const context = text.substring(Math.max(0, position - 30), position + term.length + 30);
         
         issues.push({
-          title: "Outdated SOGI terminology",
-          description: `"${firstMatch}" is outdated or inappropriate`,
+          title: "Consider updated SOGI terminology",
+          description: `"${firstMatch}" may be outdated terminology`,
           text: context,
-          severity: "Major",
+          severity: "Minor", // FIXED: More nuanced - some terms may be contextually appropriate
           category: "bias-free",
           hasFix: true,
           fixAction: "updateSOGITerm",
           fixValue: { original: firstMatch, replacement: alternative.split(',')[0].trim() },
-          explanation: `Use: ${alternative}`
+          explanation: `Consider: ${alternative} (check current community preferences)`
         });
       }
     });

@@ -31,23 +31,32 @@ export class HeaderFooterValidator {
   }
 
   /**
-   * Validate running head format
+   * FIXED: Validate running head format according to APA 7th Edition
    */
   validateRunningHead(headersFooters, text) {
     const issues = [];
-    
-    // Check if document appears to be a professional paper (longer documents typically are)
+
+    // UPDATED: APA 7th distinguishes between student and professional papers
+    // Check if document appears to be a professional paper
     const wordCount = text.split(/\s+/).filter(Boolean).length;
-    const isProfessionalPaper = wordCount > 3000 || text.toLowerCase().includes('running head');
-    
+    const hasRunningHeadText = text.toLowerCase().includes('running head');
+    const isProfessionalPaper = hasRunningHeadText || wordCount > 5000; // Professional papers are typically longer
+
+    // NEW: Detect if this is a student paper (common indicators)
+    const isStudentPaper = text.toLowerCase().includes('student') ||
+                          text.toLowerCase().includes('university') ||
+                          text.toLowerCase().includes('course') ||
+                          text.toLowerCase().includes('professor') ||
+                          (!hasRunningHeadText && wordCount < 3000);
+
     if (isProfessionalPaper) {
       const runningHead = headersFooters.runningHead;
-      
-      // Check if running head exists
+
+      // Check if running head exists for professional papers
       if (!runningHead && !headersFooters.headers?.length) {
         issues.push({
-          title: "Missing running head",
-          description: "Professional papers require a running head in the page header",
+          title: "Missing running head (professional paper)",
+          description: "Professional papers require a running head on every page",
           severity: "Major",
           category: "headers",
           hasFix: false,
@@ -55,7 +64,8 @@ export class HeaderFooterValidator {
         });
         return issues;
       }
-      
+
+      // Validate running head content for professional papers
       if (runningHead) {
         // Check length (max 50 characters)
         if (runningHead.length > this.maxRunningHeadLength) {
@@ -103,8 +113,22 @@ export class HeaderFooterValidator {
           });
         }
       }
+    } else if (isStudentPaper) {
+      // NEW: APA 7th Edition - Student papers only need running head on title page
+      const titlePageRunningHead = text.toLowerCase().includes('running head');
+
+      if (!titlePageRunningHead) {
+        issues.push({
+          title: "Consider adding running head to title page",
+          description: "APA 7th: Student papers only need running head on title page (optional for other pages)",
+          severity: "Minor", // Optional for students
+          category: "headers",
+          hasFix: false,
+          explanation: "Student papers: Add 'Running head: ABBREVIATED TITLE' only on title page. Other pages can just have the page header or nothing."
+        });
+      }
     }
-    
+
     return issues;
   }
 

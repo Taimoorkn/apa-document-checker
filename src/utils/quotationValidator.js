@@ -50,12 +50,13 @@ export class QuotationValidator {
         const quotePosition = match.index;
         const beforeQuote = text.substring(Math.max(0, quotePosition - 50), quotePosition);
         const afterQuote = text.substring(quotePosition + match[0].length, Math.min(text.length, quotePosition + match[0].length + 50));
-        
-        // Block quotes shouldn't have quotation marks
-        if (match[0].includes('"') || match[0].includes('"')) {
+
+        // FIXED: Block quotes (40+ words) should NOT have quotation marks
+        // If we found a 40+ word quote WITH quotation marks, it's incorrectly formatted
+        if (match[0].includes('"') || match[0].includes('"') || match[0].includes('"') || match[0].includes('"')) {
           issues.push({
-            title: "Long quote not formatted as block quote",
-            description: `Quote with ${wordCount} words should be a block quote (40+ words)`,
+            title: "Long quote incorrectly formatted with quotation marks",
+            description: `Quote with ${wordCount} words should be a block quote without quotation marks`,
             text: quoteText.substring(0, 50) + '...',
             severity: "Major",
             category: "quotations",
@@ -104,6 +105,24 @@ export class QuotationValidator {
         fixAction: "removeBlockQuoteMarks",
         explanation: "Block quotes use indentation only, no quotation marks"
       });
+    });
+
+    // Also check for potential block quotes that are properly indented (40+ words without quotes)
+    // This is to catch block quotes that might be correctly formatted
+    const blockQuotePattern = /\n\s{4,}([^\n]{160,})/g; // 160+ chars ≈ 40+ words
+    const potentialBlockQuotes = [...text.matchAll(blockQuotePattern)];
+
+    potentialBlockQuotes.forEach(match => {
+      const content = match[1];
+      const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+
+      // If it's 40+ words and properly indented without quotes, this is likely correct
+      if (wordCount >= this.blockQuoteMinWords &&
+          !content.includes('"') && !content.includes('"') &&
+          !content.includes('"') && !content.includes('"')) {
+        // This is a properly formatted block quote - no issue needed
+        // Could add positive feedback here if desired
+      }
     });
     
     return issues;

@@ -438,7 +438,78 @@ export class ComprehensiveValidator {
         });
       }
     });
-    
+
+    // NEW: Validate APA 7th Edition Level 5 heading format
+    issues.push(...this.validateLevel5Headings(text));
+
+    return issues;
+  }
+
+  /**
+   * NEW: Validate APA 7th Edition Level 5 heading format
+   */
+  validateLevel5Headings(text) {
+    const issues = [];
+
+    // Level 5 headings should be: Indented, Bold, Italic, Title Case, Ending with a Period.
+    // They appear as part of the paragraph.
+
+    // Pattern to detect potential level 5 headings
+    // Look for bold/italic text at paragraph start that ends with a period
+    const level5Pattern = /^[ \t]*([A-Z][^.]{10,50})\.\s+[A-Z]/gm;
+    const potentialLevel5s = [...text.matchAll(level5Pattern)];
+
+    potentialLevel5s.forEach(match => {
+      const headingText = match[1];
+      const fullMatch = match[0];
+
+      // Check if it follows title case
+      const words = headingText.split(/\s+/);
+      const smallWords = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if',
+                         'in', 'nor', 'of', 'on', 'or', 'so', 'the', 'to', 'up', 'yet'];
+
+      let titleCaseErrors = 0;
+      words.forEach((word, index) => {
+        const isFirstOrLast = index === 0 || index === words.length - 1;
+        const isSmallWord = smallWords.includes(word.toLowerCase());
+
+        if (isFirstOrLast && word[0] !== word[0].toUpperCase()) {
+          titleCaseErrors++;
+        } else if (!isFirstOrLast && !isSmallWord && word[0] !== word[0].toUpperCase()) {
+          titleCaseErrors++;
+        } else if (!isFirstOrLast && isSmallWord && word[0] === word[0].toUpperCase()) {
+          titleCaseErrors++;
+        }
+      });
+
+      if (titleCaseErrors > 0) {
+        issues.push({
+          title: "Potential Level 5 heading case error",
+          description: "Level 5 headings should use title case",
+          text: headingText,
+          severity: "Minor",
+          category: "headings",
+          hasFix: true,
+          fixAction: "fixLevel5HeadingCase",
+          explanation: "Level 5 headings: Indented, Bold, Italic, Title Case, Ending with Period. Text continues on same line."
+        });
+      }
+
+      // Check if indented (should start with spaces/tab)
+      if (!match[0].match(/^[ \t]/)) {
+        issues.push({
+          title: "Level 5 heading not indented",
+          description: "Level 5 headings should be indented",
+          text: headingText,
+          severity: "Minor",
+          category: "headings",
+          hasFix: true,
+          fixAction: "indentLevel5Heading",
+          explanation: "Level 5 headings must be indented (0.5 inch) like paragraph indent"
+        });
+      }
+    });
+
     return issues;
   }
 }

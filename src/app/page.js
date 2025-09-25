@@ -9,22 +9,22 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
 
   return (
-    <main className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
+    <main className="flex flex-col h-screen bg-white">
       <Header />
-      
+
       <div className="flex-1 flex overflow-hidden relative">
         {/* Document Viewer (left panel) */}
-        <div 
-          className="relative bg-white shadow-xl border-r border-gray-100 transition-all duration-300"
+        <div
+          className="relative bg-white shadow-sm border-r border-slate-200 transition-all duration-300"
           style={{ width: `${splitRatio}%` }}
         >
           <DocumentEditor />
         </div>
-        
+
         {/* Modern Resize Handle */}
-        <div 
+        <div
           className={`w-1.5 cursor-col-resize relative group transition-all duration-200 ${
-            isDragging ? 'bg-indigo-500 shadow-lg shadow-indigo-500/50' : 'bg-gray-200 hover:bg-indigo-400 hover:shadow-lg hover:shadow-indigo-400/30'
+            isDragging ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-slate-300 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-400/30'
           }`}
           onMouseDown={(e) => {
             setIsDragging(true);
@@ -56,7 +56,7 @@ export default function Home() {
         >
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
             <div className={`flex flex-col space-y-1.5 px-1 py-3 rounded-full transition-all duration-200 ${
-              isDragging ? 'bg-indigo-500 opacity-100' : 'bg-gray-400 opacity-0 group-hover:opacity-100'
+              isDragging ? 'bg-emerald-500 opacity-100' : 'bg-slate-400 opacity-0 group-hover:opacity-100'
             }`}>
               <div className="w-1 h-1 bg-white rounded-full"></div>
               <div className="w-1 h-1 bg-white rounded-full"></div>
@@ -68,8 +68,8 @@ export default function Home() {
         </div>
         
         {/* Issues Panel (right panel) */}
-        <div 
-          className="bg-white shadow-xl border-l border-gray-100 transition-all duration-300"
+        <div
+          className="bg-white shadow-sm border-l border-slate-200 transition-all duration-300"
           style={{ width: `${100 - splitRatio}%` }}
         >
           <IssuesPanel />

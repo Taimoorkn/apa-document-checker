@@ -120,7 +120,9 @@ export class EnhancedAPAAnalyzer {
       html = String(html || '');
     }
 
-    console.log(`📊 Analyzing document: ${text.length} chars text, ${html.length} chars HTML, formatting: ${!!formatting}, structure: ${!!structure}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📊 Analyzing document: ${text.length} chars text, ${html.length} chars HTML, formatting: ${!!formatting}, structure: ${!!structure}`);
+    }
 
     try {
       // 1. Analyze formatting with precise data (if available)
@@ -283,7 +285,9 @@ export class EnhancedAPAAnalyzer {
     }
     
     
-    console.log(`✅ Analysis complete: ${issues.length} issues found`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Analysis complete: ${issues.length} issues found`);
+    }
     return this.prioritizeAndDeduplicateIssues(issues);
   }
 

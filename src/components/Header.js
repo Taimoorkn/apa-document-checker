@@ -154,32 +154,35 @@ export default function Header() {
   
   return (
     <>
-      <header className="h-16 bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="h-16 bg-white border-b border-slate-200 sticky top-0 z-50 backdrop-blur-md">
         <div className="h-full px-4 flex items-center justify-between">
           {/* Left Section - Logo and Primary Actions */}
           <div className="flex items-center space-x-4">
             {/* Logo */}
             <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
                 <FileCheck className="h-5 w-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-gray-900">APA Checker</span>
+              <div>
+                <span className="text-lg font-bold text-slate-900 tracking-tight">APA Checker</span>
+                <div className="text-xs text-slate-500 font-medium">7th Edition Validator</div>
+              </div>
             </div>
 
             {/* Divider */}
-            <div className="h-8 w-px bg-gray-200"></div>
+            <div className="h-8 w-px bg-slate-300"></div>
 
             {/* Primary Actions */}
             <div className="flex items-center space-x-2">
               {/* New Document */}
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={processingState.isUploading || processingState.isAnalyzing}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-emerald-700 rounded-xl transition-all duration-200 border border-slate-200 hover:border-emerald-300 shadow-sm"
                 title="Upload new document"
               >
                 <Plus className="h-4 w-4" />
-                <span>New</span>
+                <span>New Document</span>
               </button>
 
               <input
@@ -192,8 +195,8 @@ export default function Header() {
               />
 
               {/* Recent Documents */}
-              <button 
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              <button
+                className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
                 title="Recent documents"
               >
                 <History className="h-4 w-4" />
@@ -202,8 +205,8 @@ export default function Header() {
 
               {/* Share */}
               {documentName && (
-                <button 
-                  className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                <button
+                  className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
                   title="Share document"
                 >
                   <Share2 className="h-4 w-4" />
@@ -214,8 +217,8 @@ export default function Header() {
               {/* Export */}
               {documentName && (
                 <div className="relative" ref={exportDropdownRef}>
-                  <button 
-                    className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  <button
+                    className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-xl transition-all duration-200"
                     onClick={() => setShowExportDropdown(!showExportDropdown)}
                     disabled={isExporting}
                   >
@@ -225,21 +228,21 @@ export default function Header() {
                   </button>
 
                   {showExportDropdown && (
-                    <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                    <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden backdrop-blur-sm">
                       <button
                         onClick={() => handleExport('html')}
-                        className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all duration-200"
                         disabled={isExporting}
                       >
-                        <FileText className="h-4 w-4 mr-3 text-orange-500" />
+                        <FileText className="h-4 w-4 mr-3 text-amber-500" />
                         <span>Export as HTML</span>
                       </button>
                       <button
                         onClick={() => handleExport('docx')}
-                        className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center w-full px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-all duration-200"
                         disabled={isExporting}
                       >
-                        <FileText className="h-4 w-4 mr-3 text-blue-500" />
+                        <FileText className="h-4 w-4 mr-3 text-emerald-500" />
                         <span>Export as DOCX</span>
                       </button>
                     </div>
@@ -252,40 +255,39 @@ export default function Header() {
           {/* Right Section - Secondary Actions and User Menu */}
           <div className="flex items-center space-x-3">
             {/* Help */}
-            <button 
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            <button
+              className="p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
               title="Help & Support"
             >
               <HelpCircle className="h-5 w-5" />
             </button>
 
             {/* Notifications */}
-            <button 
-              className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            <button
+              className="relative p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
               title="Notifications"
             >
               <Bell className="h-5 w-5" />
-              {/* Notification badge */}
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
             </button>
 
             {/* Divider */}
-            <div className="h-8 w-px bg-gray-200"></div>
+            <div className="h-8 w-px bg-slate-300"></div>
 
             {/* User Menu */}
             <div className="relative" ref={userDropdownRef}>
-              <button 
+              <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center space-x-2 px-3 py-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center space-x-3 px-3 py-2 hover:bg-slate-100 rounded-xl transition-all duration-200"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-white">{userConfig.initials}</span>
+                <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                  <span className="text-sm font-semibold text-white">{userConfig.initials}</span>
                 </div>
                 <div className="text-left hidden md:block">
-                  <p className="text-sm font-medium text-gray-900">{userConfig.name}</p>
-                  <p className="text-xs text-gray-500">{userConfig.plan} Plan</p>
+                  <p className="text-sm font-semibold text-slate-900">{userConfig.name}</p>
+                  <p className="text-xs text-slate-500 font-medium">{userConfig.plan} Plan</p>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
               </button>
 
               {/* User Dropdown Menu */}

@@ -11,10 +11,10 @@ import {
 
 const FormattingToolbar = memo(({ editor }) => {
   return (
-    <div className="px-6 py-2 flex items-center space-x-1 bg-gray-50">
-      <div className="flex items-center space-x-1 pr-3 border-r border-gray-200">
+    <div className="px-6 py-3 flex items-center space-x-1 bg-slate-50 border-b border-slate-200">
+      <div className="flex items-center space-x-1 pr-3 border-r border-slate-300">
         <button
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors duration-200"
           title="Undo"
           onClick={() => editor?.chain().focus().undo().run()}
           disabled={!editor?.can().undo()}
@@ -22,7 +22,7 @@ const FormattingToolbar = memo(({ editor }) => {
           <Undo className="h-4 w-4" />
         </button>
         <button
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors duration-200"
           title="Redo"
           onClick={() => editor?.chain().focus().redo().run()}
           disabled={!editor?.can().redo()}
@@ -33,8 +33,8 @@ const FormattingToolbar = memo(({ editor }) => {
 
       <div className="flex items-center space-x-1 px-3">
         <button
-          className={`p-2 rounded transition-colors ${
-            editor?.isActive('bold') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+          className={`p-2 rounded-lg transition-colors duration-200 ${
+            editor?.isActive('bold') ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
           }`}
           title="Bold"
           onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -42,8 +42,8 @@ const FormattingToolbar = memo(({ editor }) => {
           <Bold className="h-4 w-4" />
         </button>
         <button
-          className={`p-2 rounded transition-colors ${
-            editor?.isActive('italic') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+          className={`p-2 rounded-lg transition-colors duration-200 ${
+            editor?.isActive('italic') ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
           }`}
           title="Italic"
           onClick={() => editor?.chain().focus().toggleItalic().run()}
@@ -51,8 +51,8 @@ const FormattingToolbar = memo(({ editor }) => {
           <Italic className="h-4 w-4" />
         </button>
         <button
-          className={`p-2 rounded transition-colors ${
-            editor?.isActive('underline') ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+          className={`p-2 rounded-lg transition-colors duration-200 ${
+            editor?.isActive('underline') ? 'bg-emerald-100 text-emerald-700' : 'text-slate-600 hover:bg-slate-100'
           }`}
           title="Underline"
           onClick={() => editor?.chain().focus().toggleUnderline().run()}

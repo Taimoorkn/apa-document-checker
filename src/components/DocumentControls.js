@@ -22,14 +22,14 @@ const DocumentControls = memo(({
   tiptapConverter
 }) => {
   return (
-    <div className="bg-white border-b border-gray-200 flex-shrink-0">
-      <div className="px-6 py-4 border-b border-gray-100">
+    <div className="bg-white border-b border-slate-200 flex-shrink-0">
+      <div className="px-6 py-4 border-b border-slate-100">
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <h3 className="text-lg font-semibold text-gray-900">Document Editor</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Document Editor</h3>
             {lastFixAppliedAt && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></div>
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1.5"></div>
                 Recently Updated
               </span>
             )}
@@ -56,7 +56,7 @@ const DocumentControls = memo(({
                     }
                   }
                 }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition-colors duration-200"
               >
                 Force Update Content
               </button>
@@ -67,10 +67,10 @@ const DocumentControls = memo(({
               onClick={handleManualAnalysis}
               disabled={isLoading || processingState.isAnalyzing}
               title="Run APA analysis on current document (Ctrl+Shift+C)"
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isLoading || processingState.isAnalyzing
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/25'
               }`}
             >
               {processingState.isAnalyzing ? (
@@ -89,10 +89,10 @@ const DocumentControls = memo(({
             {/* Toggle Highlighting */}
             <button
               onClick={() => toggleIssueHighlighting()}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                 showIssueHighlighting
-                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-sm'
               }`}
             >
               {showIssueHighlighting ? (
@@ -110,9 +110,9 @@ const DocumentControls = memo(({
 
             {/* Issue Count */}
             {issues.length > 0 && (
-              <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 rounded-lg border border-gray-200">
-                <AlertCircle className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600">
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <AlertCircle className="h-4 w-4 text-slate-500" />
+                <span className="text-sm text-slate-600">
                   {issues.length} {issues.length === 1 ? 'issue' : 'issues'}
                 </span>
               </div>

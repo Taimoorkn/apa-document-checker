@@ -47,15 +47,25 @@ export default function IssuesPanel() {
   const issueRefs = useRef({});
   const panelContentRef = useRef(null);
   
-  // Group issues by severity
-  const groupedIssues = useMemo(() => {
-    return (issues || []).reduce((acc, issue) => {
-      if (!acc[issue.severity]) {
-        acc[issue.severity] = [];
+  // Group issues by severity and separate document formatting issues
+  const { groupedIssues, documentFormattingIssues } = useMemo(() => {
+    const grouped = {};
+    const docFormatting = [];
+
+    (issues || []).forEach(issue => {
+      // Check if it's a document-wide formatting issue
+      if (issue.location?.type === 'document' && issue.category === 'formatting') {
+        docFormatting.push(issue);
+      } else {
+        // Group regular issues by severity
+        if (!grouped[issue.severity]) {
+          grouped[issue.severity] = [];
+        }
+        grouped[issue.severity].push(issue);
       }
-      acc[issue.severity].push(issue);
-      return acc;
-    }, {});
+    });
+
+    return { groupedIssues: grouped, documentFormattingIssues: docFormatting };
   }, [issues]);
   
   // Count issues by severity
@@ -162,20 +172,44 @@ export default function IssuesPanel() {
         </div>
         
         {/* Quick Overview */}
-        {totalIssues > 0 && (
-          <div className="flex items-center space-x-3 mt-3">
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-sm font-medium text-red-700">{issueCounts.Critical} Critical</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
-              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-              <span className="text-sm font-medium text-amber-700">{issueCounts.Major} Major</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-sm font-medium text-blue-700">{issueCounts.Minor} Minor</span>
-            </div>
+        {(totalIssues > 0 || documentFormattingIssues.length > 0) && (
+          <div className="space-y-3 mt-3">
+            {/* Document Formatting Issues */}
+            {documentFormattingIssues.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-700">Document formatting:</span>
+                </div>
+                {documentFormattingIssues.map(issue => (
+                  <button
+                    key={issue.id}
+                    onClick={() => setActiveIssue(issue.id)}
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors duration-200 cursor-pointer"
+                  >
+                    {issue.title}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Severity Counts */}
+            {totalIssues > 0 && (
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-red-50 rounded-lg border border-red-200">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-red-700">{issueCounts.Critical} Critical</span>
+                </div>
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-amber-700">{issueCounts.Major} Major</span>
+                </div>
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-blue-700">{issueCounts.Minor} Minor</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -283,7 +317,7 @@ export default function IssuesPanel() {
                   </IssueCategory>
                 )}
               </div>
-            ) : issues.length === 0 ? (
+            ) : (issues.length === 0 && documentFormattingIssues.length === 0) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6">
                 <div className="w-16 h-16 bg-slate-100 rounded-2xl mb-4 flex items-center justify-center">
                   <FileText className="h-8 w-8 text-slate-400" />

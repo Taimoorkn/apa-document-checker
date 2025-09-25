@@ -8,7 +8,6 @@ import { useTextReplacement } from '@/hooks/useTextReplacement';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import EmptyDocumentState from './EmptyDocumentState';
 import LoadingState from './LoadingState';
-import DocumentIssuesBanner from './DocumentIssuesBanner';
 import DocumentControls from './DocumentControls';
 import FormattingToolbar from './FormattingToolbar';
 import EditorContent from './EditorContent';
@@ -66,11 +65,6 @@ const DocumentEditor = memo(() => {
 
   return (
     <div className="h-full flex flex-col">
-      <DocumentIssuesBanner
-        issues={issues}
-        showIssueHighlighting={showIssueHighlighting}
-        setActiveIssue={setActiveIssue}
-      />
 
       <DocumentControls
         lastFixAppliedAt={lastFixAppliedAt}

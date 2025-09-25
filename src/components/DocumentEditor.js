@@ -53,15 +53,16 @@ const DocumentEditor = memo(() => {
 
   useKeyboardShortcuts(handleManualAnalysis);
 
+  // Loading state
+  if (isLoading) {
+    return <LoadingState />;
+  }
+
   // Empty state
   if (!documentText) {
     return <EmptyDocumentState />;
   }
 
-  // Loading state
-  if (isLoading) {
-    return <LoadingState />;
-  }
 
   return (
     <div className="h-full flex flex-col">

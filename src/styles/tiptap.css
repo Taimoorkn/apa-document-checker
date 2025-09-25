@@ -48,55 +48,102 @@
 /* Issue highlighting styles */
 .apa-issue {
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   position: relative;
   border-bottom-width: 2px;
   border-bottom-style: solid;
+  border-radius: 3px;
+  padding: 1px 2px;
 }
 
 /* Critical issues - Red */
 .apa-critical {
-  background-color: rgba(254, 202, 202, 0.5);
+  background-color: rgba(254, 202, 202, 0.4);
   border-bottom-color: rgb(239, 68, 68);
 }
 
 .apa-critical:hover {
-  background-color: rgba(254, 202, 202, 0.8);
+  background-color: rgba(254, 202, 202, 0.6);
+  transform: translateY(-1px);
 }
 
 .apa-critical.apa-active {
-  background-color: rgba(254, 202, 202, 1);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.25));
+  border: 2px solid rgb(239, 68, 68);
+  border-radius: 4px;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  position: relative;
+  z-index: 10;
+}
+
+.apa-critical.apa-active::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(45deg, transparent, rgba(239, 68, 68, 0.1), transparent);
+  border-radius: 6px;
+  z-index: -1;
+  animation: subtleGlow 3s ease-in-out infinite;
 }
 
 /* Major issues - Orange */
 .apa-major {
-  background-color: rgba(254, 215, 170, 0.5);
+  background-color: rgba(254, 215, 170, 0.4);
   border-bottom-color: rgb(251, 146, 60);
 }
 
 .apa-major:hover {
-  background-color: rgba(254, 215, 170, 0.8);
+  background-color: rgba(254, 215, 170, 0.6);
+  transform: translateY(-1px);
 }
 
 .apa-major.apa-active {
-  background-color: rgba(254, 215, 170, 1);
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.15), rgba(251, 146, 60, 0.25));
+  border: 2px solid rgb(251, 146, 60);
+  border-radius: 4px;
   box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.2);
+  position: relative;
+  z-index: 10;
+}
+
+.apa-major.apa-active::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(45deg, transparent, rgba(251, 146, 60, 0.1), transparent);
+  border-radius: 6px;
+  z-index: -1;
+  animation: subtleGlow 3s ease-in-out infinite;
 }
 
 /* Minor issues - Blue */
 .apa-minor {
-  background-color: rgba(191, 219, 254, 0.5);
+  background-color: rgba(191, 219, 254, 0.4);
   border-bottom-color: rgb(59, 130, 246);
 }
 
 .apa-minor:hover {
-  background-color: rgba(191, 219, 254, 0.8);
+  background-color: rgba(191, 219, 254, 0.6);
+  transform: translateY(-1px);
 }
 
 .apa-minor.apa-active {
-  background-color: rgba(191, 219, 254, 1);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.25));
+  border: 2px solid rgb(59, 130, 246);
+  border-radius: 4px;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  position: relative;
+  z-index: 10;
+}
+
+.apa-minor.apa-active::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+  border-radius: 6px;
+  z-index: -1;
+  animation: subtleGlow 3s ease-in-out infinite;
 }
 
 /* Default issues */
@@ -159,4 +206,16 @@
   font-family: 'Courier New', monospace;
   padding: 0.2em 0.4em;
   border-radius: 0.125rem;
+}
+
+/* Subtle glow animation for active issues */
+@keyframes subtleGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.01);
+  }
 }

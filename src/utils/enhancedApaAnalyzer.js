@@ -862,46 +862,6 @@ export class EnhancedAPAAnalyzer {
       });
     }
     
-    // 9. Check for sentences ending without punctuation with position tracking
-    const incompleteSentencePattern = /[a-z]\s+[A-Z][a-z]/g;
-    let incompleteMatch;
-    let sentenceIssueCount = 0;
-    while ((incompleteMatch = incompleteSentencePattern.exec(text)) && sentenceIssueCount < 3) {
-      const matchIndex = incompleteMatch.index;
-      const context = text.substring(Math.max(0, matchIndex - 30), matchIndex + 50);
-      
-      // Skip if this looks like an abbreviation or proper formatting
-      if (context.includes('Dr.') || context.includes('Mr.') || context.includes('Ms.') ||
-          context.includes('etc.') || context.includes('i.e.') || context.includes('e.g.') ||
-          context.match(/\d+\s+[A-Z]/) || // Numbers followed by caps (like page numbers)
-          context.includes('(') || context.includes(')')) {
-        continue;
-      }
-      
-      // Find the paragraph containing this issue
-      const textBefore = text.substring(0, matchIndex);
-      const paragraphIndex = (textBefore.match(/\n/g) || []).length;
-      const lastNewline = textBefore.lastIndexOf('\n');
-      const charOffset = Math.max(0, matchIndex - lastNewline - 1 - 30); // Include context
-      
-      sentenceIssueCount++;
-      issues.push({
-        title: "Possible missing punctuation",
-        description: "Check if sentence needs proper punctuation",
-        text: context.trim().substring(0, 60) + '...',
-        highlightText: context.trim(),
-        severity: "Minor",
-        category: "formatting",
-        location: {
-          paragraphIndex: paragraphIndex,
-          charOffset: charOffset,
-          length: Math.min(80, context.length),
-          type: 'text'
-        },
-        hasFix: false,
-        explanation: "Sentences should end with appropriate punctuation before starting a new sentence."
-      });
-    }
     
     // Check for direct quotes without page numbers
     const quotePattern = /[""][^""]{10,}[""]\s*(\([^)]+\))/g;

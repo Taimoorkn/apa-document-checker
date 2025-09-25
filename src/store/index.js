@@ -5,22 +5,34 @@ export { useDocumentStore } from './documentStore';
 export { useIssuesStore } from './issuesStore';
 export { useProcessingStore } from './processingStore';
 export { useAnalysisStore } from './analysisStore';
+export { useAuthStore } from './authStore';
+export { useDocumentPersistenceStore } from './documentPersistenceStore';
 
 // Combined hook for components that need multiple stores
 import { useDocumentStore } from './documentStore';
 import { useIssuesStore } from './issuesStore';
 import { useProcessingStore } from './processingStore';
 import { useAnalysisStore } from './analysisStore';
+import { useAuthStore } from './authStore';
+import { useDocumentPersistenceStore } from './documentPersistenceStore';
 
 export const useAppStore = () => {
   const documentStore = useDocumentStore();
   const issuesStore = useIssuesStore();
   const processingStore = useProcessingStore();
   const analysisStore = useAnalysisStore();
+  const authStore = useAuthStore();
+  const documentPersistenceStore = useDocumentPersistenceStore();
 
   return {
+    // Authentication
+    ...authStore,
+
     // Document
     ...documentStore,
+
+    // Document Persistence
+    ...documentPersistenceStore,
 
     // Issues
     ...issuesStore,

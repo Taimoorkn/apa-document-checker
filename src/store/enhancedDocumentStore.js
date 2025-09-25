@@ -597,6 +597,12 @@ export const useDocumentStore = create((set, get) => ({
       return;
     }
 
+    // Skip if document is being loaded to prevent immediate analysis
+    if (state._isLoadingDocument && !force) {
+      console.log('📄 Document is being loaded, skipping realtime analysis');
+      return;
+    }
+
     // Content-based throttling
     const currentContent = JSON.stringify(editorContent);
     if (!force && state._lastAnalysisContent) {
@@ -2017,6 +2023,61 @@ export const useDocumentStore = create((set, get) => ({
       state.events.clear();
       console.log('🧹 All event listeners cleared');
     }
+  },
+
+  // Set document data (for loading saved documents)
+  setDocumentData: (data) => {
+    const state = get();
+
+    // Cancel any pending real-time analysis
+    if (state._realtimeAnalysisTimeout) {
+      clearTimeout(state._realtimeAnalysisTimeout);
+    }
+
+    // Reset processing states and load document data
+    set({
+      ...state,
+      documentText: data.documentText || '',
+      documentHtml: data.documentHtml || '',
+      documentFormatting: data.documentFormatting || null,
+      documentStructure: data.documentStructure || null,
+      documentStyles: data.documentStyles || null,
+      documentStats: data.documentStats || null,
+      editorContent: data.editorContent || null,
+      documentName: data.documentName || 'Untitled Document',
+      issues: data.issues || [],
+      analysisScore: data.analysisScore || null,
+
+      // Reset all processing states to prevent unwanted loading states
+      processingState: {
+        isUploading: false,
+        isAnalyzing: false,
+        isApplyingFix: false,
+        isSchedulingAnalysis: false,
+        lastError: null,
+        progress: 0,
+        stage: null,
+        currentFixId: null,
+        fixesApplied: [],
+        analysisStartTime: null,
+        analysisEndTime: null
+      },
+
+      // Clear real-time analysis state and prevent immediate re-analysis
+      _realtimeAnalysisTimeout: null,
+      _lastAnalysisContent: data.documentText || '',
+      _isLoadingDocument: true, // Flag to prevent immediate analysis
+
+      // Clear any other loading states
+      isLoadingDocument: false
+    });
+
+    console.log('📄 Document data loaded, processing states reset');
+
+    // Reset the loading flag after a short delay to prevent immediate analysis
+    setTimeout(() => {
+      set(state => ({ ...state, _isLoadingDocument: false }));
+    }, 1000);
   },
 
   // Reset store with proper cleanup

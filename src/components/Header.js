@@ -5,6 +5,7 @@ import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { useAuthStore } from '@/store/authStore';
 import { useDocumentPersistenceStore } from '@/store/documentPersistenceStore';
 import AuthModal from './AuthModal';
+import DocumentLibrary from './DocumentLibrary';
 import {
   Download, 
   FileText, 
@@ -46,6 +47,7 @@ export default function Header() {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDocumentLibrary, setShowDocumentLibrary] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const exportDropdownRef = useRef(null);
@@ -194,14 +196,17 @@ export default function Header() {
                 disabled={processingState.isUploading || processingState.isAnalyzing}
               />
 
-              {/* Recent Documents */}
-              <button
-                className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
-                title="Recent documents"
-              >
-                <History className="h-4 w-4" />
-                <span>Recent</span>
-              </button>
+              {/* Document Library */}
+              {user && (
+                <button
+                  onClick={() => setShowDocumentLibrary(true)}
+                  className="flex items-center space-x-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-xl transition-all duration-200"
+                  title="Document library"
+                >
+                  <History className="h-4 w-4" />
+                  <span>My Documents</span>
+                </button>
+              )}
 
               {/* Share */}
               {documentName && (
@@ -387,6 +392,16 @@ export default function Header() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         initialMode="signin"
+      />
+
+      {/* Document Library */}
+      <DocumentLibrary
+        isOpen={showDocumentLibrary}
+        onClose={() => setShowDocumentLibrary(false)}
+        onDocumentSelect={(document) => {
+          console.log('Document selected:', document);
+          // Document data is already loaded by the DocumentLibrary component
+        }}
       />
     </>
   );

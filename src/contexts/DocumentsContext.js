@@ -148,7 +148,7 @@ export const DocumentsProvider = ({ children }) => {
   };
 
   // Get document by ID
-  const getDocument = async (documentId) => {
+  const getDocument = useCallback(async (documentId) => {
     if (!user) throw new Error('User not authenticated');
 
     try {
@@ -166,7 +166,7 @@ export const DocumentsProvider = ({ children }) => {
       console.error('Error fetching document:', err);
       return { data: null, error: err };
     }
-  };
+  }, [user?.id]); // Only depend on user.id, not the whole user object
 
   // Update document issues after analysis
   const updateDocumentIssues = async (documentId, issues, analysisData = {}) => {

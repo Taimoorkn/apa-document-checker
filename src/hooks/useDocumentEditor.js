@@ -52,8 +52,13 @@ export const useDocumentEditor = () => {
         spellcheck: 'false'
       }
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       try {
+        // Only trigger analysis if there were actual content changes, not just selection or focus changes
+        if (!transaction.docChanged) {
+          return;
+        }
+
         const currentContent = editor.getJSON();
         lastContentUpdate.current = currentContent;
 

@@ -34,6 +34,11 @@ function DocumentViewContent() {
   useEffect(() => {
     if (!documentId || !user) return;
 
+    // Prevent re-loading if we already have the document loaded
+    if (document && document.id === documentId && documentText) {
+      return;
+    }
+
     const loadDocument = async () => {
       try {
         setLoading(true);
@@ -80,7 +85,7 @@ function DocumentViewContent() {
     };
 
     loadDocument();
-  }, [documentId, user, getDocument]);
+  }, [documentId, user?.id, getDocument]); // Include getDocument since it's now memoized
 
   if (loading) {
     return (

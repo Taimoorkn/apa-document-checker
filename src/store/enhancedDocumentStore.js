@@ -1968,6 +1968,98 @@ export const useDocumentStore = create((set, get) => ({
     }
   },
 
+  // Load document data from database into the store
+  loadDocumentFromData: async (documentData) => {
+    try {
+      if (!documentData) {
+        throw new Error('No document data provided');
+      }
+
+      console.log('loadDocumentFromData received:', documentData);
+      console.log('Document fields:', {
+        name: documentData.name,
+        hasProcessedContent: !!documentData.processed_content,
+        hasOriginalContent: !!documentData.original_content,
+        processedContentLength: documentData.processed_content?.length,
+        originalContentLength: documentData.original_content?.length,
+        hasFormattingData: !!documentData.formatting_data,
+        issuesCount: documentData.issues?.length || 0
+      });
+
+      const contentText = documentData.processed_content || documentData.original_content || '';
+
+      if (!contentText) {
+        console.warn('No document content found!');
+      }
+
+      // Set basic document information
+      set({
+        documentName: documentData.name,
+        documentText: contentText,
+        documentHtml: contentText, // For now, use same content for HTML
+        documentFormatting: documentData.formatting_data || {},
+        issues: documentData.issues || [],
+        processingState: {
+          isUploading: false,
+          isAnalyzing: false,
+          isApplyingFix: false,
+          progress: 100,
+          stage: 'Document loaded',
+          lastError: null,
+          currentFixId: null,
+          isSchedulingAnalysis: false
+        }
+      });
+
+      console.log('Document state updated in store');
+
+      // Verify the state was actually set
+      const newState = get();
+      console.log('Store state after setting:', {
+        hasDocumentText: !!newState.documentText,
+        documentTextLength: newState.documentText?.length || 0,
+        documentName: newState.documentName,
+        firstChars: newState.documentText?.substring(0, 50) || 'No content'
+      });
+
+      // Calculate stats if we have text
+      const text = documentData.processed_content || documentData.original_content || '';
+      if (text) {
+        const words = text.trim().split(/\s+/).filter(Boolean).length;
+        const chars = text.length;
+        const paragraphs = text.split(/\n\s*\n/).length;
+
+        set(state => ({
+          documentStats: {
+            ...state.documentStats,
+            wordCount: words,
+            charCount: chars,
+            paragraphCount: paragraphs
+          }
+        }));
+      }
+
+      console.log('Document loaded from data:', documentData.name);
+      return true;
+
+    } catch (error) {
+      console.error('Error loading document from data:', error);
+      set({
+        processingState: {
+          isUploading: false,
+          isAnalyzing: false,
+          isApplyingFix: false,
+          progress: 0,
+          stage: null,
+          lastError: error.message,
+          currentFixId: null,
+          isSchedulingAnalysis: false
+        }
+      });
+      return false;
+    }
+  },
+
   // Cleanup function to clear all event listeners
   clearEventListeners: () => {
     const state = get();

@@ -6,7 +6,7 @@ import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { useDocumentEditor } from '@/hooks/useDocumentEditor';
 import { useTextReplacement } from '@/hooks/useTextReplacement';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import EmptyDocumentState from './EmptyDocumentState';
+// EmptyDocumentState removed - now handled by Dashboard component
 import LoadingState from './LoadingState';
 import DocumentControls from './DocumentControls';
 import FormattingToolbar from './FormattingToolbar';
@@ -57,9 +57,15 @@ const DocumentEditor = memo(() => {
     return <LoadingState />;
   }
 
-  // Empty state
+  // Empty state - now handled by Dashboard component
   if (!documentText) {
-    return <EmptyDocumentState />;
+    return (
+      <div className="h-full flex items-center justify-center bg-slate-50">
+        <div className="text-center text-slate-500">
+          <p>No document loaded. Please use the dashboard to upload a document.</p>
+        </div>
+      </div>
+    );
   }
 
 

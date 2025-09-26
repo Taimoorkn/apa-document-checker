@@ -19,6 +19,8 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
+    let isInitialized = false;
+
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -28,6 +30,7 @@ export const AuthProvider = ({ children }) => {
         setSession(session);
         setUser(session?.user ?? null);
       }
+      isInitialized = true;
       setLoading(false);
     };
 
@@ -36,10 +39,20 @@ export const AuthProvider = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        // Only log meaningful events to reduce noise
+        const meaningfulEvents = ['INITIAL_SESSION', 'SIGNED_IN', 'SIGNED_OUT', 'TOKEN_REFRESHED'];
+        if (meaningfulEvents.includes(event)) {
+          console.log('Auth state changed:', event, session?.user?.email);
+        }
+
+        // Always update session and user state
         setSession(session);
         setUser(session?.user ?? null);
-        setLoading(false);
+
+        // Only trigger loading state changes for meaningful events and after initialization
+        if (isInitialized && meaningfulEvents.includes(event)) {
+          setLoading(false);
+        }
       }
     );
 

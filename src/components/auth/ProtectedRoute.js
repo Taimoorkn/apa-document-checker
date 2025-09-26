@@ -12,9 +12,11 @@ export default function ProtectedRoute({ children, redirectTo = '/login' }) {
   const { user, loading, isAuthenticated } = useAuth();
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !hasInitialized) {
+      setHasInitialized(true);
       if (!isAuthenticated()) {
         // Store the intended destination before redirecting
         const currentPath = window.location.pathname + window.location.search;
@@ -27,10 +29,10 @@ export default function ProtectedRoute({ children, redirectTo = '/login' }) {
         setIsChecking(false);
       }
     }
-  }, [user, loading, isAuthenticated, router, redirectTo]);
+  }, [user, loading, isAuthenticated, router, redirectTo, hasInitialized]);
 
-  // Show loading state while checking authentication
-  if (loading || isChecking) {
+  // Only show loading state on initial load, not on every auth state change
+  if ((loading && !hasInitialized) || (isChecking && !hasInitialized)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">

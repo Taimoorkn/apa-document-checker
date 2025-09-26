@@ -29,12 +29,12 @@ export default function Dashboard() {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showUploadArea, setShowUploadArea] = useState(false);
 
-  // Fetch documents on component mount
+  // Fetch documents on component mount - only once when user becomes available
   useEffect(() => {
-    if (user) {
+    if (user && documents.length === 0) {
       fetchDocuments();
     }
-  }, [user, fetchDocuments]);
+  }, [user]); // Remove fetchDocuments from dependencies to prevent re-fetching
 
   // Filter documents based on search and status
   const filteredDocuments = documents.filter(doc => {

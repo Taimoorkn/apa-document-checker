@@ -1,11 +1,12 @@
 import './globals.css'
 import '@/styles/tiptap.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import AuthProvider from '@/components/AuthProvider'
 import { Analytics } from '@vercel/analytics/react'
 
 export const metadata = {
-  title: 'APA 7th Edition Document Checker',
-  description: 'Validate academic documents against APA 7th edition guidelines',
+  title: 'APA Checker Pro - Professional APA 7th Edition Validator',
+  description: 'The most comprehensive APA 7th edition compliance checker. Get instant feedback, smart corrections, and professional formatting for your academic documents.',
 };
 
 export default function RootLayout({ children }) {
@@ -18,7 +19,9 @@ export default function RootLayout({ children }) {
       </head>
       <body className="font-inter antialiased text-slate-700 bg-slate-50">
         <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ErrorBoundary>
         <Analytics />
       </body>

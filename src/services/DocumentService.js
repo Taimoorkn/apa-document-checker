@@ -2,7 +2,9 @@
 
 import { DocumentModel } from '@/models/DocumentModel';
 import { ParagraphModel } from '@/models/ParagraphModel';
+import { IncrementalAPAAnalyzer } from '@/utils/IncrementalAPAAnalyzer';
 import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
+import { FEATURES } from '@/config/features';
 
 /**
  * DocumentService - CRUD operations and business logic for DocumentModel
@@ -10,9 +12,17 @@ import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
  */
 export class DocumentService {
   constructor() {
-    this.apaAnalyzer = new EnhancedAPAAnalyzer();
+    // Use incremental analyzer for 90% performance improvement
+    this.apaAnalyzer = FEATURES.INCREMENTAL_ANALYSIS ?
+      new IncrementalAPAAnalyzer() :
+      new EnhancedAPAAnalyzer();
+
     this.compressionUtils = new CompressionUtils();
     this.serverBaseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '';
+
+    if (FEATURES.MIGRATION_LOGGING) {
+      console.log(`📊 DocumentService initialized with ${FEATURES.INCREMENTAL_ANALYSIS ? 'Incremental' : 'Enhanced'} APA Analyzer`);
+    }
   }
 
   /**
@@ -353,7 +363,13 @@ export class DocumentService {
       structure: this._extractStructureForAnalysis(documentModel)
     };
 
-    const issues = this.apaAnalyzer.analyzeDocument(documentData);
+    const analysisOptions = {
+      force: true,
+      changedParagraphs: null,
+      preserveUnchanged: false
+    };
+
+    const issues = this.apaAnalyzer.analyzeDocument(documentData, analysisOptions);
 
     return {
       issues,

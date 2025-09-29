@@ -109,7 +109,15 @@ export const MigrationWrapper = ({
     <>
       {useNewArchitecture ? (
         <ErrorBoundaryWrapper>
-          <NewComponent {...props} />
+          <React.Suspense
+            fallback={
+              <div className="flex items-center justify-center p-8">
+                <div className="text-gray-500">Loading new editor...</div>
+              </div>
+            }
+          >
+            <NewComponent {...props} />
+          </React.Suspense>
         </ErrorBoundaryWrapper>
       ) : (
         <LegacyComponent {...props} />

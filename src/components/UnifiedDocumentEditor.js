@@ -34,17 +34,7 @@ export const UnifiedDocumentEditor = (props) => {
   return (
     <MigrationWrapper
       LegacyComponent={LegacyDocumentEditor}
-      NewComponent={React.Suspense ? (
-        <React.Suspense
-          fallback={
-            <div className="flex items-center justify-center p-8">
-              <div className="text-gray-500">Loading new editor...</div>
-            </div>
-          }
-        >
-          <NewDocumentEditor />
-        </React.Suspense>
-      ) : NewDocumentEditor}
+      NewComponent={NewDocumentEditor}
       fallbackToLegacy={FEATURES.AUTO_FALLBACK}
       showMigrationStatus={FEATURES.SHOW_MIGRATION_STATUS}
       onError={(error, errorInfo) => {

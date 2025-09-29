@@ -639,12 +639,13 @@ export class DocumentService {
     }
 
     if (fixedText !== paragraph.text) {
+      const oldText = paragraph.text;
       paragraph.update({ text: fixedText });
       return {
         success: true,
         updatedDocument: false,
         paragraphId,
-        oldText: paragraph.text,
+        oldText: oldText,
         newText: fixedText
       };
     }

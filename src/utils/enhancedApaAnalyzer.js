@@ -638,6 +638,10 @@ export class EnhancedAPAAnalyzer {
           },
           hasFix: true,
           fixAction: "addCitationComma",
+          fixValue: {
+            original: citation.text,
+            replacement: citation.text.replace(/\(([^)]+)\s+(\d{4})\)/, '($1, $2)')
+          },
           explanation: "In-text citations require a comma between the author name and year: (Smith, 2023)."
         });
       }
@@ -686,6 +690,10 @@ export class EnhancedAPAAnalyzer {
           },
           hasFix: true,
           fixAction: "addCitationComma",
+          fixValue: {
+            original: fullCitation,
+            replacement: fullCitation.replace(/\(([^)]+)\s+(\d{4})\)/, '($1, $2)')
+          },
           explanation: "APA format requires a comma between author name(s) and year: (Author, YEAR)."
         });
       }
@@ -715,6 +723,10 @@ export class EnhancedAPAAnalyzer {
             },
             hasFix: true,
             fixAction: "fixParentheticalConnector",
+            fixValue: {
+              original: fullCitation,
+              replacement: fullCitation.replace(' and ', ' & ')
+            },
             explanation: "In parenthetical citations, use & to connect author names."
           });
         }
@@ -736,6 +748,10 @@ export class EnhancedAPAAnalyzer {
             },
             hasFix: true,
             fixAction: "fixEtAlFormatting",
+            fixValue: {
+              original: fullCitation,
+              replacement: fullCitation.replace(', et al.', ' et al.')
+            },
             explanation: "APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021)."
           });
         }
@@ -763,6 +779,10 @@ export class EnhancedAPAAnalyzer {
           category: "references",
           hasFix: true,
           fixAction: "fixReferenceConnector",
+          fixValue: {
+            original: andMatch[0],
+            replacement: andMatch[0].replace(' and ', ' & ')
+          },
           explanation: "In reference lists, use & (ampersand) to connect author names, not 'and'."
         });
       }
@@ -841,9 +861,13 @@ export class EnhancedAPAAnalyzer {
           text: heading,
           highlightText: heading,
           severity: "Minor",
-          category: "formatting", 
+          category: "formatting",
           hasFix: true,
           fixAction: "fixAllCapsHeading",
+          fixValue: {
+            original: heading,
+            replacement: heading.charAt(0) + heading.slice(1).toLowerCase()
+          },
           explanation: "APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS."
         });
       }
@@ -878,6 +902,10 @@ export class EnhancedAPAAnalyzer {
           category: "citations",
           hasFix: true,
           fixAction: "addPageNumber",
+          fixValue: {
+            original: citation,
+            replacement: citation.replace(')', ', p. XX)')
+          },
           explanation: "All direct quotations must include a page number to help readers locate the original text."
         });
       }

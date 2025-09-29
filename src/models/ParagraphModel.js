@@ -172,6 +172,28 @@ export class ParagraphModel {
     if (changes.text !== undefined && changes.text !== this.text) {
       this.text = changes.text;
       hasChanges = true;
+
+      // CRITICAL FIX: When text changes without explicit runs, regenerate runs
+      // Otherwise toTiptapNode() will use old run text
+      if (!changes.runs) {
+        // Preserve existing formatting from first run
+        const firstRun = this.runs.size > 0 ? Array.from(this.runs.values())[0] : null;
+        const formatting = firstRun ? {
+          font: firstRun.font,
+          color: firstRun.color
+        } : {};
+
+        this.runs.clear();
+        this.runOrder = [];
+
+        const newRun = RunModel.fromData({
+          text: changes.text,
+          ...formatting
+        }, 0);
+
+        this.runs.set(newRun.id, newRun);
+        this.runOrder.push(newRun.id);
+      }
     }
 
     // Update formatting

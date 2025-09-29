@@ -268,14 +268,28 @@ class DocxModifier {
    * Fix text content in document XML using proper DOM manipulation (for citation and content fixes)
    */
   fixTextContent(xmlContent, fixValue) {
+    // Validate inputs first - support both property name formats
+    if (!fixValue) {
+      console.warn('Invalid fixValue for text content fix: null or undefined');
+      return xmlContent;
+    }
+
+    // Support both naming conventions: originalText/replacementText OR original/replacement
+    const originalText = fixValue.originalText || fixValue.original;
+    const replacementText = fixValue.replacementText || fixValue.replacement;
+
+    if (!originalText || !replacementText) {
+      console.warn('Invalid fixValue for text content fix - missing required properties:', {
+        fixValue,
+        hasOriginalText: !!fixValue.originalText,
+        hasOriginal: !!fixValue.original,
+        hasReplacementText: !!fixValue.replacementText,
+        hasReplacement: !!fixValue.replacement
+      });
+      return xmlContent;
+    }
+
     try {
-      if (!fixValue || !fixValue.originalText || !fixValue.replacementText) {
-        console.warn('Invalid fixValue for text content fix:', fixValue);
-        return xmlContent;
-      }
-
-      const { originalText, replacementText } = fixValue;
-
       console.log(`🔄 Replacing text in XML using DOM: "${originalText}" → "${replacementText}"`);
 
       // Parse XML with proper DOM parser

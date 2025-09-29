@@ -537,18 +537,69 @@ export class DocumentService {
       throw new Error(result.error || 'Server fix failed');
     }
 
-    // Update document model with server response
+    // Update document model with server response - FULL REFRESH
     if (result.document) {
+      console.log('🔄 Updating document model after server fix...');
+
       // Update formatting from server
       if (result.document.formatting) {
         documentModel.formatting.initializeFromServer(result.document.formatting);
+        console.log('✅ Formatting updated');
+      }
+
+      // Update structure from server
+      if (result.document.structure) {
+        documentModel.structure = result.document.structure;
+        console.log('✅ Structure updated');
+      }
+
+      // Update styles from server
+      if (result.document.styles) {
+        documentModel.styles = result.document.styles;
+        console.log('✅ Styles updated');
+      }
+
+      // Update HTML/text content - this is critical for editor to show changes!
+      if (result.document.html) {
+        documentModel.html = result.document.html;
+        console.log('✅ HTML content updated');
+      }
+
+      if (result.document.text) {
+        documentModel.text = result.document.text;
+        console.log('✅ Text content updated');
+      }
+
+      // Rebuild paragraphs from updated data
+      if (result.document.formatting && result.document.formatting.paragraphs) {
+        console.log('🔄 Rebuilding paragraphs from server data...');
+
+        // Clear existing paragraphs
+        documentModel.paragraphs.clear();
+        documentModel.paragraphOrder = [];
+
+        // Rebuild from server data (same logic as fromServerData)
+        result.document.formatting.paragraphs.forEach((paraData, index) => {
+          const ParagraphModel = require('@/models/ParagraphModel').ParagraphModel;
+          const paragraphModel = ParagraphModel.fromServerData(paraData, index);
+          documentModel.paragraphs.set(paragraphModel.id, paragraphModel);
+          documentModel.paragraphOrder.push(paragraphModel.id);
+        });
+
+        console.log(`✅ Paragraphs rebuilt: ${documentModel.paragraphOrder.length} paragraphs`);
       }
 
       // Update document buffer
       if (result.modifiedDocumentBuffer) {
         const newBuffer = this._base64ToBuffer(result.modifiedDocumentBuffer);
         documentModel.currentBuffer = await this.compressionUtils.compressBuffer(newBuffer);
+        console.log('✅ Document buffer updated');
       }
+
+      // Increment version to trigger editor sync
+      documentModel.version++;
+      documentModel.lastModified = Date.now();
+      console.log(`✅ Document model fully updated (version ${documentModel.version})`);
     }
 
     return {

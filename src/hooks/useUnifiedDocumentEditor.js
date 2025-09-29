@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Underline } from '@tiptap/extension-underline';
@@ -32,9 +32,15 @@ export const useUnifiedDocumentEditor = () => {
   const lastContentRef = useRef(null);
   const syncTimeoutRef = useRef(null);
   const isInternalUpdateRef = useRef(false);
+  const syncEditorFromModelRef = useRef(null);
 
   // Get current issues
   const issues = getIssues();
+
+  // Create stable issue signature to prevent infinite loops
+  const issueSignature = useMemo(() => {
+    return `${issues.length}-${issues.map(i => i.id).join(',').substring(0, 100)}`;
+  }, [issues]);
 
   const editor = useEditor({
     extensions: [
@@ -160,7 +166,22 @@ export const useUnifiedDocumentEditor = () => {
    * Sync editor content from document model
    */
   const syncEditorFromModel = useCallback(async () => {
-    if (!editor || !documentModel || isSyncing) {
+    if (!editor || !documentModel) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Cannot sync: missing editor or document model', {
+          hasEditor: !!editor,
+          hasDocumentModel: !!documentModel
+        });
+      }
+      return;
+    }
+
+    // If already syncing, wait and retry
+    if (isSyncing) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⏳ Sync in progress, queuing retry...');
+      }
+      setTimeout(() => syncEditorFromModelRef.current?.(), 200);
       return;
     }
 
@@ -170,37 +191,43 @@ export const useUnifiedDocumentEditor = () => {
     try {
       const editorContent = getEditorContent();
 
-      if (editorContent) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('📥 Syncing editor from document model...');
-        }
+      if (!editorContent) {
+        console.warn('⚠️ No editor content from document model');
+        return;
+      }
 
-        // Update editor content without triggering onUpdate
-        await new Promise(resolve => {
-          setTimeout(() => {
-            if (editor && !editor.isDestroyed) {
-              editor.commands.setContent(editorContent, false, {
-                preserveWhitespace: true
-              });
-
-              // Update issue highlights after content is set
-              setTimeout(() => {
-                if (editor && !editor.isDestroyed) {
-                  updateIssueHighlights();
-                }
-                resolve();
-              }, 100);
-            } else {
-              resolve();
-            }
-          }, 50);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📥 Syncing editor from document model...', {
+          documentVersion: documentModel.version,
+          paragraphCount: editorContent?.content?.length || 0
         });
+      }
 
-        lastContentRef.current = JSON.stringify(editorContent);
+      // Update editor content without triggering onUpdate
+      await new Promise(resolve => {
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            editor.commands.setContent(editorContent, false, {
+              preserveWhitespace: true
+            });
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✅ Editor synced from model');
-        }
+            // Update issue highlights after content is set
+            setTimeout(() => {
+              if (editor && !editor.isDestroyed) {
+                updateIssueHighlights();
+              }
+              resolve();
+            }, 100);
+          } else {
+            resolve();
+          }
+        }, 50);
+      });
+
+      lastContentRef.current = JSON.stringify(editorContent);
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Editor synced from model');
       }
 
     } catch (error) {
@@ -365,6 +392,11 @@ export const useUnifiedDocumentEditor = () => {
     }
   }, [editor, issues]);
 
+  // Store syncEditorFromModel in ref for stable access in event handlers
+  useEffect(() => {
+    syncEditorFromModelRef.current = syncEditorFromModel;
+  }, [syncEditorFromModel]);
+
   // === EFFECTS ===
 
   // Sync editor when document model changes
@@ -372,6 +404,7 @@ export const useUnifiedDocumentEditor = () => {
     if (editorInitialized && documentModel && editorState.needsSync) {
       syncEditorFromModel();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorInitialized, documentModel, editorState.needsSync]);
 
   // Update issue highlights when issues change
@@ -383,7 +416,8 @@ export const useUnifiedDocumentEditor = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [editorInitialized, issues, activeIssueId, showIssueHighlighting, updateIssueHighlights]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorInitialized, issueSignature, activeIssueId, showIssueHighlighting]);
 
   // Listen for active issue changes that should trigger scrolling
   useEffect(() => {
@@ -407,7 +441,7 @@ export const useUnifiedDocumentEditor = () => {
 
       // Sync editor from restored document
       setTimeout(() => {
-        syncEditorFromModel();
+        syncEditorFromModelRef.current?.();
       }, 100);
     });
 
@@ -423,7 +457,7 @@ export const useUnifiedDocumentEditor = () => {
 
       // Sync editor after fix application
       setTimeout(() => {
-        syncEditorFromModel();
+        syncEditorFromModelRef.current?.();
       }, 100);
     });
 
@@ -455,7 +489,8 @@ export const useUnifiedDocumentEditor = () => {
    * Refresh editor from document model
    */
   const refreshFromModel = useCallback(async () => {
-    await syncEditorFromModel();
+    syncEditorFromModelRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

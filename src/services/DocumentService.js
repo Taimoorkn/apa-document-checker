@@ -20,7 +20,7 @@ export class DocumentService {
     this.compressionUtils = new CompressionUtils();
     this.serverBaseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : '';
 
-    if (FEATURES.MIGRATION_LOGGING) {
+    if (process.env.NODE_ENV === 'development') {
       console.log(`📊 DocumentService initialized with ${FEATURES.INCREMENTAL_ANALYSIS ? 'Incremental' : 'Enhanced'} APA Analyzer`);
     }
   }

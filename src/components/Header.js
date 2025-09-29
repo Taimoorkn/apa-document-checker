@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
-import { shouldUseNewArchitecture } from '@/config/features';
 import {
-  Download, 
-  FileText, 
-  ChevronDown, 
+  Download,
+  FileText,
+  ChevronDown,
   CheckCircle,
   FileCheck,
   X,
@@ -24,26 +22,13 @@ import {
 } from 'lucide-react';
 
 export default function Header() {
-  // Conditional store usage based on architecture
-  const useNewArch = shouldUseNewArchitecture();
-
-  // Legacy store
-  const legacyStore = useDocumentStore();
-
-  // New unified store
-  const unifiedStore = useUnifiedDocumentStore();
-
-  // Use appropriate store based on architecture
-  const store = useNewArch ? unifiedStore : legacyStore;
   const {
     uploadDocument,
     documentName,
     exportDocument,
     processingState,
-  } = store;
-
-  // Different method names between stores
-  const analyzeDocumentMethod = useNewArch ? store.analyzeDocument : store.analyzeDocumentDebounced;
+    analyzeDocument
+  } = useUnifiedDocumentStore();
 
   const [uploadError, setUploadError] = useState(null);
   const [showExportDropdown, setShowExportDropdown] = useState(false);
@@ -135,7 +120,7 @@ export default function Header() {
       const success = await uploadDocument(file);
       
       if (success) {
-        const analysisResult = await analyzeDocumentMethod();
+        const analysisResult = await analyzeDocument();
 
         if (!analysisResult?.success && analysisResult?.error) {
           setUploadError(`Analysis error: ${analysisResult.error}`);

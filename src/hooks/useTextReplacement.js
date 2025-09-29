@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
 
 export const useTextReplacement = (editor, issues, activeIssueId, showIssueHighlighting) => {
   // Apply text replacement for fixes
@@ -82,7 +82,7 @@ export const useTextReplacement = (editor, issues, activeIssueId, showIssueHighl
       applyTextReplacement(originalText, replacementText);
     };
 
-    const { events } = useDocumentStore.getState();
+    const { events } = useUnifiedDocumentStore.getState();
     const cleanup = events.on('applyTextReplacement', handleTextReplacement);
 
     return cleanup;

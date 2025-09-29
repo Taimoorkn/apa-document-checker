@@ -1,14 +1,12 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useDocumentStore } from '@/store/enhancedDocumentStore';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
-import { shouldUseNewArchitecture } from '@/config/features';
 import React from 'react';
-import { 
-  ClipboardList, 
-  AlertTriangle, 
-  AlertCircle, 
+import {
+  ClipboardList,
+  AlertTriangle,
+  AlertCircle,
   AlertOctagon,
   Check,
   ChevronDown,
@@ -26,27 +24,21 @@ import {
 } from 'lucide-react';
 
 export default function IssuesPanel() {
-  // Conditional store usage based on architecture
-  const useNewArch = shouldUseNewArchitecture();
+  const {
+    getIssues,
+    uiState,
+    setActiveIssue,
+    applyFix,
+    processingState,
+    getDocumentStats,
+    getComplianceScore,
+    documentFormatting
+  } = useUnifiedDocumentStore();
 
-  // Legacy store
-  const legacyStore = useDocumentStore();
-
-  // New unified store
-  const unifiedStore = useUnifiedDocumentStore();
-
-  // Use appropriate store based on architecture
-  const store = useNewArch ? unifiedStore : legacyStore;
-
-  // Extract data with fallbacks for different store structures
-  const issues = useNewArch ? store.getIssues() : store.issues;
-  const activeIssueId = store.uiState?.activeIssueId || store.activeIssueId;
-  const setActiveIssue = store.setActiveIssue;
-  const applyFix = store.applyFix;
-  const processingState = store.processingState;
-  const documentStats = useNewArch ? store.getDocumentStats() : store.documentStats;
-  const analysisScore = useNewArch ? store.getComplianceScore() : store.analysisScore;
-  const documentFormatting = store.documentFormatting;
+  const issues = getIssues();
+  const activeIssueId = uiState?.activeIssueId;
+  const documentStats = getDocumentStats();
+  const analysisScore = getComplianceScore();
   
   const [expandedCategories, setExpandedCategories] = useState({
     Critical: true,

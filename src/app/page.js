@@ -1,29 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import IssuesPanel from '@/components/IssuesPanel';
 import Header from '@/components/Header';
-import DocumentEditor from '@/components/DocumentEditor';
-import { UnifiedDocumentEditor } from '@/components/UnifiedDocumentEditor';
-import { MigrationWrapper, PerformanceComparison, FeatureFlagDisplay } from '@/components/MigrationWrapper';
-import { shouldUseNewArchitecture, FEATURES, logFeatureConfig } from '@/config/features';
+import NewDocumentEditor from '@/components/NewDocumentEditor';
 
 export default function Home() {
   const [splitRatio, setSplitRatio] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
-  const [architectureMode, setArchitectureMode] = useState(shouldUseNewArchitecture());
-
-  // Log feature configuration on mount
-  useEffect(() => {
-    logFeatureConfig();
-  }, []);
-
-  // Architecture switch handler for testing
-  const handleArchitectureSwitch = () => {
-    setArchitectureMode(!architectureMode);
-    if (FEATURES.MIGRATION_LOGGING) {
-      console.log(`🔄 Switched to ${!architectureMode ? 'new' : 'legacy'} architecture`);
-    }
-  };
 
   return (
     <main className="flex flex-col h-screen bg-white">
@@ -35,33 +18,7 @@ export default function Home() {
           className="relative bg-white shadow-sm border-r border-slate-200 transition-all duration-300"
           style={{ width: `${splitRatio}%` }}
         >
-          {/* Architecture Banner */}
-          {FEATURES.SHOW_MIGRATION_STATUS && (
-            <div className={`px-4 py-2 text-sm ${
-              architectureMode ? 'bg-green-50 text-green-700 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'
-            } border-b`}>
-              <div className="flex items-center justify-between">
-                <span>
-                  {architectureMode ? '🆕 New Architecture' : '📊 Legacy Architecture'} Active
-                </span>
-                {FEATURES.DEBUG_INFO && (
-                  <button
-                    onClick={handleArchitectureSwitch}
-                    className="text-xs px-2 py-1 rounded bg-white border hover:bg-gray-50"
-                  >
-                    Switch to {architectureMode ? 'Legacy' : 'New'}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Conditional Editor */}
-          {architectureMode ? (
-            <UnifiedDocumentEditor />
-          ) : (
-            <DocumentEditor />
-          )}
+          <NewDocumentEditor />
         </div>
 
         {/* Modern Resize Handle */}
@@ -118,10 +75,6 @@ export default function Home() {
           <IssuesPanel />
         </div>
       </div>
-
-      {/* Debug and Performance Components */}
-      <PerformanceComparison enabled={FEATURES.PERFORMANCE_MONITORING} />
-      <FeatureFlagDisplay enabled={FEATURES.DEBUG_INFO} />
     </main>
   );
 }

@@ -47,13 +47,42 @@
 
 /* Issue highlighting styles */
 .apa-issue {
-  cursor: pointer;
+  cursor: text; /* Changed from pointer to text to indicate normal editing */
   transition: all 0.3s ease;
   position: relative;
   border-bottom-width: 2px;
   border-bottom-style: solid;
   border-radius: 3px;
   padding: 1px 2px;
+}
+
+/* Show pointer cursor only when Ctrl key is held (simulated via title attribute) */
+.apa-issue:hover {
+  /* Add a subtle hint that Ctrl+click is available */
+  opacity: 0.9;
+}
+
+/* Add a tooltip-like indication for issue selection */
+.apa-issue::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.apa-issue:hover::after {
+  opacity: 1;
 }
 
 /* Critical issues - Red */

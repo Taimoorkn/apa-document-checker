@@ -130,7 +130,8 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
           class: className,
           nodeName: 'span',
           'data-issue-id': issue.id,
-          'data-severity': issue.severity
+          'data-severity': issue.severity,
+          'title': `${issue.severity} issue: ${issue.title || 'APA compliance issue'} • Ctrl+click to select`
         }, {
           issueId: issue.id,
           severity: issue.severity,
@@ -215,14 +216,20 @@ export const IssueHighlighter = Extension.create({
           
           handleClick(view, pos, event) {
             const target = event.target;
-            
+
             // Check if clicked on a highlighted issue
             if (target && target.classList && target.classList.contains('apa-issue')) {
               const issueId = target.getAttribute('data-issue-id');
-              if (issueId && extension.options.onIssueClick) {
+
+              // Only handle issue click if Ctrl/Cmd key is pressed
+              // This allows normal editing when clicking without modifier keys
+              if (issueId && extension.options.onIssueClick && (event.ctrlKey || event.metaKey)) {
                 extension.options.onIssueClick(issueId);
-                return true;
+                return true; // Consume the event only for Ctrl+click
               }
+
+              // For normal clicks, let the editor handle it normally (return false/undefined)
+              // This allows text selection and editing within highlighted text
             }
             
             // Check decorations at position
@@ -232,10 +239,14 @@ export const IssueHighlighter = Extension.create({
               if (decorations.length > 0) {
                 const decoration = decorations[0];
                 const issueId = decoration.spec?.issueId;
-                if (issueId && extension.options.onIssueClick) {
+
+                // Only handle issue click if Ctrl/Cmd key is pressed
+                if (issueId && extension.options.onIssueClick && (event.ctrlKey || event.metaKey)) {
                   extension.options.onIssueClick(issueId);
-                  return true;
+                  return true; // Consume the event only for Ctrl+click
                 }
+
+                // For normal clicks, allow normal editing behavior
               }
             }
             

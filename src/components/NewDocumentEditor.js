@@ -199,7 +199,7 @@ export const NewDocumentEditor = () => {
       </div>
 
       {/* Main Editor */}
-      <div className="border border-gray-200 border-t-0 rounded-b-lg">
+      <div className="border border-gray-200 border-t-0 rounded-b-lg max-h-[600px] overflow-y-auto">
         <EditorContent
           editor={editor}
           className="prose max-w-none min-h-[500px] p-6 focus:outline-none"

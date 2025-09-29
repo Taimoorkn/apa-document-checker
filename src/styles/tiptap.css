@@ -3,8 +3,10 @@
 /* Basic editor styles */
 .ProseMirror {
   min-height: 500px;
+  max-height: none;
   outline: none;
   padding: 2rem;
+  overflow-y: visible;
   /* Don't override document fonts - let the content decide */
   /* font-family: 'Times New Roman', serif; */
   /* font-size: 12pt; */

@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useDocumentStore } from '@/store/enhancedDocumentStore';
+import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
+import { shouldUseNewArchitecture } from '@/config/features';
 import React from 'react';
 import { 
   ClipboardList, 
@@ -24,16 +26,27 @@ import {
 } from 'lucide-react';
 
 export default function IssuesPanel() {
-  const { 
-    issues, 
-    activeIssueId, 
-    setActiveIssue, 
-    applyFix, 
-    processingState,
-    documentFormatting,
-    documentStats,
-    analysisScore
-  } = useDocumentStore();
+  // Conditional store usage based on architecture
+  const useNewArch = shouldUseNewArchitecture();
+
+  // Legacy store
+  const legacyStore = useDocumentStore();
+
+  // New unified store
+  const unifiedStore = useUnifiedDocumentStore();
+
+  // Use appropriate store based on architecture
+  const store = useNewArch ? unifiedStore : legacyStore;
+
+  // Extract data with fallbacks for different store structures
+  const issues = useNewArch ? store.getIssues() : store.issues;
+  const activeIssueId = store.uiState?.activeIssueId || store.activeIssueId;
+  const setActiveIssue = store.setActiveIssue;
+  const applyFix = store.applyFix;
+  const processingState = store.processingState;
+  const documentStats = useNewArch ? store.getDocumentStats() : store.documentStats;
+  const analysisScore = useNewArch ? store.getComplianceScore() : store.analysisScore;
+  const documentFormatting = store.documentFormatting;
   
   const [expandedCategories, setExpandedCategories] = useState({
     Critical: true,
@@ -181,9 +194,9 @@ export default function IssuesPanel() {
                   <AlertCircle className="h-4 w-4 text-amber-600" />
                   <span className="text-sm font-medium text-amber-700">Document formatting:</span>
                 </div>
-                {documentFormattingIssues.map(issue => (
+                {documentFormattingIssues.map((issue, index) => (
                   <button
-                    key={issue.id}
+                    key={issue.id || `doc-format-${index}`}
                     onClick={() => setActiveIssue(issue.id)}
                     className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors duration-200 cursor-pointer"
                   >
@@ -259,9 +272,9 @@ export default function IssuesPanel() {
                     expanded={expandedCategories.Critical}
                     toggleExpanded={() => toggleCategory('Critical')}
                   >
-                    {expandedCategories.Critical && groupedIssues.Critical.map(issue => (
+                    {expandedCategories.Critical && groupedIssues.Critical.map((issue, index) => (
                       <IssueItem
-                        key={issue.id}
+                        key={issue.id || `critical-${index}`}
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
@@ -281,9 +294,9 @@ export default function IssuesPanel() {
                     expanded={expandedCategories.Major}
                     toggleExpanded={() => toggleCategory('Major')}
                   >
-                    {expandedCategories.Major && groupedIssues.Major.map(issue => (
-                      <IssueItem 
-                        key={issue.id}
+                    {expandedCategories.Major && groupedIssues.Major.map((issue, index) => (
+                      <IssueItem
+                        key={issue.id || `major-${index}`}
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
@@ -303,9 +316,9 @@ export default function IssuesPanel() {
                     expanded={expandedCategories.Minor}
                     toggleExpanded={() => toggleCategory('Minor')}
                   >
-                    {expandedCategories.Minor && groupedIssues.Minor.map(issue => (
-                      <IssueItem 
-                        key={issue.id}
+                    {expandedCategories.Minor && groupedIssues.Minor.map((issue, index) => (
+                      <IssueItem
+                        key={issue.id || `minor-${index}`}
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}

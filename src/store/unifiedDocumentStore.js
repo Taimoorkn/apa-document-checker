@@ -161,14 +161,21 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       // Create initial snapshot
       get().createSnapshot('Document uploaded');
 
-      setTimeout(() => {
+      // Automatically trigger analysis for the uploaded document
+      setTimeout(async () => {
+        try {
+          await get().analyzeDocument({ force: true });
+        } catch (error) {
+          console.error('Auto-analysis failed:', error);
+        }
+
         set(state => ({
           processingState: {
             ...state.processingState,
             stage: null
           }
         }));
-      }, 2000);
+      }, 1000);
 
       return {
         success: true,
@@ -197,6 +204,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   analyzeDocument: async (options = {}) => {
     const { force = false, incrementalOnly = false } = options;
     const state = get();
+
+    console.log('🧠 Starting APA analysis...', { force, incrementalOnly, hasDocument: !!state.documentModel });
 
     if (!state.documentModel) {
       throw new Error('No document loaded');

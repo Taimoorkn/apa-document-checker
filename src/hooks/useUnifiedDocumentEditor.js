@@ -292,7 +292,7 @@ export const useUnifiedDocumentEditor = () => {
     if (editorInitialized && documentModel && editorState.needsSync) {
       syncEditorFromModel();
     }
-  }, [editorInitialized, documentModel, editorState.needsSync, syncEditorFromModel]);
+  }, [editorInitialized, documentModel, editorState.needsSync]);
 
   // Update issue highlights when issues change
   useEffect(() => {
@@ -330,7 +330,7 @@ export const useUnifiedDocumentEditor = () => {
     });
 
     return cleanup;
-  }, [events, syncEditorFromModel]);
+  }, [events]);
 
   // Listen for fix application events
   useEffect(() => {
@@ -346,7 +346,7 @@ export const useUnifiedDocumentEditor = () => {
     });
 
     return cleanup;
-  }, [events, syncEditorFromModel]);
+  }, [events]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -374,7 +374,7 @@ export const useUnifiedDocumentEditor = () => {
    */
   const refreshFromModel = useCallback(async () => {
     await syncEditorFromModel();
-  }, [syncEditorFromModel]);
+  }, []);
 
   return {
     editor,

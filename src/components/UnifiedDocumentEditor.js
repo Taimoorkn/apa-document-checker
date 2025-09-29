@@ -5,7 +5,7 @@ import { MigrationWrapper } from './MigrationWrapper';
 import { shouldUseNewArchitecture, FEATURES } from '@/config/features';
 
 // Import both old and new editor components
-import { DocumentEditor as LegacyDocumentEditor } from './DocumentEditor';
+import LegacyDocumentEditor from './DocumentEditor';
 
 // New architecture components (will be created)
 const NewDocumentEditor = React.lazy(() =>

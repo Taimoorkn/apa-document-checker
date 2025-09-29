@@ -16,6 +16,7 @@ export const NewDocumentEditor = () => {
     processingState,
     uiState,
     getDocumentStats,
+    getIssues,
     setActiveIssue
   } = useUnifiedDocumentStore();
 
@@ -130,9 +131,19 @@ export const NewDocumentEditor = () => {
   }
 
   const documentStats = getDocumentStats();
+  const issues = getIssues();
 
   return (
     <div className="relative">
+      {/* Debug Info: Issues Count */}
+      {FEATURES.DEBUG_INFO && issues && issues.length > 0 && (
+        <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+          <span className="text-blue-800">
+            🔍 Found {issues.length} issues - Issues panel should show them
+          </span>
+        </div>
+      )}
+
       {/* Editor Loading State */}
       {!editorInitialized && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">

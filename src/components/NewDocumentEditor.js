@@ -1,11 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { useUnifiedDocumentEditor } from '@/hooks/useUnifiedDocumentEditor';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
 import EmptyDocumentState from '@/components/EmptyDocumentState';
 import LoadingState from '@/components/LoadingState';
+import DocumentControls from '@/components/DocumentControls';
+import FormattingToolbar from '@/components/FormattingToolbar';
 
 /**
  * New Document Editor Component
@@ -14,7 +16,10 @@ import LoadingState from '@/components/LoadingState';
 export const NewDocumentEditor = () => {
   const {
     documentModel,
-    processingState
+    processingState,
+    getIssues,
+    analyzeDocument,
+    uiState
   } = useUnifiedDocumentStore();
 
   const {
@@ -24,6 +29,14 @@ export const NewDocumentEditor = () => {
   } = useUnifiedDocumentEditor();
 
   const isLoading = processingState.isUploading || processingState.isAnalyzing;
+  const issues = getIssues();
+
+  // Handle manual analysis
+  const handleManualAnalysis = useCallback(async () => {
+    if (!isLoading && documentModel) {
+      await analyzeDocument({ force: true });
+    }
+  }, [isLoading, documentModel, analyzeDocument]);
 
   // Loading state
   if (isLoading) {
@@ -62,6 +75,27 @@ export const NewDocumentEditor = () => {
 
   return (
     <div className="h-full flex flex-col">
+      <DocumentControls
+        lastFixAppliedAt={null}
+        documentText={documentModel.getPlainText()}
+        documentFormatting={documentModel.formatting}
+        handleManualAnalysis={handleManualAnalysis}
+        isLoading={isLoading}
+        processingState={processingState}
+        showIssueHighlighting={uiState.showIssueHighlighting}
+        toggleIssueHighlighting={() => {
+          // Toggle highlighting logic
+          const newState = !uiState.showIssueHighlighting;
+          useUnifiedDocumentStore.setState({
+            uiState: { ...uiState, showIssueHighlighting: newState }
+          });
+        }}
+        issues={issues}
+        editor={editor}
+      />
+
+      <FormattingToolbar editor={editor} />
+
       {/* Editor Content */}
       <div className="flex-1 overflow-auto bg-slate-50">
         <div className="p-6">

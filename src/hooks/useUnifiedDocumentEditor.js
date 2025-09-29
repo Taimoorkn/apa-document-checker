@@ -237,6 +237,7 @@ export const useUnifiedDocumentEditor = () => {
 
   /**
    * Scroll to specific issue in editor
+   * Uses the same search logic as tiptapIssueHighlighter for consistency
    */
   const scrollToIssue = useCallback((issueId) => {
     if (!editor || !issueId) {
@@ -250,68 +251,114 @@ export const useUnifiedDocumentEditor = () => {
       return;
     }
 
-    // Try multiple text sources for searching
-    let searchText = issue.highlightText || issue.text || issue.description;
-
-    // Clean the search text (remove truncation, trim)
-    if (searchText && typeof searchText === 'string') {
-      searchText = searchText.trim();
-      if (searchText.endsWith('...')) {
-        searchText = searchText.slice(0, -3).trim();
-      }
-    }
-
-    if (!searchText || searchText.length < 3) {
-      console.warn('scrollToIssue: No valid search text - cannot scroll', {
-        issueId,
-        highlightText: issue.highlightText,
-        text: issue.text,
-        description: issue.description,
-        title: issue.title
-      });
-
-      // TODO: Paragraph fallback disabled because paragraphIndex values are incorrect
-      // causing scrolling to document bottom instead of issue location
+    // Skip document-level issues without specific text
+    if (issue.location?.type === 'document' && !issue.highlightText && !issue.text) {
+      console.warn('scrollToIssue: Document-level issue without specific text', { issueId });
       return;
     }
 
-    console.log('scrollToIssue: Searching for text:', searchText.substring(0, 50));
+    // Determine search text (same as highlighter)
+    let searchText = issue.highlightText || issue.text || '';
+    if (!searchText || searchText.length < 2) {
+      console.warn('scrollToIssue: No valid search text', { issueId, searchText });
+      return;
+    }
+
+    // Handle truncated text (same as highlighter)
+    const isTruncated = searchText.endsWith('...');
+    if (isTruncated) {
+      searchText = searchText.slice(0, -3).trim();
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('scrollToIssue: Searching for:', searchText.substring(0, 80), {
+        paragraphIndex: issue.location?.paragraphIndex,
+        isTruncated
+      });
+    }
 
     try {
       const { state } = editor;
       const { doc } = state;
-      let found = false;
+      const positions = [];
 
-      doc.descendants((node, pos) => {
-        if (found) return false;
+      // Use same search strategy as highlighter
+      if (issue.location?.paragraphIndex !== undefined) {
+        // Search in specific paragraph
+        let currentPara = 0;
+        let found = false;
 
-        if (node.isText && node.text.includes(searchText)) {
-          const textIndex = node.text.indexOf(searchText);
-          const from = pos + textIndex;
-          const to = from + searchText.length;
+        doc.descendants((node, pos) => {
+          if (found) return false;
 
-          console.log('scrollToIssue: Found text, scrolling to position', { from, to });
+          if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+            if (currentPara === issue.location.paragraphIndex) {
+              const text = node.textContent;
+              const index = text.indexOf(searchText);
 
-          editor.chain()
-            .focus()
-            .setTextSelection({ from, to })
-            .scrollIntoView()
-            .run();
-
-          found = true;
-          return false;
-        }
-      });
-
-      if (!found) {
-        console.warn('scrollToIssue: Text not found in document - cannot scroll', {
-          searchText: searchText.substring(0, 50),
-          issueTitle: issue.title,
-          issueCategory: issue.category
+              if (index !== -1) {
+                const from = pos + 1 + index;
+                const to = from + (isTruncated
+                  ? Math.min(searchText.length + 20, text.length - index)
+                  : searchText.length);
+                positions.push({ from, to });
+              }
+              found = true;
+              return false;
+            }
+            currentPara++;
+          }
         });
+      } else {
+        // Search entire document
+        doc.descendants((node, pos) => {
+          if (node.isText) {
+            const text = node.text;
+            const index = text.indexOf(searchText);
 
-        // TODO: Paragraph fallback disabled because paragraphIndex values are incorrect
-        // causing scrolling to document bottom instead of issue location
+            if (index !== -1) {
+              const from = pos + index;
+              const to = from + (isTruncated
+                ? Math.min(searchText.length + 20, text.length - index)
+                : searchText.length);
+              positions.push({ from, to });
+            }
+          } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+            const text = node.textContent;
+            if (text.includes(searchText)) {
+              const index = text.indexOf(searchText);
+              if (index !== -1) {
+                const from = pos + 1 + index;
+                const to = from + (isTruncated
+                  ? Math.min(searchText.length + 20, text.length - index)
+                  : searchText.length);
+                positions.push({ from, to });
+              }
+            }
+          }
+        });
+      }
+
+      // Scroll to the first found position
+      if (positions.length > 0) {
+        const { from, to } = positions[0];
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('scrollToIssue: Found position', { from, to, totalMatches: positions.length });
+        }
+
+        editor.chain()
+          .focus()
+          .setTextSelection({ from, to })
+          .scrollIntoView()
+          .run();
+      } else if (process.env.NODE_ENV === 'development') {
+        console.warn('scrollToIssue: Text not found in document', {
+          searchText: searchText.substring(0, 80),
+          issueTitle: issue.title,
+          issueCategory: issue.category,
+          paragraphIndex: issue.location?.paragraphIndex
+        });
       }
     } catch (error) {
       console.error('Error scrolling to issue:', error);

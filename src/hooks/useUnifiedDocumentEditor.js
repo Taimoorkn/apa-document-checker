@@ -240,18 +240,42 @@ export const useUnifiedDocumentEditor = () => {
    */
   const scrollToIssue = useCallback((issueId) => {
     if (!editor || !issueId) {
+      console.warn('scrollToIssue: Missing editor or issueId', { hasEditor: !!editor, issueId });
       return;
     }
 
     const issue = issues.find(i => i.id === issueId);
     if (!issue) {
+      console.warn('scrollToIssue: Issue not found', { issueId, totalIssues: issues.length });
       return;
     }
 
-    const searchText = issue.highlightText || issue.text;
-    if (!searchText) {
+    // Try multiple text sources for searching
+    let searchText = issue.highlightText || issue.text || issue.description;
+
+    // Clean the search text (remove truncation, trim)
+    if (searchText && typeof searchText === 'string') {
+      searchText = searchText.trim();
+      if (searchText.endsWith('...')) {
+        searchText = searchText.slice(0, -3).trim();
+      }
+    }
+
+    if (!searchText || searchText.length < 3) {
+      console.warn('scrollToIssue: No valid search text - cannot scroll', {
+        issueId,
+        highlightText: issue.highlightText,
+        text: issue.text,
+        description: issue.description,
+        title: issue.title
+      });
+
+      // TODO: Paragraph fallback disabled because paragraphIndex values are incorrect
+      // causing scrolling to document bottom instead of issue location
       return;
     }
+
+    console.log('scrollToIssue: Searching for text:', searchText.substring(0, 50));
 
     try {
       const { state } = editor;
@@ -266,6 +290,8 @@ export const useUnifiedDocumentEditor = () => {
           const from = pos + textIndex;
           const to = from + searchText.length;
 
+          console.log('scrollToIssue: Found text, scrolling to position', { from, to });
+
           editor.chain()
             .focus()
             .setTextSelection({ from, to })
@@ -277,8 +303,15 @@ export const useUnifiedDocumentEditor = () => {
         }
       });
 
-      if (!found && process.env.NODE_ENV === 'development') {
-        console.warn('Issue text not found in editor:', searchText);
+      if (!found) {
+        console.warn('scrollToIssue: Text not found in document - cannot scroll', {
+          searchText: searchText.substring(0, 50),
+          issueTitle: issue.title,
+          issueCategory: issue.category
+        });
+
+        // TODO: Paragraph fallback disabled because paragraphIndex values are incorrect
+        // causing scrolling to document bottom instead of issue location
       }
     } catch (error) {
       console.error('Error scrolling to issue:', error);

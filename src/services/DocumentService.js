@@ -360,8 +360,18 @@ export class DocumentService {
       text: documentModel.getPlainText(),
       html: documentModel.getFormattedHtml(),
       formatting: this._extractFormattingForAnalysis(documentModel),
-      structure: this._extractStructureForAnalysis(documentModel)
+      structure: this._extractStructureForAnalysis(documentModel),
+      styles: this._extractStylesForAnalysis(documentModel)
     };
+
+    console.log('🔍 Full analysis document data:', {
+      textLength: documentData.text?.length || 0,
+      htmlLength: documentData.html?.length || 0,
+      hasFormatting: !!documentData.formatting,
+      hasStructure: !!documentData.structure,
+      hasStyles: !!documentData.styles,
+      stylesKeys: documentData.styles ? Object.keys(documentData.styles) : []
+    });
 
     const analysisOptions = {
       force: true,
@@ -370,6 +380,15 @@ export class DocumentService {
     };
 
     const issues = this.apaAnalyzer.analyzeDocument(documentData, analysisOptions);
+
+    console.log('📊 Analysis results:', {
+      totalIssues: issues.length,
+      bySeverity: {
+        Critical: issues.filter(i => i.severity === 'Critical').length,
+        Major: issues.filter(i => i.severity === 'Major').length,
+        Minor: issues.filter(i => i.severity === 'Minor').length
+      }
+    });
 
     return {
       issues,
@@ -398,6 +417,7 @@ export class DocumentService {
       html: documentModel.getFormattedHtml(),
       formatting: this._extractFormattingForAnalysis(documentModel),
       structure: this._extractStructureForAnalysis(documentModel),
+      styles: this._extractStylesForAnalysis(documentModel),
       changedParagraphs: changedParagraphs.map(p => ({
         id: p.id,
         index: p.index,
@@ -424,18 +444,33 @@ export class DocumentService {
     // Clear existing issues
     documentModel.issues = new (documentModel.issues.constructor)();
 
-    // Add new issues
-    analysisResults.issues.forEach(issue => {
+    console.log('📝 Updating document issues:', {
+      totalIssues: analysisResults.issues.length,
+      sampleIssue: analysisResults.issues[0]
+    });
+
+    // Add new issues with unique IDs
+    analysisResults.issues.forEach((issue, index) => {
+      // Ensure each issue has a unique ID
+      const issueWithId = {
+        ...issue,
+        id: issue.id || `${issue.category || 'general'}-${issue.severity || 'Minor'}-${index}`
+      };
+
       // Find paragraph association based on issue location
       let paragraphId = null;
-      if (issue.location && issue.location.paragraphIndex !== undefined) {
-        const paragraphIndex = issue.location.paragraphIndex;
+      if (issueWithId.location && issueWithId.location.paragraphIndex !== undefined) {
+        const paragraphIndex = issueWithId.location.paragraphIndex;
         if (paragraphIndex < documentModel.paragraphOrder.length) {
           paragraphId = documentModel.paragraphOrder[paragraphIndex];
         }
       }
 
-      documentModel.issues.addIssue(issue, paragraphId);
+      documentModel.issues.addIssue(issueWithId, paragraphId);
+    });
+
+    console.log('✅ Document issues updated:', {
+      storedIssues: documentModel.issues.getAllIssues().length
     });
 
     documentModel.issues.lastAnalysisTimestamp = Date.now();
@@ -603,6 +638,21 @@ export class DocumentService {
       tables: documentModel.structure.tables,
       italicizedText: documentModel.structure.italicizedText,
       headersFooters: documentModel.structure.headersFooters
+    };
+  }
+
+  _extractStylesForAnalysis(documentModel) {
+    // Extract styles data from document model for APA analysis
+    if (!documentModel.styles) {
+      return {};
+    }
+
+    return {
+      paragraphStyles: documentModel.styles.paragraphStyles || {},
+      characterStyles: documentModel.styles.characterStyles || {},
+      tableStyles: documentModel.styles.tableStyles || {},
+      numberingStyles: documentModel.styles.numberingStyles || {},
+      defaults: documentModel.styles.defaults || {}
     };
   }
 

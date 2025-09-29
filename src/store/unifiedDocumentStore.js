@@ -527,7 +527,10 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   /**
    * Set active issue for highlighting
    */
-  setActiveIssue: (issueId) => {
+  setActiveIssue: (issueId, options = {}) => {
+    const { shouldScroll = true } = options;
+    const previousId = get().uiState.activeIssueId;
+
     set(state => ({
       uiState: {
         ...state.uiState,
@@ -536,7 +539,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     }));
 
     storeEvents.emit('activeIssueChanged', {
-      previousId: get().uiState.activeIssueId,
+      previousId: previousId,
+      shouldScroll: shouldScroll,
       currentId: issueId
     });
   },

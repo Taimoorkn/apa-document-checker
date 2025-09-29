@@ -52,7 +52,7 @@ export const useUnifiedDocumentEditor = () => {
         issues: issues,
         activeIssueId: activeIssueId,
         showHighlighting: showIssueHighlighting,
-        onIssueClick: (issueId) => setActiveIssue(issueId)
+        onIssueClick: (issueId) => setActiveIssue(issueId, { shouldScroll: false })
       })
     ],
     content: '<p>Loading document...</p>',
@@ -305,16 +305,18 @@ export const useUnifiedDocumentEditor = () => {
     }
   }, [editorInitialized, issues, activeIssueId, showIssueHighlighting, updateIssueHighlights]);
 
-  // Scroll to active issue when it changes
+  // Listen for active issue changes that should trigger scrolling
   useEffect(() => {
-    if (activeIssueId && editorInitialized) {
-      const timer = setTimeout(() => {
-        scrollToIssue(activeIssueId);
-      }, 200);
+    const cleanup = events.on('activeIssueChanged', (data) => {
+      if (data.shouldScroll && data.currentId && editorInitialized) {
+        setTimeout(() => {
+          scrollToIssue(data.currentId);
+        }, 200);
+      }
+    });
 
-      return () => clearTimeout(timer);
-    }
-  }, [activeIssueId, editorInitialized, scrollToIssue]);
+    return cleanup;
+  }, [events, editorInitialized, scrollToIssue]);
 
   // Listen for document restoration events
   useEffect(() => {

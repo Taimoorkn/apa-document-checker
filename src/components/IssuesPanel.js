@@ -61,13 +61,13 @@ export default function IssuesPanel() {
       // Check if it's a document-wide formatting issue
       if (issue.location?.type === 'document' && issue.category === 'formatting') {
         docFormatting.push(issue);
-      } else {
-        // Group regular issues by severity
-        if (!grouped[issue.severity]) {
-          grouped[issue.severity] = [];
-        }
-        grouped[issue.severity].push(issue);
       }
+
+      // Group ALL issues by severity (including document formatting)
+      if (!grouped[issue.severity]) {
+        grouped[issue.severity] = [];
+      }
+      grouped[issue.severity].push(issue);
     });
 
     return { groupedIssues: grouped, documentFormattingIssues: docFormatting };

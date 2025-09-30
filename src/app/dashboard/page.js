@@ -20,10 +20,16 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  // Fetch user's documents
-  const { data: documents, error: documentsError } = await supabase
+  // Fetch user's documents with analysis results (using LEFT JOIN)
+  const { data: documents, error: documentsError} = await supabase
     .from('documents')
-    .select('*')
+    .select(`
+      *,
+      analysis_results (
+        compliance_score,
+        issue_count
+      )
+    `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -31,10 +37,17 @@ export default async function DashboardPage() {
     console.error('Error fetching documents:', documentsError);
   }
 
+  // Flatten analysis_results into document objects for easier access
+  const documentsWithScores = (documents || []).map(doc => ({
+    ...doc,
+    compliance_score: doc.analysis_results?.[0]?.compliance_score || null,
+    issue_count: doc.analysis_results?.[0]?.issue_count || null,
+  }));
+
   return (
     <DashboardClient
       user={user}
-      initialDocuments={documents || []}
+      initialDocuments={documentsWithScores}
     />
   );
 }

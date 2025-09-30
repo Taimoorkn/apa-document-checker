@@ -199,6 +199,51 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   /**
+   * Load existing document from Supabase (for viewing processed documents)
+   */
+  loadExistingDocument: async (documentData, issues = []) => {
+    try {
+      // Create DocumentModel from server data
+      const documentModel = DocumentModel.fromServerData(documentData, null);
+
+      // Store document model and issues
+      set(state => ({
+        documentModel,
+        editorState: {
+          ...state.editorState,
+          needsSync: true,
+          content: null // Will be set by editor sync
+        },
+        analysisState: {
+          ...state.analysisState,
+          lastAnalysisTimestamp: Date.now() // Mark as analyzed
+        }
+      }));
+
+      // Load issues into DocumentModel's IssueTracker
+      if (issues && issues.length > 0) {
+        issues.forEach(issue => {
+          documentModel.issues.addIssue(issue);
+        });
+      }
+
+      // Create initial snapshot
+      get().createSnapshot('Document loaded from database');
+
+      console.log(`✅ Existing document loaded: ${documentModel.metadata.name}`);
+
+      return {
+        success: true,
+        documentId: documentModel.id,
+        stats: documentModel.getStatistics()
+      };
+    } catch (error) {
+      console.error('Error loading existing document:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Analyze document for APA compliance
    */
   analyzeDocument: async (options = {}) => {

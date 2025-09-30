@@ -245,6 +245,12 @@ export default function DashboardClient({ user, initialDocuments }) {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Compliance
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Issues
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Uploaded
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -263,6 +269,32 @@ export default function DashboardClient({ user, initialDocuments }) {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(doc.status)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {doc.status === 'completed' && doc.compliance_score !== null ? (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            doc.compliance_score >= 90 ? 'bg-green-100 text-green-800' :
+                            doc.compliance_score >= 75 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {doc.compliance_score}%
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {doc.status === 'completed' && doc.issue_count !== null ? (
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            doc.issue_count === 0 ? 'bg-green-100 text-green-800' :
+                            doc.issue_count < 5 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {doc.issue_count}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(doc.uploaded_at)}

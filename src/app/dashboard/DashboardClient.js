@@ -68,16 +68,23 @@ export default function DashboardClient({ user, initialDocuments }) {
       // Add to local state
       setDocuments([documentData, ...documents]);
 
+      // Get current session to extract JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       // Trigger processing on backend
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const response = await fetch(`${apiUrl}/api/process-document`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           documentId: documentData.id,
-          userId: user.id,
         }),
       });
 

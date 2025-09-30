@@ -530,12 +530,12 @@ router.post('/process-document', async (req, res) => {
   console.log('📥 Processing document from Supabase Storage');
 
   try {
-    const { documentId, userId } = req.body;
+    const { documentId } = req.body;
 
-    if (!documentId || !userId) {
+    if (!documentId) {
       return res.status(400).json({
         success: false,
-        error: 'Missing documentId or userId',
+        error: 'Missing documentId',
         code: 'MISSING_PARAMETERS'
       });
     }
@@ -543,12 +543,38 @@ router.post('/process-document', async (req, res) => {
     // Import Supabase client
     const supabase = require('../utils/supabaseClient');
 
+    // Extract and verify JWT token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        error: 'Missing or invalid authorization header',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Verify token and get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    console.log(`🔐 Authenticated user: ${user.id}`);
+
     // Fetch document metadata from database
+    // Now using verified user.id instead of trusting request body
     const { data: document, error: fetchError } = await supabase
       .from('documents')
       .select('*')
       .eq('id', documentId)
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single();
 
     if (fetchError || !document) {

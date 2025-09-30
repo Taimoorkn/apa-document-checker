@@ -464,6 +464,24 @@ export const useUnifiedDocumentEditor = () => {
     return cleanup;
   }, [events]);
 
+  // Listen for analysis completion to trigger highlighting
+  useEffect(() => {
+    const cleanup = events.on('analysisComplete', (data) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 Analysis complete, updating highlights...', data.issueCount, 'issues');
+      }
+
+      // Update highlights after analysis completes
+      if (editorInitialized) {
+        setTimeout(() => {
+          updateIssueHighlights();
+        }, 200);
+      }
+    });
+
+    return cleanup;
+  }, [events, editorInitialized, updateIssueHighlights]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {

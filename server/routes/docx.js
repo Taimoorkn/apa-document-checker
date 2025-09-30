@@ -1,17 +1,55 @@
-// server/routes/docx.js - Ensure proper router export
+// server/routes/docx.js - Document processing routes with Worker Thread Pool
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const os = require('os');
-const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
-const DocxModifier = require('../processors/DocxModifier');
-// Simplified for serverless compatibility - utilities removed
+const WorkerPool = require('../workers/WorkerPool');
 
-// Create router instance - IMPORTANT: This must be the default export
+// Create router instance
 const router = express.Router();
 
-// Configure multer for file uploads - Use memory storage for Vercel compatibility
+// Initialize Worker Pool for concurrent document processing
+// Pool size from environment variable or default to 4 workers
+const WORKER_POOL_SIZE = parseInt(process.env.WORKER_POOL_SIZE) || 4;
+const workerScript = path.join(__dirname, '../workers/documentProcessor.worker.js');
+
+let workerPool;
+
+// Initialize worker pool only in non-serverless environments
+// Vercel and other serverless platforms don't support worker threads well
+if (!process.env.VERCEL) {
+  try {
+    workerPool = new WorkerPool(WORKER_POOL_SIZE, workerScript);
+    console.log(`✅ Worker Pool initialized with ${WORKER_POOL_SIZE} workers`);
+
+    // Graceful shutdown handler
+    const shutdownHandler = async () => {
+      console.log('Shutting down Worker Pool...');
+      if (workerPool) {
+        await workerPool.shutdown();
+      }
+    };
+
+    process.on('SIGTERM', shutdownHandler);
+    process.on('SIGINT', shutdownHandler);
+  } catch (error) {
+    console.error('❌ Failed to initialize Worker Pool:', error);
+    console.error('⚠️ Falling back to direct processing (no concurrency)');
+    workerPool = null;
+  }
+} else {
+  console.log('⚠️ Serverless environment detected - Worker Pool disabled');
+  workerPool = null;
+}
+
+// Fallback processors for when Worker Pool is not available
+const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
+const DocxModifier = require('../processors/DocxModifier');
+const xmlDocxProcessor = new XmlDocxProcessor();
+const docxModifier = new DocxModifier();
+
+// Configure multer for file uploads
 const storage = process.env.VERCEL
   ? multer.memoryStorage() // Memory storage for Vercel serverless
   : multer.diskStorage({   // Disk storage for local development
@@ -19,7 +57,6 @@ const storage = process.env.VERCEL
         cb(null, path.join(__dirname, '../uploads/'));
       },
       filename: (req, file, cb) => {
-        // Generate unique filename with timestamp
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const extension = path.extname(file.originalname);
         cb(null, `document-${uniqueSuffix}${extension}`);
@@ -32,10 +69,10 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/octet-stream' // Some systems send DOCX as octet-stream
   ];
-  
+
   const allowedExtensions = ['.docx'];
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  
+
   if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExtension)) {
     cb(null, true);
   } else {
@@ -47,18 +84,27 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit - consistent with frontend validation
-    files: 1 // Only one file at a time
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1
   }
 });
 
-// Initialize processors - XML-based processing
-const xmlDocxProcessor = new XmlDocxProcessor();
-const docxModifier = new DocxModifier();
+/**
+ * Validate DOCX file by checking ZIP signature
+ */
+function isValidDocxFile(buffer) {
+  if (!buffer || buffer.length < 4) {
+    return false;
+  }
+
+  // DOCX files are ZIP archives starting with PK signature (0x50 0x4B 0x03 0x04)
+  return buffer[0] === 0x50 && buffer[1] === 0x4B &&
+         buffer[2] === 0x03 && buffer[3] === 0x04;
+}
 
 /**
  * POST /api/upload-docx
- * Upload and process a DOCX file
+ * Upload and process a DOCX file using Worker Pool for concurrent processing
  */
 router.post('/upload-docx', upload.single('document'), async (req, res) => {
   const startTime = Date.now();
@@ -74,111 +120,108 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       });
     }
 
-    console.log(`Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
+    console.log(`📥 Processing uploaded file: ${req.file.originalname} (${req.file.size} bytes)`);
 
     let fileBuffer;
-    let processingStartTime = Date.now();
 
-    if (process.env.VERCEL && req.file.buffer) {
-      // Vercel serverless: Use buffer directly
-      console.log('Processing in Vercel serverless mode with memory buffer');
+    // Get file buffer (from memory or disk)
+    if (req.file.buffer) {
+      // Memory storage (Vercel or explicit memory storage)
       fileBuffer = req.file.buffer;
-
-      // Additional DOCX validation - check file header
-      if (!isValidDocxFile(fileBuffer)) {
-        throw new Error('File is not a valid DOCX document');
-      }
-
-      // Process the document buffer using XML processor
-      console.log('Starting XML-based document processing...');
-      const result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, req.file.originalname);
-      const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
-
-      const processingTime = Date.now() - processingStartTime;
-      console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
-
-      // Add processing metadata
-      result.processingInfo = {
-        ...result.processingInfo,
-        processingTime: processingTime,
-        originalFilename: req.file.originalname,
-        fileSize: req.file.size,
-        serverless: true,
-        platform: 'vercel'
-      };
-
-      // Validate processing results
-      if (!result.text || !result.html) {
-        throw new Error('Document processing produced incomplete results');
-      }
-
-      // Return success response
-      res.json({
-        success: true,
-        document: result,
-        message: 'Document processed successfully'
-      });
-
-    } else {
-      // Local development: Use file path
+    } else if (req.file.path) {
+      // Disk storage (local development)
       filePath = req.file.path;
-      console.log('Processing in local development mode with file system');
-
-      // Validate file exists and is readable
-      try {
-        await fs.access(filePath, fs.constants.R_OK);
-      } catch (error) {
-        throw new Error('Uploaded file is not readable');
-      }
-
-      // Additional DOCX validation - check file header
       fileBuffer = await fs.readFile(filePath);
-      if (!isValidDocxFile(fileBuffer)) {
-        throw new Error('File is not a valid DOCX document');
-      }
-
-      // Process the document using XML parser
-      console.log('Starting XML-based document processing...');
-      const result = await xmlDocxProcessor.processDocument(filePath);
-      const processorUsed = result.processingInfo?.processor || 'XmlDocxProcessor';
-
-      const processingTime = Date.now() - processingStartTime;
-      console.log(`Document processing completed in ${processingTime}ms using ${processorUsed}`);
-
-      // Add processing metadata
-      result.processingInfo = {
-        ...result.processingInfo,
-        processingTime: processingTime,
-        originalFilename: req.file.originalname,
-        fileSize: req.file.size,
-        serverless: false,
-        platform: 'local'
-      };
-
-      // Validate processing results
-      if (!result.text || !result.html) {
-        throw new Error('Document processing produced incomplete results');
-      }
-
-      // Clean up uploaded file immediately since we're processing in memory
-      await fs.unlink(filePath);
-      filePath = null; // Mark as cleaned up
-
-      // Return success response
-      res.json({
-        success: true,
-        document: result,
-        message: 'Document processed successfully'
-      });
+    } else {
+      throw new Error('Unable to read uploaded file');
     }
 
-    const totalProcessingTime = Date.now() - startTime;
-    console.log(`✅ Document processed successfully (total: ${totalProcessingTime}ms)`);
+    // Validate DOCX file
+    if (!isValidDocxFile(fileBuffer)) {
+      throw new Error('File is not a valid DOCX document');
+    }
+
+    // Process document using Worker Pool if available, otherwise use direct processing
+    let result;
+    let processingMethod;
+
+    if (workerPool) {
+      // ✅ Worker Pool available - process concurrently
+      console.log(`🔄 Sending job to Worker Pool (available workers: ${workerPool.getStats().availableWorkers})`);
+      processingMethod = 'worker-pool';
+
+      try {
+        const workerResult = await workerPool.executeJob({
+          type: 'upload',
+          data: {
+            buffer: fileBuffer,
+            filename: req.file.originalname
+          }
+        }, 60000); // 60 second timeout
+
+        result = workerResult.document;
+
+        console.log(`✅ Worker Pool processing completed`);
+        console.log(`📊 Pool stats:`, workerPool.getStats());
+
+      } catch (error) {
+        console.error('❌ Worker Pool processing failed:', error.message);
+
+        // If worker pool fails, fall back to direct processing
+        console.log('⚠️ Falling back to direct processing');
+        processingMethod = 'direct-fallback';
+        result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, req.file.originalname);
+      }
+
+    } else {
+      // ⚠️ Worker Pool not available - use direct processing
+      console.log('📄 Processing directly (no Worker Pool)');
+      processingMethod = 'direct';
+      result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, req.file.originalname);
+    }
+
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ Document processed successfully in ${processingTime}ms (method: ${processingMethod})`);
+
+    // Add processing metadata
+    result.processingInfo = {
+      ...result.processingInfo,
+      processingTime: processingTime,
+      originalFilename: req.file.originalname,
+      fileSize: req.file.size,
+      processingMethod: processingMethod,
+      workerPoolEnabled: !!workerPool,
+      serverless: !!process.env.VERCEL,
+      platform: process.env.VERCEL ? 'vercel' : 'traditional'
+    };
+
+    // Validate processing results
+    if (!result.text || !result.html) {
+      throw new Error('Document processing produced incomplete results');
+    }
+
+    // Clean up uploaded file if it exists (disk storage)
+    if (filePath) {
+      try {
+        await fs.unlink(filePath);
+        console.log('🗑️ Cleaned up temporary file');
+      } catch (cleanupError) {
+        console.warn('⚠️ Failed to clean up temporary file:', cleanupError.message);
+      }
+      filePath = null;
+    }
+
+    // Return success response
+    res.json({
+      success: true,
+      document: result,
+      message: 'Document processed successfully'
+    });
 
   } catch (error) {
-    console.error('Error processing document:', error);
+    console.error('❌ Error processing document:', error);
 
-    // Clean up uploaded file if it exists (local development only)
+    // Clean up uploaded file if it exists
     if (filePath) {
       try {
         await fs.unlink(filePath);
@@ -186,12 +229,12 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
         console.error('Error cleaning up file:', cleanupError);
       }
     }
-    
+
     // Determine error type and appropriate response
     let statusCode = 500;
     let errorCode = 'PROCESSING_ERROR';
     let errorMessage = 'Failed to process document';
-    
+
     if (error.message.includes('not a valid DOCX')) {
       statusCode = 400;
       errorCode = 'INVALID_FILE';
@@ -204,8 +247,12 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
       statusCode = 400;
       errorCode = 'FILE_UNREADABLE';
       errorMessage = 'Uploaded file could not be read';
+    } else if (error.message.includes('timeout')) {
+      statusCode = 504;
+      errorCode = 'PROCESSING_TIMEOUT';
+      errorMessage = 'Document processing timed out';
     }
-    
+
     res.status(statusCode).json({
       success: false,
       error: errorMessage,
@@ -217,53 +264,45 @@ router.post('/upload-docx', upload.single('document'), async (req, res) => {
 
 /**
  * POST /api/apply-fix
- * Apply a formatting fix to a DOCX document (Memory-based processing)
+ * Apply a formatting fix to a DOCX document using Worker Pool
  */
 router.post('/apply-fix', async (req, res) => {
   console.log('🎯 /api/apply-fix endpoint called');
-  console.log('Request method:', req.method);
-  console.log('Request headers:', Object.keys(req.headers));
-  console.log('Request content-type:', req.get('content-type'));
-  console.log('Request body exists:', !!req.body);
-  console.log('Request body size:', JSON.stringify(req.body || {}).length);
 
   // Memory monitoring
   const initialMemory = process.memoryUsage();
   console.log(`🧠 Initial memory usage: ${Math.round(initialMemory.heapUsed / 1024 / 1024)}MB`);
 
-  // Request size validation (before processing)
+  // Request size validation
   const contentLength = req.get('content-length');
   if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB limit
     console.warn(`⚠️ Request too large: ${Math.round(parseInt(contentLength) / 1024 / 1024)}MB`);
-    return ErrorResponses.fileTooLarge(res, '50MB');
+    return res.status(413).json({
+      success: false,
+      error: 'Request too large. Maximum size is 50MB.',
+      code: 'REQUEST_TOO_LARGE'
+    });
   }
-  
+
   try {
-    // Parse JSON body manually if needed
+    // Parse request data
     let requestData;
-    
-    console.log('Request body keys:', Object.keys(req.body || {}));
-    console.log('Request body type:', typeof req.body);
-    console.log('Is multipart:', req.is('multipart/form-data'));
-    
+
     if (req.is('multipart/form-data')) {
       console.log('📦 Processing multipart form data');
-      // Handle multipart data (document buffer + metadata)
       requestData = {
         fixAction: req.body.fixAction,
         fixValue: req.body.fixValue,
-        originalFilename: req.body.originalFilename
+        originalFilename: req.body.originalFilename,
+        documentBuffer: req.body.documentBuffer
       };
     } else {
       console.log('📦 Processing JSON data');
-      // Handle JSON data with base64 document
       requestData = req.body;
     }
-    
-    console.log('Parsed requestData keys:', Object.keys(requestData || {}));
-    
+
     const { documentBuffer, fixAction, fixValue, originalFilename } = requestData;
-    
+
     // Validate input
     if (!documentBuffer || !fixAction) {
       return res.status(400).json({
@@ -272,19 +311,24 @@ router.post('/apply-fix', async (req, res) => {
         code: 'MISSING_PARAMS'
       });
     }
-    
+
     // Check if the fix is supported
-    if (!docxModifier.isFixSupported(fixAction)) {
+    const supportedFixes = [
+      'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
+      'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting',
+      'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
+    ];
+
+    if (!supportedFixes.includes(fixAction)) {
       return res.status(400).json({
         success: false,
         error: `Unsupported fix action: ${fixAction}`,
         code: 'UNSUPPORTED_FIX'
       });
     }
-    
-    console.log(`🔧 Applying fix: ${fixAction} to document buffer`);
-    console.log('Fix value:', JSON.stringify(fixValue, null, 2));
-    
+
+    console.log(`🔧 Applying fix: ${fixAction}`);
+
     // Convert base64 to buffer if needed
     let docxBuffer;
     if (typeof documentBuffer === 'string') {
@@ -294,7 +338,6 @@ router.post('/apply-fix', async (req, res) => {
 
         // Validate converted buffer size
         if (docxBuffer.length > 50 * 1024 * 1024) { // 50MB limit
-          console.warn(`⚠️ Converted buffer too large: ${Math.round(docxBuffer.length / 1024 / 1024)}MB`);
           return res.status(413).json({
             success: false,
             error: 'Document buffer too large. Maximum file size is 50MB.',
@@ -312,8 +355,7 @@ router.post('/apply-fix', async (req, res) => {
       docxBuffer = Buffer.from(documentBuffer);
 
       // Validate buffer size
-      if (docxBuffer.length > 50 * 1024 * 1024) { // 50MB limit
-        console.warn(`⚠️ Buffer too large: ${Math.round(docxBuffer.length / 1024 / 1024)}MB`);
+      if (docxBuffer.length > 50 * 1024 * 1024) {
         return res.status(413).json({
           success: false,
           error: 'Document buffer too large. Maximum file size is 50MB.',
@@ -321,63 +363,93 @@ router.post('/apply-fix', async (req, res) => {
         });
       }
     }
-    
-    // Monitor memory before heavy processing
-    const preProcessingMemory = process.memoryUsage();
-    console.log(`🧠 Pre-processing memory: ${Math.round(preProcessingMemory.heapUsed / 1024 / 1024)}MB`);
 
-    // Apply the fix using DocxModifier (memory-based) with timeout protection
-    console.log('🔄 Calling DocxModifier.applyFormattingFix...');
-    const modificationPromise = docxModifier.applyFormattingFix(
-      docxBuffer,
-      fixAction,
-      fixValue
-    );
+    // Process fix using Worker Pool if available
+    let modificationResult;
+    let reprocessingResult;
+    let processingMethod;
 
-    // Add timeout protection (60 seconds)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Document processing timed out after 60 seconds'));
-      }, 60000);
-    });
+    if (workerPool) {
+      // ✅ Worker Pool available - process concurrently
+      console.log(`🔄 Sending fix job to Worker Pool`);
+      processingMethod = 'worker-pool';
 
-    const modificationResult = await Promise.race([modificationPromise, timeoutPromise]);
-    
-    console.log('DocxModifier result:', {
-      success: modificationResult.success,
-      error: modificationResult.error,
-      bufferSize: modificationResult.buffer?.length
-    });
-    
-    if (!modificationResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: `Failed to apply fix: ${modificationResult.error}`,
-        code: 'FIX_APPLICATION_FAILED',
-        details: {
-          fixAction,
-          fixValue,
-          originalError: modificationResult.error
+      try {
+        // Step 1: Apply fix via worker
+        const fixResult = await workerPool.executeJob({
+          type: 'fix',
+          data: {
+            buffer: docxBuffer,
+            fixAction: fixAction,
+            fixValue: fixValue,
+            filename: originalFilename || 'document.docx'
+          }
+        }, 60000); // 60 second timeout
+
+        const modifiedBuffer = fixResult.modifiedBuffer;
+        console.log(`✅ Fix applied successfully, reprocessing document...`);
+
+        // Step 2: Reprocess the modified document via worker
+        const reprocessResult = await workerPool.executeJob({
+          type: 'upload',
+          data: {
+            buffer: modifiedBuffer,
+            filename: originalFilename || 'document.docx'
+          }
+        }, 60000);
+
+        reprocessingResult = reprocessResult.document;
+        modificationResult = { success: true, buffer: modifiedBuffer };
+
+        console.log(`✅ Worker Pool fix processing completed`);
+
+      } catch (error) {
+        console.error('❌ Worker Pool fix processing failed:', error.message);
+
+        // Fall back to direct processing
+        console.log('⚠️ Falling back to direct processing');
+        processingMethod = 'direct-fallback';
+
+        modificationResult = await docxModifier.applyFormattingFix(docxBuffer, fixAction, fixValue);
+
+        if (!modificationResult.success) {
+          return res.status(500).json({
+            success: false,
+            error: `Failed to apply fix: ${modificationResult.error}`,
+            code: 'FIX_APPLICATION_FAILED'
+          });
         }
-      });
+
+        reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(
+          modificationResult.buffer,
+          originalFilename || 'document.docx'
+        );
+      }
+
+    } else {
+      // ⚠️ Worker Pool not available - use direct processing
+      console.log('🔧 Processing fix directly (no Worker Pool)');
+      processingMethod = 'direct';
+
+      // Apply fix
+      modificationResult = await docxModifier.applyFormattingFix(docxBuffer, fixAction, fixValue);
+
+      if (!modificationResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: `Failed to apply fix: ${modificationResult.error}`,
+          code: 'FIX_APPLICATION_FAILED'
+        });
+      }
+
+      // Reprocess document
+      reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(
+        modificationResult.buffer,
+        originalFilename || 'document.docx'
+      );
     }
-    
-    console.log(`✅ Fix applied successfully, reprocessing document...`);
-    
-    // Monitor memory after modification
-    const postModificationMemory = process.memoryUsage();
-    console.log(`🧠 Post-modification memory: ${Math.round(postModificationMemory.heapUsed / 1024 / 1024)}MB`);
 
-    // Reprocess the modified document buffer using XML processor
-    console.log('Reprocessing with XML processor...');
-    const startTime = Date.now();
-
-    const reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(modificationResult.buffer, originalFilename || 'document.docx');
-
-    const processingTime = Date.now() - startTime;
-    console.log(`Document reprocessing completed in ${processingTime}ms`);
-
-    // Monitor final memory usage
+    // Monitor memory usage
     const finalMemory = process.memoryUsage();
     const memoryUsed = Math.round((finalMemory.heapUsed - initialMemory.heapUsed) / 1024 / 1024);
     console.log(`🧠 Final memory: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB (+${memoryUsed}MB)`);
@@ -385,10 +457,11 @@ router.post('/apply-fix', async (req, res) => {
     // Add processing metadata
     reprocessingResult.processingInfo = {
       ...reprocessingResult.processingInfo,
-      processingTime: processingTime,
       originalFilename: originalFilename || 'unknown.docx',
       fixApplied: fixAction,
       fixValue: fixValue,
+      processingMethod: processingMethod,
+      workerPoolEnabled: !!workerPool,
       memoryUsage: {
         initial: Math.round(initialMemory.heapUsed / 1024 / 1024),
         peak: Math.round(finalMemory.heapUsed / 1024 / 1024),
@@ -396,11 +469,11 @@ router.post('/apply-fix', async (req, res) => {
       }
     };
 
-    // Return the reprocessed document with the modified buffer for further fixes
+    // Return the reprocessed document with the modified buffer
     res.json({
       success: true,
       document: reprocessingResult,
-      modifiedDocumentBuffer: modificationResult.buffer.toString('base64'), // For next fix iteration
+      modifiedDocumentBuffer: modificationResult.buffer.toString('base64'),
       fixApplied: fixAction,
       message: `Successfully applied ${fixAction} and reprocessed document`
     });
@@ -410,21 +483,15 @@ router.post('/apply-fix', async (req, res) => {
       console.log('🗑️ Running garbage collection...');
       global.gc();
     }
-    
+
   } catch (error) {
     console.error('❌ Critical error in apply-fix route:', error);
-    console.error('❌ Error stack:', error.stack);
-    console.error('❌ Error details:', {
-      name: error.name,
-      message: error.message,
-      code: error.code
-    });
 
     // Monitor memory on error
     const errorMemory = process.memoryUsage();
     console.log(`🧠 Error memory usage: ${Math.round(errorMemory.heapUsed / 1024 / 1024)}MB`);
 
-    // Force garbage collection on error to free memory
+    // Force garbage collection on error
     if (global.gc) {
       console.log('🗑️ Running garbage collection after error...');
       global.gc();
@@ -435,7 +502,7 @@ router.post('/apply-fix', async (req, res) => {
     let errorMessage = 'Failed to apply fix to document';
     let errorCode = 'APPLY_FIX_ERROR';
 
-    if (error.message.includes('timed out')) {
+    if (error.message.includes('timed out') || error.message.includes('timeout')) {
       statusCode = 504;
       errorMessage = 'Request timed out while processing document';
       errorCode = 'PROCESSING_TIMEOUT';
@@ -445,185 +512,231 @@ router.post('/apply-fix', async (req, res) => {
       errorCode = 'DOCUMENT_TOO_LARGE';
     }
 
-    // Ensure we always send a JSON response
-    try {
-      res.status(statusCode).json({
-        success: false,
-        error: errorMessage,
-        code: errorCode,
-        details: process.env.NODE_ENV === 'development' ? {
-          message: error.message,
-          stack: error.stack,
-          name: error.name
-        } : undefined
-      });
-    } catch (responseError) {
-      console.error('❌ Failed to send error response:', responseError);
-      res.status(500).end('Internal server error');
-    }
-  }
-});
-
-/**
- * GET /api/health
- * Health check endpoint for monitoring server status
- */
-router.get('/health', async (req, res) => {
-  const healthCheck = {
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    status: 'ok',
-    memory: process.memoryUsage(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0',
-    services: {}
-  };
-
-  try {
-    // Check XmlDocxProcessor availability
-    try {
-      const testProcessor = new XmlDocxProcessor();
-      healthCheck.services.xmlProcessor = 'healthy';
-    } catch (error) {
-      healthCheck.services.xmlProcessor = 'unhealthy';
-      healthCheck.status = 'degraded';
-    }
-
-    // Check DocxModifier availability
-    try {
-      const testModifier = new DocxModifier();
-      healthCheck.services.docxModifier = 'healthy';
-    } catch (error) {
-      healthCheck.services.docxModifier = 'unhealthy';
-      healthCheck.status = 'degraded';
-    }
-
-    // Check file system access
-    try {
-      const os = require('os');
-      const tempDir = os.tmpdir();
-      await require('fs').promises.access(tempDir);
-      healthCheck.services.fileSystem = 'healthy';
-    } catch (error) {
-      healthCheck.services.fileSystem = 'unhealthy';
-      healthCheck.status = 'degraded';
-    }
-
-    // Memory health check
-    const memoryUsagePercent = (healthCheck.memory.heapUsed / healthCheck.memory.heapTotal) * 100;
-    if (memoryUsagePercent > 90) {
-      healthCheck.status = 'degraded';
-      healthCheck.warnings = healthCheck.warnings || [];
-      healthCheck.warnings.push('High memory usage detected');
-    }
-
-    res.json(healthCheck);
-
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: error.message
+    res.status(statusCode).json({
+      success: false,
+      error: errorMessage,
+      code: errorCode,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
 /**
- * GET /api/processing-status
- * Health check for document processing capabilities
+ * POST /api/process-document
+ * Process a document from Supabase Storage
+ * Triggered after user uploads to Supabase
  */
-router.get('/processing-status', async (req, res) => {
-  // Check XML processor availability
-  let xmlProcessorAvailable = true; // XML processing is always available
-  let xmlProcessorError = null;
-  
+router.post('/process-document', async (req, res) => {
+  console.log('📥 Processing document from Supabase Storage');
+
   try {
-    // Test basic XML processing capability
-    new XmlDocxProcessor();
-  } catch (error) {
-    xmlProcessorAvailable = false;
-    xmlProcessorError = error.message;
-  }
-  
-  res.json({
-    success: true,
-    status: 'operational',
-    capabilities: {
-      docxProcessing: xmlProcessorAvailable,
-      xmlProcessing: xmlProcessorAvailable,
-      formattingExtraction: xmlProcessorAvailable,
-      structureAnalysis: xmlProcessorAvailable,
-      apaCompliance: xmlProcessorAvailable
-    },
-    processors: {
-      xmlProcessor: {
-        available: xmlProcessorAvailable,
-        error: xmlProcessorError,
-        primary: true,
-        required: true
+    const { documentId, userId } = req.body;
+
+    if (!documentId || !userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing documentId or userId',
+        code: 'MISSING_PARAMETERS'
+      });
+    }
+
+    // Import Supabase client
+    const supabase = require('../utils/supabaseClient');
+
+    // Fetch document metadata from database
+    const { data: document, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', documentId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError || !document) {
+      return res.status(404).json({
+        success: false,
+        error: 'Document not found',
+        code: 'DOCUMENT_NOT_FOUND'
+      });
+    }
+
+    // Update status to processing
+    await supabase
+      .from('documents')
+      .update({ status: 'processing' })
+      .eq('id', documentId);
+
+    // Download file from Supabase Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('user-documents')
+      .download(document.file_path);
+
+    if (downloadError || !fileData) {
+      await supabase
+        .from('documents')
+        .update({ status: 'failed' })
+        .eq('id', documentId);
+
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to download document from storage',
+        code: 'DOWNLOAD_ERROR'
+      });
+    }
+
+    // Convert Blob to Buffer
+    const arrayBuffer = await fileData.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
+    // Validate DOCX file
+    if (!isValidDocxFile(fileBuffer)) {
+      await supabase
+        .from('documents')
+        .update({ status: 'failed' })
+        .eq('id', documentId);
+
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid DOCX file format',
+        code: 'INVALID_DOCX'
+      });
+    }
+
+    // Process document via Worker Pool or direct processing
+    let result;
+    let processingMethod;
+
+    if (workerPool) {
+      console.log(`🔄 Sending job to Worker Pool for document ${documentId}`);
+      processingMethod = 'worker-pool';
+
+      try {
+        const workerResult = await workerPool.executeJob({
+          type: 'upload',
+          data: { buffer: fileBuffer, filename: document.filename }
+        }, 60000);
+        result = workerResult.document;
+      } catch (error) {
+        console.log('⚠️ Falling back to direct processing');
+        processingMethod = 'direct-fallback';
+        result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, document.filename);
       }
-    },
-    limits: {
-      maxFileSize: '10MB',
-      allowedFormats: ['DOCX'],
-      processingTimeout: '30s'
-    },
-    timestamp: new Date().toISOString()
-  });
+    } else {
+      console.log('📄 Processing directly (Worker Pool not available)');
+      processingMethod = 'direct';
+      result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, document.filename);
+    }
+
+    // Calculate compliance score (simplified - based on validator results)
+    // This will be replaced with actual APA analysis in next phase
+    const complianceScore = 85; // Placeholder
+    const issueCount = 0; // Placeholder
+
+    // Store analysis results
+    const { error: insertError } = await supabase
+      .from('analysis_results')
+      .insert({
+        document_id: documentId,
+        compliance_score: complianceScore,
+        issue_count: issueCount,
+        issues: [],
+        document_data: result
+      });
+
+    if (insertError) {
+      console.error('Failed to save analysis results:', insertError);
+    }
+
+    // Update document status to completed
+    await supabase
+      .from('documents')
+      .update({
+        status: 'completed',
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', documentId);
+
+    console.log(`✅ Document ${documentId} processed successfully`);
+
+    res.json({
+      success: true,
+      documentId,
+      processingMethod,
+      complianceScore,
+      issueCount
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing document:', error);
+
+    // Try to update document status to failed
+    try {
+      const { documentId } = req.body;
+      if (documentId) {
+        const supabase = require('../utils/supabaseClient');
+        await supabase
+          .from('documents')
+          .update({ status: 'failed' })
+          .eq('id', documentId);
+      }
+    } catch (updateError) {
+      console.error('Failed to update document status:', updateError);
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process document',
+      code: 'PROCESSING_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 /**
- * Helper function to validate DOCX file
+ * GET /api/worker-stats
+ * Get Worker Pool statistics (for monitoring/debugging)
  */
-function isValidDocxFile(buffer) {
-  try {
-    // DOCX files are ZIP archives, so they start with PK (ZIP signature)
-    if (buffer.length < 4) return false;
-    
-    // Check ZIP signature
-    const zipSignature = buffer.slice(0, 4);
-    const isZip = zipSignature[0] === 0x50 && zipSignature[1] === 0x4B;
-    
-    if (!isZip) return false;
-    
-    return true;
-  } catch (error) {
-    return false;
+router.get('/worker-stats', (req, res) => {
+  if (!workerPool) {
+    return res.json({
+      enabled: false,
+      message: 'Worker Pool is not enabled (serverless environment or initialization failed)'
+    });
   }
-}
 
-/**
- * Error handling middleware specific to this router
- */
+  const stats = workerPool.getStats();
+  res.json({
+    enabled: true,
+    stats: stats
+  });
+});
+
+// Error handling middleware for multer errors
 router.use((error, req, res, next) => {
-  console.error('DOCX Router Error:', error);
-  
-  // Handle multer-specific errors
-  if (error instanceof multer.MulterError) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(413).json({
-        success: false,
-        error: 'File too large (max 10MB)',
-        code: 'FILE_TOO_LARGE'
-      });
-    }
-    
-    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-      return res.status(400).json({
-        success: false,
-        error: 'Unexpected file field',
-        code: 'UNEXPECTED_FILE'
-      });
-    }
-    
+  // Handle multer errors
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      error: 'File too large. Maximum size is 10MB.',
+      code: 'FILE_TOO_LARGE'
+    });
+  }
+
+  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({
+      success: false,
+      error: 'Unexpected file. Please upload only one DOCX file.',
+      code: 'UNEXPECTED_FILE'
+    });
+  }
+
+  if (error.message.includes('multer')) {
     return res.status(400).json({
       success: false,
       error: error.message,
       code: 'UPLOAD_ERROR'
     });
   }
-  
+
   // Handle file filter errors
   if (error.message === 'Only DOCX files are allowed') {
     return res.status(400).json({
@@ -632,10 +745,10 @@ router.use((error, req, res, next) => {
       code: 'INVALID_FILE_TYPE'
     });
   }
-  
+
   // Pass other errors to main error handler
   next(error);
 });
 
-// IMPORTANT: Export the router properly
+// Export the router
 module.exports = router;

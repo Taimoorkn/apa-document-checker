@@ -89,6 +89,7 @@ export async function middleware(request) {
     return NextResponse.redirect(url);
   }
 
+  // All other routes (including home page '/') are public
   return response;
 }
 

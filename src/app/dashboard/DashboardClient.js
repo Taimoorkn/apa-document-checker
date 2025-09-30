@@ -69,7 +69,8 @@ export default function DashboardClient({ user, initialDocuments }) {
       setDocuments([documentData, ...documents]);
 
       // Trigger processing on backend
-      const response = await fetch('http://localhost:3001/api/process-document', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/process-document`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

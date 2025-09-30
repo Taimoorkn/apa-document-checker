@@ -1,6 +1,5 @@
 // server/utils/supabaseClient.js - Express backend Supabase client
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
 /**
  * Supabase client for Express backend
@@ -8,9 +7,13 @@ require('dotenv').config();
  *
  * IMPORTANT: This client bypasses Row Level Security (RLS)
  * Use with caution and validate user permissions manually
+ *
+ * Environment variables should be in root .env file:
+ * - NEXT_PUBLIC_SUPABASE_URL (same URL used by frontend)
+ * - SUPABASE_SERVICE_ROLE_KEY (backend only, never expose to browser)
  */
 const supabase = createClient(
-  process.env.SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
     auth: {

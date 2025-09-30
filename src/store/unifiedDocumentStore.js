@@ -482,14 +482,26 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   /**
-   * Get all issues
+   * Get all issues (with hasFix corrected based on actual implementation)
    */
   getIssues: () => {
     const state = get();
     if (!state.documentModel) {
       return [];
     }
-    return state.documentModel.issues.getAllIssues();
+    const issues = state.documentModel.issues.getAllIssues();
+
+    // Correct hasFix based on actual implementation availability
+    return issues.map(issue => {
+      if (issue.hasFix) {
+        const isImplemented = state.documentService.isFixImplemented(issue.fixAction);
+        return {
+          ...issue,
+          hasFix: isImplemented
+        };
+      }
+      return issue;
+    });
   },
 
   /**

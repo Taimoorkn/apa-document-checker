@@ -494,17 +494,21 @@ export class DocumentService {
   }
 
   _isClientContentFix(fixAction) {
-    const clientContentFixes = [
-      'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting',
-      'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber',
-      'sortReferences', 'fixTableTitleCase', 'fixFigureCaptionCase',
-      'fixTableNoteFormat', 'removeRetrievedFrom', 'formatDOI',
-      'addReferencePeriod', 'fixReferenceIndent', 'addSerialComma',
-      'fixListNumbering', 'fixComplexSeries', 'replaceLatinAbbr',
-      'fixPluralAbbr', 'capitalizeSubtitle', 'fixBlockQuote',
-      'fixStatSymbol', 'fixNumberFormat', 'replaceBiasedTerm'
+    // Only list fixes that are ACTUALLY IMPLEMENTED in _applyClientContentFix
+    const implementedClientContentFixes = [
+      'addCitationComma',
+      'fixParentheticalConnector',
+      'fixEtAlFormatting'
     ];
-    return clientContentFixes.includes(fixAction);
+    return implementedClientContentFixes.includes(fixAction);
+  }
+
+  /**
+   * Check if a fix action is actually implemented
+   * Used to filter out issues with hasFix: true but no actual implementation
+   */
+  isFixImplemented(fixAction) {
+    return this._isServerFormattingFix(fixAction) || this._isClientContentFix(fixAction);
   }
 
   async _applyServerFormattingFix(documentModel, issue) {

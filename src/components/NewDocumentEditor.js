@@ -97,7 +97,7 @@ export const NewDocumentEditor = () => {
       <FormattingToolbar editor={editor} />
 
       {/* Editor Content */}
-      <div className="flex-1 overflow-auto bg-slate-50">
+      <div className="flex-1 overflow-auto bg-slate-50" style={{ scrollBehavior: 'smooth' }}>
         <div className="p-6">
           <div className="mx-auto max-w-4xl">
             <div className="bg-white rounded-xl shadow-lg border border-slate-200">

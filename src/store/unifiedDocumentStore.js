@@ -423,7 +423,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         },
         editorState: {
           ...currentState.editorState,
-          needsSync: true // Editor needs to update
+          needsSync: true, // Editor needs to update
+          content: null // Clear cached content to force regeneration from DocumentModel
         }
       }));
 
@@ -808,7 +809,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         currentSnapshotIndex: currentState.currentSnapshotIndex - 1,
         editorState: {
           ...currentState.editorState,
-          needsSync: true
+          needsSync: true,
+          content: null // Clear cached content to force regeneration from restored snapshot
         }
       }));
 

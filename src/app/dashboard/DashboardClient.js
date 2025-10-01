@@ -18,7 +18,7 @@ export default function DashboardClient({ user, initialDocuments }) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/');
     router.refresh();
   };
 
@@ -104,7 +104,10 @@ export default function DashboardClient({ user, initialDocuments }) {
     }
   };
 
-  const handleDelete = async (documentId, filePath) => {
+  const handleDelete = async (e, documentId, filePath) => {
+    // Stop event propagation to prevent row click
+    e.stopPropagation();
+
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
@@ -192,7 +195,7 @@ export default function DashboardClient({ user, initialDocuments }) {
                 accept=".docx"
                 onChange={handleFileUpload}
                 disabled={uploading}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
               />
             </label>
             {uploading && (
@@ -263,7 +266,7 @@ export default function DashboardClient({ user, initialDocuments }) {
                   {documents.map((doc) => (
                     <tr key={doc.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/document/${doc.id}`)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <Link href={`/document/${doc.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                        <Link href={`/document/${doc.id}`} className="text-emerald-600 hover:text-emerald-800 hover:underline">
                           {doc.filename}
                         </Link>
                       </td>
@@ -303,17 +306,17 @@ export default function DashboardClient({ user, initialDocuments }) {
                         {formatDate(doc.uploaded_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           {doc.status === 'completed' && (
                             <Link
                               href={`/document/${doc.id}`}
-                              className="text-blue-600 hover:text-blue-900"
+                              className="text-emerald-600 hover:text-emerald-900"
                             >
                               View
                             </Link>
                           )}
                           <button
-                            onClick={() => handleDelete(doc.id, doc.file_path)}
+                            onClick={(e) => handleDelete(e, doc.id, doc.file_path)}
                             className="text-red-600 hover:text-red-900"
                           >
                             Delete

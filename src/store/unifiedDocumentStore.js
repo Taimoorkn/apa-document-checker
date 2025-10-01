@@ -377,6 +377,24 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     try {
       const result = await state.documentService.applyFix(state.documentModel, issueId);
 
+      // Check if fix was successful
+      if (!result.success) {
+        set(currentState => ({
+          processingState: {
+            ...currentState.processingState,
+            isApplyingFix: false,
+            currentFixId: null,
+            lastError: result.error || 'Fix failed',
+            stage: null
+          }
+        }));
+
+        return {
+          success: false,
+          error: result.error || 'Fix failed'
+        };
+      }
+
       set(currentState => ({
         processingState: {
           ...currentState.processingState,

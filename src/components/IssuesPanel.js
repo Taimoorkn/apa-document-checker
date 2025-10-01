@@ -47,10 +47,21 @@ export default function IssuesPanel() {
   });
   
   const [activeTab, setActiveTab] = useState('issues'); // 'issues' or 'stats'
-  
+  const [fixError, setFixError] = useState(null);
+
   // Refs for tracking issue elements
   const issueRefs = useRef({});
   const panelContentRef = useRef(null);
+
+  // Wrapper for applyFix to handle errors
+  const handleApplyFix = async (issueId) => {
+    setFixError(null);
+    const result = await applyFix(issueId);
+    if (!result.success) {
+      setFixError(result.error || 'Fix failed');
+      setTimeout(() => setFixError(null), 5000); // Clear after 5 seconds
+    }
+  };
   
   // Group issues by severity and separate document formatting issues
   const { groupedIssues, documentFormattingIssues } = useMemo(() => {
@@ -218,6 +229,13 @@ export default function IssuesPanel() {
           </div>
         )}
 
+        {/* Error Message */}
+        {fixError && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">{fixError}</p>
+          </div>
+        )}
+
         {/* Tab Navigation */}
         <div className="flex items-center space-x-1 mt-4">
           <button
@@ -271,7 +289,7 @@ export default function IssuesPanel() {
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
-                        onApplyFix={() => applyFix(issue.id)}
+                        onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />
                     ))}
@@ -293,7 +311,7 @@ export default function IssuesPanel() {
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
-                        onApplyFix={() => applyFix(issue.id)}
+                        onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />
                     ))}
@@ -315,7 +333,7 @@ export default function IssuesPanel() {
                         issue={issue}
                         isActive={activeIssueId === issue.id}
                         onSelect={() => setActiveIssue(issue.id)}
-                        onApplyFix={() => applyFix(issue.id)}
+                        onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />
                     ))}

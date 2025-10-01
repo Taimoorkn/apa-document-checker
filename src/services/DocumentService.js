@@ -204,7 +204,11 @@ export class DocumentService {
         };
       }
 
-      throw new Error(fixResult.error || 'Fix application failed');
+      // Fix failed - return error message instead of throwing
+      return {
+        success: false,
+        error: fixResult.message || fixResult.error || 'Fix application failed'
+      };
 
     } catch (error) {
       // Restore from snapshot on error
@@ -513,7 +517,11 @@ export class DocumentService {
 
   async _applyServerFormattingFix(documentModel, issue) {
     if (!documentModel.currentBuffer) {
-      throw new Error('No document buffer available for server fix');
+      // Document loaded from Supabase - formatting fixes require original file
+      return {
+        success: false,
+        message: 'Formatting fixes are not available for saved documents. Please download and re-upload to apply formatting fixes.'
+      };
     }
 
     const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);

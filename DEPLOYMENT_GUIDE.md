@@ -7,9 +7,9 @@ This guide covers deploying the APA Document Checker application for small to me
 **Architecture:**
 
 - **Frontend**: Next.js on Vercel (Free Tier)
-- **Backend**: Express + Worker Threads on Render.com ($7/month)
+- **Backend**: Express + Worker Threads on Railway ($5-10/month)
 - **Database & Storage**: Supabase Cloud ($25/month)
-- **Total Cost**: ~$32/month
+- **Total Cost**: ~$30-35/month
 
 **Estimated Traffic Capacity:**
 
@@ -26,7 +26,7 @@ Before starting, ensure you have:
 
 - [x] GitHub account (for code repository)
 - [x] Vercel account (sign up at https://vercel.com)
-- [x] Render.com account (sign up at https://render.com)
+- [x] Railway account (sign up at https://railway.app)
 - [x] Supabase account (sign up at https://supabase.com)
 - [x] Git installed locally
 - [x] Node.js 20.x installed locally
@@ -142,8 +142,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 
-# API Configuration (will be updated after Render deployment)
-NEXT_PUBLIC_API_URL=https://your-app.onrender.com
+# API Configuration (will be updated after Railway deployment)
+NEXT_PUBLIC_API_URL=https://your-app.up.railway.app
 
 # Worker Pool Configuration
 WORKER_POOL_SIZE=4
@@ -156,69 +156,59 @@ NODE_ENV=production
 
 ---
 
-## Step 3: Deploy Backend to Render.com
+## Step 3: Deploy Backend to Railway
 
-### 3.1 Create Render Account & Connect GitHub
+### 3.1 Create Railway Account & Connect GitHub
 
-1. Go to https://render.com/register
-2. Sign up with GitHub (easiest option)
-3. Authorize Render to access your repositories
+1. Go to https://railway.app
+2. Click **"Login"** → **"Login with GitHub"**
+3. Authorize Railway to access your repositories
+4. Complete the onboarding (select your use case, etc.)
 
-### 3.2 Create New Web Service
+### 3.2 Create New Project
 
-1. From Render dashboard, click **"New +"** → **"Web Service"**
-2. Connect your repository:
-   - If this is your first time, click **"Connect account"** and authorize GitHub
-   - Find and select `apa-document-checker` repository
-   - Click **"Connect"**
+1. From Railway dashboard, click **"New Project"**
+2. Select **"Deploy from GitHub repo"**
+3. If this is your first time:
+   - Click **"Configure GitHub App"**
+   - Select which repositories Railway can access (select `apa-document-checker`)
+   - Click **"Install & Authorize"**
+4. Find and select `apa-document-checker` repository
 
-### 3.3 Configure Web Service
+### 3.3 Configure Service
 
-Fill in the configuration form:
+Railway will auto-detect your Node.js app. Configure the deployment:
 
-**Basic Settings:**
+1. **Service name**: Railway auto-generates one, or click to rename to `apa-api`
 
-- **Name**: `apa-document-checker-api` (this will be your subdomain)
-- **Region**: Choose closest to your users (e.g., `Oregon (US West)`)
-- **Branch**: `main`
-- **Root Directory**: Leave blank
-- **Runtime**: `Node`
-- **Build Command**:
-  ```bash
-  npm install
-  ```
-- **Start Command**:
-  ```bash
-  node server/index.js
-  ```
+2. **Settings** tab (click ⚙️ gear icon):
+   - **Branch**: `main` (should be auto-selected)
+   - **Root Directory**: `/` (leave as root)
+   - **Build Command**: Railway auto-detects from `package.json` (`npm install`)
+   - **Start Command**: Railway auto-detects (`node server/index.js`)
 
-**Instance Type:**
+3. **Variables** tab (click 🔧 icon):
+   Click **"New Variable"** and add these one by one:
 
-- Select **"Starter"** ($7/month)
-  - 0.5 CPU
-  - 512 MB RAM
-  - Sufficient for 4 worker threads
+   | Variable Name               | Value                              |
+   | --------------------------- | ---------------------------------- |
+   | `NODE_ENV`                  | `production`                       |
+   | `PORT`                      | `3001`                             |
+   | `NEXT_PUBLIC_SUPABASE_URL`  | `https://your-project.supabase.co` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `your-service-role-key`            |
+   | `WORKER_POOL_SIZE`          | `4`                                |
+   | `MAX_PROCESSING_TIME`       | `60000`                            |
 
-**Advanced Settings** (click "Advanced"):
+   💡 **TIP**: You can also use **"RAW Editor"** to paste all variables at once in `KEY=VALUE` format
 
-**Environment Variables** - Add these one by one:
-
-| Key                         | Value                              |
-| --------------------------- | ---------------------------------- |
-| `NODE_ENV`                  | `production`                       |
-| `PORT`                      | `3001`                             |
-| `NEXT_PUBLIC_SUPABASE_URL`  | `https://your-project.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `your-service-role-key`            |
-| `WORKER_POOL_SIZE`          | `4`                                |
-| `MAX_PROCESSING_TIME`       | `60000`                            |
-
-**Health Check Path:**
-
-- Set to `/api/health` (we'll create this endpoint)
+4. **Networking** tab:
+   - Railway automatically assigns a public domain
+   - Click **"Generate Domain"** to get your public URL
+   - Your URL will look like: `https://apa-document-checker-api-production.up.railway.app`
 
 ### 3.4 Create Health Check Endpoint
 
-Before deploying, add a health check endpoint. Create or update `server/index.js`:
+Before deploying, add a health check endpoint to `server/index.js`:
 
 ```javascript
 // Add this route BEFORE app.listen()
@@ -246,29 +236,32 @@ Commit and push this change:
 
 ```bash
 git add server/index.js
-git commit -m "Add health check endpoint for Render"
+git commit -m "Add health check endpoint for Railway"
 git push origin main
 ```
 
 ### 3.5 Deploy
 
-1. Click **"Create Web Service"**
-2. Render will automatically:
+Railway automatically deploys on push! The deployment will:
 
-   - Clone your repository
-   - Run `npm install`
-   - Start the server with `node server/index.js`
-   - Assign a URL: `https://apa-document-checker-api.onrender.com`
+1. Detect the push to `main` branch
+2. Clone your repository
+3. Run `npm install`
+4. Start the server with `node server/index.js`
+5. Make it available at your Railway URL
 
-3. Monitor deployment in the **Logs** tab
-4. Wait for "Server started successfully on port 3001" message
+**Monitor deployment:**
+- Go to **Deployments** tab in Railway dashboard
+- Click on the active deployment to see real-time logs
+- Wait for "Server started successfully on port 3001" message
+- Deployment typically takes 2-3 minutes
 
 ### 3.6 Verify Backend Deployment
 
-1. Once deployed, test the health check:
+1. Once deployed (green checkmark), test the health check:
 
    ```
-   https://your-app.onrender.com/api/health
+   https://your-app.up.railway.app/api/health
    ```
 
 2. You should see:
@@ -289,10 +282,18 @@ git push origin main
 
 3. Test worker stats endpoint:
    ```
-   https://your-app.onrender.com/api/worker-stats
+   https://your-app.up.railway.app/api/worker-stats
    ```
 
-**Save your Render URL**: `https://apa-document-checker-api.onrender.com`
+**Copy your Railway URL** (you'll need it for Vercel): `https://your-app.up.railway.app`
+
+### 3.7 Set Up Custom Domain (Optional)
+
+1. In Railway → **Settings** → **Domains**
+2. Click **"Custom Domain"**
+3. Enter your domain (e.g., `api.apachecker.com`)
+4. Follow DNS configuration instructions
+5. Railway automatically provisions SSL certificate
 
 ---
 
@@ -330,17 +331,17 @@ git push origin main
 
 Click **"Environment Variables"** and add these:
 
-| Name                            | Value                                           | Environment                      |
-| ------------------------------- | ----------------------------------------------- | -------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | `https://your-project.supabase.co`              | Production, Preview, Development |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `your-anon-key`                                 | Production, Preview, Development |
-| `NEXT_PUBLIC_API_URL`           | `https://apa-document-checker-api.onrender.com` | Production, Preview, Development |
+| Name                            | Value                                                     | Environment                      |
+| ------------------------------- | --------------------------------------------------------- | -------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | `https://your-project.supabase.co`                        | Production, Preview, Development |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `your-anon-key`                                           | Production, Preview, Development |
+| `NEXT_PUBLIC_API_URL`           | `https://your-app.up.railway.app` | Production, Preview, Development |
 
 ⚠️ **IMPORTANT**:
 
 - Do NOT add `SUPABASE_SERVICE_ROLE_KEY` to Vercel (it's only for backend)
 - All variables prefixed with `NEXT_PUBLIC_` are safe to expose to the browser
-- The `NEXT_PUBLIC_API_URL` should point to your Render backend URL
+- The `NEXT_PUBLIC_API_URL` should point to your Railway backend URL
 
 ### 4.5 Deploy
 
@@ -376,7 +377,7 @@ Click **"Environment Variables"** and add these:
 4. Test document upload:
    - Upload a `.docx` file
    - Check browser console - should see no errors
-   - Check Render logs - should see processing activity
+   - Check Railway logs - should see processing activity
    - Check Supabase → **Storage** → `user-documents` - file should appear
 
 ---
@@ -422,25 +423,27 @@ git commit -m "Update CORS configuration for production"
 git push origin main
 ```
 
-Render will automatically redeploy.
+Railway will automatically redeploy.
 
-### 5.3 Enable Render Auto-Deploy
+### 5.3 Railway Auto-Deploy (Already Enabled)
 
-1. In Render dashboard → Your service → **Settings**
-2. Scroll to **Build & Deploy**
-3. Ensure **"Auto-Deploy"** is set to **"Yes"**
-4. This means every push to `main` branch triggers a new deployment
+Railway automatically deploys on every push to `main` branch by default.
+
+**To verify:**
+1. In Railway dashboard → Your service → **Settings**
+2. Under **Source**, you should see **"Deploy on push"** enabled
+3. Every push to `main` branch triggers a new deployment automatically
 
 ### 5.4 Set Up Monitoring
 
-**Render Monitoring:**
+**Railway Monitoring:**
 
-1. In Render → Your service → **Metrics**
+1. In Railway → Your service → **Metrics**
 2. Monitor:
    - CPU usage (should be <80%)
-   - Memory usage (should be <400MB)
-   - Request latency
-   - Error rate
+   - Memory usage (should be <512MB)
+   - Network bandwidth
+   - Active deployments
 
 **Vercel Monitoring:**
 
@@ -496,11 +499,11 @@ Render will automatically redeploy.
    - Open 2-3 browser tabs
    - Upload documents simultaneously
    - ✅ All should process without blocking each other
-   - ✅ Check Render logs for Worker Pool activity
+   - ✅ Check Railway logs for Worker Pool activity
 
 ### 6.2 Check Logs
 
-**Render Logs:**
+**Railway Logs:**
 
 ```
 ✅ WorkerPool initialized with 4 workers
@@ -538,18 +541,20 @@ Expected performance on Starter plan:
 
 ### 7.1 When to Upgrade
 
-**Upgrade Render to Professional ($25/month) if:**
+**Upgrade Railway resources if:**
 
 - CPU usage consistently >80%
-- Memory usage consistently >400MB
+- Memory usage consistently >512MB
 - Processing queue often has >4 documents waiting
 - You have >200 concurrent users
 
-Professional plan provides:
-
-- 1 CPU core
-- 2 GB RAM
-- Can increase `WORKER_POOL_SIZE` to 8
+**Railway Pricing:**
+- Usage-based billing (pay for what you use)
+- ~$5-10/month for starter apps
+- Scale up resources as needed:
+  - More CPU cores
+  - More RAM (up to 32GB)
+  - Can increase `WORKER_POOL_SIZE` to 8+
 
 ### 7.2 When to Upgrade Supabase
 
@@ -578,9 +583,9 @@ Professional plan provides:
 
 **Solution**:
 
-1. Check Render environment variables
+1. Check Railway environment variables
 2. Ensure `VERCEL` env var is NOT set
-3. Restart Render service
+3. Redeploy Railway service
 
 ### Issue: CORS errors in browser console
 
@@ -617,9 +622,9 @@ app.use(
 
 **Solution**:
 
-1. Increase `MAX_PROCESSING_TIME` env var to `120000`
-2. Restart Render service
-3. Consider upgrading to Professional plan for more CPU
+1. Increase `MAX_PROCESSING_TIME` env var to `120000` in Railway
+2. Redeploy service
+3. Consider scaling up Railway resources (more CPU/RAM)
 
 ### Issue: "Invalid or expired token" on /api/process-document
 
@@ -627,7 +632,7 @@ app.use(
 
 **Solution**:
 
-1. Check that `SUPABASE_SERVICE_ROLE_KEY` is correctly set in Render
+1. Check that `SUPABASE_SERVICE_ROLE_KEY` is correctly set in Railway
 2. Verify frontend sends `Authorization: Bearer {token}` header
 3. Check Supabase project URL matches exactly
 
@@ -651,15 +656,15 @@ app.use(
    ```
 4. **Automatic deployment**:
    - Vercel redeploys frontend automatically
-   - Render redeploys backend automatically
+   - Railway redeploys backend automatically
 
 ### Monitoring Checklist (Weekly)
 
-- [ ] Check Render service health
-- [ ] Review error logs in Render
+- [ ] Check Railway service health
+- [ ] Review error logs in Railway
 - [ ] Check Supabase database size
 - [ ] Review storage usage
-- [ ] Check billing for all services
+- [ ] Check billing for all services (Railway usage dashboard)
 - [ ] Test critical user flows
 
 ### Backup Strategy
@@ -683,18 +688,24 @@ supabase storage download user-documents --all
 
 ## Cost Breakdown
 
-| Service      | Plan         | Monthly Cost  |
-| ------------ | ------------ | ------------- |
-| **Vercel**   | Hobby (Free) | $0            |
-| **Render**   | Starter      | $7            |
-| **Supabase** | Pro          | $25           |
-| **Total**    |              | **$32/month** |
+| Service      | Plan             | Monthly Cost     |
+| ------------ | ---------------- | ---------------- |
+| **Vercel**   | Hobby (Free)     | $0               |
+| **Railway**  | Usage-based      | $5-10            |
+| **Supabase** | Pro              | $25              |
+| **Total**    |                  | **$30-35/month** |
 
-**Included in Free/Paid Tiers:**
+**Included in Plans:**
 
-- Vercel: 100GB bandwidth, unlimited deployments, SSL
-- Render: 512MB RAM, persistent disk, SSL, auto-deploy
-- Supabase: 8GB database, 100GB storage, daily backups
+- **Vercel**: 100GB bandwidth, unlimited deployments, SSL, edge network
+- **Railway**: 512MB RAM, 1 vCPU, 1GB disk, SSL, auto-deploy, usage-based scaling
+- **Supabase**: 8GB database, 100GB storage, daily backups, 50GB bandwidth
+
+**Railway Pricing Details:**
+- $5 minimum subscription (includes $5 credit)
+- Usage calculated per second (CPU, RAM, Network)
+- Typical cost for this app: $5-10/month
+- View real-time usage in Railway dashboard
 
 ---
 
@@ -719,10 +730,11 @@ supabase storage download user-documents --all
 - Documentation: https://vercel.com/docs
 - Community: https://github.com/vercel/next.js/discussions
 
-**Render:**
+**Railway:**
 
-- Documentation: https://render.com/docs
-- Support: support@render.com
+- Documentation: https://docs.railway.app
+- Discord: https://discord.gg/railway
+- Help Center: https://help.railway.app
 
 **Supabase:**
 
@@ -753,7 +765,7 @@ supabase storage download user-documents --all
 Your APA Document Checker is now live and ready to serve users at:
 
 - **Frontend**: `https://apa-document-checker.vercel.app`
-- **Backend API**: `https://apa-document-checker-api.onrender.com`
+- **Backend API**: `https://your-app.up.railway.app`
 - **Database**: Supabase Cloud
 
 For questions or issues, refer to the Troubleshooting section or create an issue in your GitHub repository.

@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { DocumentService } from '@/services/DocumentService';
 import { ChangeTracker, DocumentTransaction } from '@/utils/ChangeTracker';
+import { DocumentModel } from '@/models/DocumentModel';
 
 /**
  * Unified Document Store - Single Source of Truth

@@ -46,10 +46,8 @@ if (!process.env.VERCEL) {
 // Fallback processors for when Worker Pool is not available
 const XmlDocxProcessor = require('../processors/XmlDocxProcessor');
 const DocxModifier = require('../processors/DocxModifier');
-const ApaAnalyzer = require('../analyzers/ApaAnalyzer');
 const xmlDocxProcessor = new XmlDocxProcessor();
 const docxModifier = new DocxModifier();
-const apaAnalyzer = new ApaAnalyzer();
 
 // Configure multer for file uploads
 const storage = process.env.VERCEL
@@ -654,13 +652,11 @@ router.post('/process-document', async (req, res) => {
       result = await xmlDocxProcessor.processDocumentBuffer(fileBuffer, document.filename);
     }
 
-    // Run APA analysis on processed document
-    console.log('🧠 Running APA compliance analysis...');
-    const issues = apaAnalyzer.analyzeDocument(result);
-    const complianceScore = apaAnalyzer.calculateComplianceScore(issues);
-    const issueCount = issues.length;
-
-    console.log(`✅ Analysis complete: ${issueCount} issues found, compliance score: ${complianceScore}%`);
+    // Store document data without analysis - frontend will run full analysis when loaded
+    console.log('📦 Storing document data (analysis will run on frontend)');
+    const issues = [];
+    const complianceScore = null;
+    const issueCount = 0;
 
     // Store analysis results
     const { error: insertError } = await supabase

@@ -90,10 +90,11 @@ export default function DashboardClient({ user, initialDocuments }) {
 
       if (!response.ok) {
         console.error('Processing failed:', await response.text());
+        throw new Error('Failed to process document');
       }
 
-      // Refresh to show updated status
-      router.refresh();
+      // Redirect to document viewer to see processing results
+      router.push(`/document/${documentData.id}`);
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.message || 'Failed to upload document');
@@ -260,9 +261,11 @@ export default function DashboardClient({ user, initialDocuments }) {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50">
+                    <tr key={doc.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/document/${doc.id}`)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {doc.filename}
+                        <Link href={`/document/${doc.id}`} className="text-blue-600 hover:text-blue-800 hover:underline">
+                          {doc.filename}
+                        </Link>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatFileSize(doc.file_size)}

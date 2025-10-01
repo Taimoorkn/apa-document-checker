@@ -1,4 +1,6 @@
 // server/index.js - Compatible with both traditional and Vercel serverless deployment
+require('dotenv').config(); // Load environment variables from root .env
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');

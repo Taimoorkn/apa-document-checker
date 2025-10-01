@@ -19,6 +19,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
   const [isDragging, setIsDragging] = useState(false);
 
   const loadExistingDocument = useUnifiedDocumentStore(state => state.loadExistingDocument);
+  const analyzeDocument = useUnifiedDocumentStore(state => state.analyzeDocument);
 
   useEffect(() => {
     // Load document into store when component mounts
@@ -47,6 +48,12 @@ export default function DocumentViewerClient({ user, document, analysisResult })
 
         console.log(`✅ Document loaded from Supabase`);
 
+        // If no issues were found (backend skipped analysis), run full analysis now
+        if (issues.length === 0) {
+          console.log('🧠 Running full APA analysis on frontend...');
+          await analyzeDocument({ force: true });
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('Error loading document:', err);
@@ -56,7 +63,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
     };
 
     loadDocument();
-  }, [document.id, analysisResult, document.filename, loadExistingDocument]);
+  }, [document.id, analysisResult, document.filename, loadExistingDocument, analyzeDocument]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

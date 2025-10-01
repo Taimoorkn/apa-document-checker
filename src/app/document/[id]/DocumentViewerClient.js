@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
+import { indexedDBManager } from '@/utils/indexedDBManager';
 import IssuesPanel from '@/components/IssuesPanel';
 import NewDocumentEditor from '@/components/NewDocumentEditor';
 
@@ -28,23 +29,54 @@ export default function DocumentViewerClient({ user, document, analysisResult })
         setLoading(true);
         setError(null);
 
-        // NEW ARCHITECTURE: Prefer tiptap_content over document_data
-        // This ensures edited documents are loaded with changes
-        let documentData;
+        // THREE-LAYER ARCHITECTURE: Check IndexedDB first for reload safety
+        const localDraft = await indexedDBManager.loadFromIndexedDB(document.id);
 
-        if (analysisResult.tiptap_content) {
-          // Load from saved Tiptap JSON (includes manual edits)
-          console.log('📄 Loading from tiptap_content (edited version)');
-          documentData = {
-            // We need to convert tiptap_content back to document_data format
-            // For now, fall back to document_data with a note to implement converter
-            ...analysisResult.document_data,
-            tiptapContent: analysisResult.tiptap_content
-          };
-        } else {
-          // Fallback to original document_data (first load)
-          console.log('📄 Loading from document_data (original version)');
-          documentData = analysisResult.document_data;
+        let documentData;
+        let useLocalDraft = false;
+
+        if (localDraft && localDraft.tiptapContent) {
+          // Calculate age of local draft
+          const draftAge = Date.now() - localDraft.lastSaved;
+          const draftAgeMinutes = Math.round(draftAge / 1000 / 60);
+
+          console.log(`📂 Found local draft in IndexedDB (${draftAgeMinutes} minutes old)`);
+
+          // Check if Supabase version is newer
+          const supabaseTimestamp = analysisResult.content_saved_at
+            ? new Date(analysisResult.content_saved_at).getTime()
+            : 0;
+
+          if (localDraft.lastSaved > supabaseTimestamp) {
+            console.log('✅ Local draft is newer than Supabase - using local draft');
+            useLocalDraft = true;
+
+            // Use local draft with server document_data as base
+            documentData = {
+              ...analysisResult.document_data,
+              tiptapContent: localDraft.tiptapContent
+            };
+          } else {
+            console.log('⚠️ Supabase version is newer - discarding local draft');
+            // Clear stale local draft
+            await indexedDBManager.clearFromIndexedDB(document.id);
+          }
+        }
+
+        if (!useLocalDraft) {
+          // No local draft or Supabase is newer - load from Supabase
+          if (analysisResult.tiptap_content) {
+            // Load from saved Tiptap JSON (includes manual edits)
+            console.log('☁️ Loading from Supabase tiptap_content (edited version)');
+            documentData = {
+              ...analysisResult.document_data,
+              tiptapContent: analysisResult.tiptap_content
+            };
+          } else {
+            // Fallback to original document_data (first load)
+            console.log('☁️ Loading from Supabase document_data (original version)');
+            documentData = analysisResult.document_data;
+          }
         }
 
         if (!documentData && !analysisResult.tiptap_content) {
@@ -69,7 +101,11 @@ export default function DocumentViewerClient({ user, document, analysisResult })
         // Load document using store method
         await loadExistingDocument(documentData, issues, supabaseMetadata);
 
-        console.log(`✅ Document loaded from Supabase`);
+        if (useLocalDraft) {
+          console.log('📝 Document loaded from IndexedDB (local unsaved changes restored)');
+        } else {
+          console.log('✅ Document loaded from Supabase');
+        }
 
         // If no issues were found (backend skipped analysis), run full analysis now
         if (issues.length === 0) {
@@ -86,7 +122,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
     };
 
     loadDocument();
-  }, [document.id, analysisResult, document.filename, loadExistingDocument, analyzeDocument]);
+  }, [document.id, analysisResult, document.filename, loadExistingDocument, analyzeDocument, user.id]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

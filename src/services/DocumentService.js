@@ -772,6 +772,16 @@ export class DocumentService {
       documentModel.version++;
       documentModel.lastModified = Date.now();
 
+      // Clear IndexedDB after successful Supabase save to prevent stale data
+      try {
+        const { indexedDBManager } = await import('@/utils/indexedDBManager');
+        await indexedDBManager.clearFromIndexedDB(documentModel.supabase.documentId);
+        console.log('🗑️ Cleared IndexedDB after successful Supabase save');
+      } catch (idbError) {
+        // Don't fail the save if IndexedDB clear fails
+        console.warn('⚠️ Failed to clear IndexedDB:', idbError);
+      }
+
       return {
         success: true,
         savedAt: Date.now(),

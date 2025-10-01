@@ -7,6 +7,7 @@ import { Underline } from '@tiptap/extension-underline';
 import { FormattedParagraph, FontFormatting, DocumentDefaults } from '@/utils/tiptapFormattingExtensions';
 import { IssueHighlighter } from '@/utils/tiptapIssueHighlighter';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
+import { indexedDBManager } from '@/utils/indexedDBManager';
 
 /**
  * Unified Document Editor Hook - Replaces useDocumentEditor.js
@@ -34,6 +35,7 @@ export const useUnifiedDocumentEditor = () => {
   const syncTimeoutRef = useRef(null);
   const isInternalUpdateRef = useRef(false);
   const syncEditorFromModelRef = useRef(null);
+  const indexedDBSaveTimeoutRef = useRef(null);
 
   // Get current issues
   const issues = getIssues();
@@ -125,6 +127,54 @@ export const useUnifiedDocumentEditor = () => {
   });
 
   /**
+   * Save to IndexedDB (debounced for performance)
+   * Provides reload safety - called on every edit
+   */
+  const saveToIndexedDB = useCallback(async (editorContent) => {
+    if (!documentModel) {
+      return;
+    }
+
+    // Clear existing timeout
+    if (indexedDBSaveTimeoutRef.current) {
+      clearTimeout(indexedDBSaveTimeoutRef.current);
+    }
+
+    // Debounce IndexedDB save (2-3 seconds)
+    indexedDBSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const documentId = documentModel.supabase.documentId || documentModel.id;
+
+        const result = await indexedDBManager.saveToIndexedDB(
+          documentId,
+          editorContent,
+          {
+            version: documentModel.version,
+            lastModified: Date.now()
+          }
+        );
+
+        if (!result.success && result.shouldClearOld) {
+          // Storage quota exceeded - clear old drafts
+          console.warn('⚠️ IndexedDB quota exceeded, clearing old drafts...');
+          await indexedDBManager.clearOldDrafts(7);
+
+          // Retry save after clearing
+          await indexedDBManager.saveToIndexedDB(documentId, editorContent, {
+            version: documentModel.version,
+            lastModified: Date.now()
+          });
+        }
+
+      } catch (error) {
+        console.error('❌ IndexedDB save failed:', error);
+        // Don't throw - IndexedDB is for safety, not critical
+      }
+    }, 2500); // 2.5 second debounce
+
+  }, [documentModel]);
+
+  /**
    * Perform bidirectional sync with document model
    */
   const performSync = useCallback(async (editorContent, transaction = null) => {
@@ -146,7 +196,11 @@ export const useUnifiedDocumentEditor = () => {
       if (result.success) {
         // Schedule auto-save if there were changes
         if (result.hasChanges) {
-          scheduleAutoSave(5000); // 5 second debounce for auto-save
+          // LAYER 2: Save to IndexedDB for reload safety (2.5s debounce)
+          saveToIndexedDB(editorContent);
+
+          // LAYER 3: Schedule Supabase save for long-term storage (5s debounce)
+          scheduleAutoSave(5000);
         }
       } else {
         console.warn('Sync failed:', result.error);
@@ -158,7 +212,7 @@ export const useUnifiedDocumentEditor = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [documentModel, syncWithEditor, isSyncing, scheduleAutoSave]);
+  }, [documentModel, syncWithEditor, isSyncing, scheduleAutoSave, saveToIndexedDB]);
 
   /**
    * Sync editor content from document model
@@ -485,6 +539,9 @@ export const useUnifiedDocumentEditor = () => {
     return () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
+      }
+      if (indexedDBSaveTimeoutRef.current) {
+        clearTimeout(indexedDBSaveTimeoutRef.current);
       }
     };
   }, []);

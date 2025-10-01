@@ -202,10 +202,17 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   /**
    * Load existing document from Supabase (for viewing processed documents)
    */
-  loadExistingDocument: async (documentData, issues = []) => {
+  loadExistingDocument: async (documentData, issues = [], supabaseMetadata = null) => {
     try {
       // Create DocumentModel from server data
       const documentModel = DocumentModel.fromServerData(documentData, null);
+
+      // Set Supabase metadata for fix application
+      if (supabaseMetadata) {
+        documentModel.supabase.documentId = supabaseMetadata.documentId;
+        documentModel.supabase.filePath = supabaseMetadata.filePath;
+        documentModel.supabase.userId = supabaseMetadata.userId;
+      }
 
       // Store document model and issues
       set(state => ({

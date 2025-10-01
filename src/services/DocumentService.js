@@ -516,16 +516,48 @@ export class DocumentService {
   }
 
   async _applyServerFormattingFix(documentModel, issue) {
-    if (!documentModel.currentBuffer) {
-      // Document loaded from Supabase - formatting fixes require original file
-      return {
-        success: false,
-        message: 'Formatting fixes are not available for saved documents. Please download and re-upload to apply formatting fixes.'
-      };
-    }
+    let base64Buffer;
 
-    const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
-    const base64Buffer = this._bufferToBase64(decompressedBuffer);
+    if (!documentModel.currentBuffer) {
+      // Document loaded from Supabase - download original file first
+      if (!documentModel.supabase.filePath) {
+        return {
+          success: false,
+          message: 'Cannot apply formatting fixes: document file path not available.'
+        };
+      }
+
+      console.log('📥 Downloading document from Supabase for fix application...');
+      console.log('📁 File path:', documentModel.supabase.filePath);
+
+      // Download from Supabase storage - use createBrowserClient from @supabase/ssr
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('user-documents')
+        .download(documentModel.supabase.filePath);
+
+      console.log('📦 Download result:', { hasData: !!fileData, error: downloadError });
+
+      if (downloadError || !fileData) {
+        return {
+          success: false,
+          message: 'Failed to download document from storage for fix application.'
+        };
+      }
+
+      // Convert Blob to Buffer to base64
+      const arrayBuffer = await fileData.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      base64Buffer = this._bufferToBase64(buffer);
+    } else {
+      const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
+      base64Buffer = this._bufferToBase64(decompressedBuffer);
+    }
 
     const response = await fetch(`${this.serverBaseUrl}/api/apply-fix`, {
       method: 'POST',
@@ -612,6 +644,12 @@ export class DocumentService {
       documentModel.version++;
       documentModel.lastModified = Date.now();
       console.log(`✅ Document model fully updated (version ${documentModel.version})`);
+
+      // Save modified document back to Supabase if this is a Supabase document
+      if (documentModel.supabase.documentId && result.modifiedDocumentBuffer) {
+        console.log('💾 Saving modified document to Supabase...');
+        await this._saveToSupabase(documentModel, result.modifiedDocumentBuffer, result.document);
+      }
     }
 
     return {
@@ -619,6 +657,57 @@ export class DocumentService {
       updatedDocument: true,
       serverResponse: result
     };
+  }
+
+  async _saveToSupabase(documentModel, modifiedBufferBase64, updatedDocumentData) {
+    try {
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      // Convert base64 back to Blob for upload
+      const binaryString = atob(modifiedBufferBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+      // Upload modified file to Supabase storage (overwrite original)
+      const { error: uploadError } = await supabase.storage
+        .from('user-documents')
+        .upload(documentModel.supabase.filePath, blob, {
+          upsert: true // Overwrite existing file
+        });
+
+      if (uploadError) {
+        console.error('❌ Failed to upload modified document:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('✅ Modified document uploaded to storage');
+
+      // Update analysis_results table with new document data
+      const { error: updateError } = await supabase
+        .from('analysis_results')
+        .update({
+          document_data: updatedDocumentData
+        })
+        .eq('document_id', documentModel.supabase.documentId);
+
+      if (updateError) {
+        console.error('❌ Failed to update analysis results:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Analysis results updated in database');
+
+    } catch (error) {
+      console.error('❌ Error saving to Supabase:', error);
+      // Don't throw - fix was applied locally, save failure shouldn't break the fix
+    }
   }
 
   async _applyClientContentFix(documentModel, issue) {
@@ -803,12 +892,21 @@ ${documentModel.getFormattedHtml()}
   }
 
   _base64ToBuffer(base64) {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
+    try {
+      // Clean base64 string - remove whitespace and newlines
+      const cleanedBase64 = base64.replace(/\s/g, '');
+      const binary = atob(cleanedBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    } catch (error) {
+      console.error('Failed to decode base64:', error);
+      console.error('Base64 string length:', base64?.length);
+      console.error('First 100 chars:', base64?.substring(0, 100));
+      throw new Error(`Base64 decode failed: ${error.message}`);
     }
-    return bytes.buffer;
   }
 }
 

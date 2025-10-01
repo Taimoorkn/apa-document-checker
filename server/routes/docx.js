@@ -469,11 +469,19 @@ router.post('/apply-fix', async (req, res) => {
       }
     };
 
+    // Ensure buffer is properly converted to base64 string
+    const bufferToConvert = Buffer.isBuffer(modificationResult.buffer)
+      ? modificationResult.buffer
+      : Buffer.from(modificationResult.buffer);
+
+    const base64String = bufferToConvert.toString('base64');
+    console.log(`📦 Buffer converted to base64, length: ${base64String.length}`);
+
     // Return the reprocessed document with the modified buffer
     res.json({
       success: true,
       document: reprocessingResult,
-      modifiedDocumentBuffer: modificationResult.buffer.toString('base64'),
+      modifiedDocumentBuffer: base64String,
       fixApplied: fixAction,
       message: `Successfully applied ${fixAction} and reprocessed document`
     });

@@ -22,6 +22,13 @@ export class DocumentModel {
     // Document metadata
     this.metadata = new DocumentMetadata();
 
+    // Supabase integration metadata
+    this.supabase = {
+      documentId: null,
+      filePath: null,
+      userId: null
+    };
+
     // Paragraph-based document structure (single source of truth)
     this.paragraphs = new Map(); // paragraph-id -> ParagraphModel
     this.paragraphOrder = []; // Maintains document order

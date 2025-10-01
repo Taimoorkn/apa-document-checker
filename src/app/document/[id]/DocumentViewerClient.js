@@ -43,8 +43,15 @@ export default function DocumentViewerClient({ user, document, analysisResult })
         // Load issues from analysis results
         const issues = analysisResult.issues || [];
 
+        // Add Supabase metadata for fix application
+        const supabaseMetadata = {
+          documentId: document.id,
+          filePath: document.file_path,
+          userId: user.id
+        };
+
         // Load document using store method
-        await loadExistingDocument(documentData, issues);
+        await loadExistingDocument(documentData, issues, supabaseMetadata);
 
         console.log(`✅ Document loaded from Supabase`);
 

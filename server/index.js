@@ -43,14 +43,34 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
-// Health check endpoint
+// Health check endpoint with worker pool stats
 app.get('/api/health', (req, res) => {
+  // Get worker pool stats if available
+  let workerPoolStats = null;
+  try {
+    const docxRoutes = require('./routes/docx');
+    if (docxRoutes.workerPool) {
+      const stats = docxRoutes.workerPool.getStats();
+      workerPoolStats = {
+        enabled: true,
+        poolSize: stats.poolSize,
+        availableWorkers: stats.availableWorkers,
+        busyWorkers: stats.busyWorkers,
+        activeJobs: stats.activeJobs,
+        totalJobsProcessed: stats.totalJobsProcessed
+      };
+    }
+  } catch (error) {
+    // Worker pool not available (serverless or not initialized)
+  }
+
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     service: 'APA Document Checker Server',
     environment: process.env.NODE_ENV || 'development',
-    platform: process.env.VERCEL ? 'vercel' : 'traditional'
+    platform: process.env.VERCEL ? 'vercel' : 'traditional',
+    workerPool: workerPoolStats || { enabled: false }
   });
 });
 

@@ -781,5 +781,6 @@ router.use((error, req, res, next) => {
   next(error);
 });
 
-// Export the router
+// Export the router and worker pool for health check access
 module.exports = router;
+module.exports.workerPool = workerPool;

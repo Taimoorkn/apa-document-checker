@@ -173,14 +173,9 @@ export class DocumentService {
     try {
       let fixResult;
 
-      // Determine fix strategy based on fix action
-      if (this._isServerFormattingFix(issue.fixAction)) {
-        fixResult = await this._applyServerFormattingFix(documentModel, issue);
-      } else if (this._isClientContentFix(issue.fixAction)) {
-        fixResult = await this._applyClientContentFix(documentModel, issue);
-      } else {
-        throw new Error(`Unknown fix action: ${issue.fixAction}`);
-      }
+      // ALL fixes now go through server to modify DOCX (Option A: DOCX as source of truth)
+      // This ensures the DOCX file is always updated and is the single source of truth
+      fixResult = await this._applyServerFormattingFix(documentModel, issue);
 
       if (fixResult.success) {
         // Remove fixed issue
@@ -490,29 +485,19 @@ export class DocumentService {
     return Math.max(0, Math.min(100, Math.round(100 - (criticalCount * 8 + majorCount * 4 + minorCount * 1.5))));
   }
 
-  _isServerFormattingFix(fixAction) {
-    const serverFormattingFixes = [
-      'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation'
-    ];
-    return serverFormattingFixes.includes(fixAction);
-  }
-
-  _isClientContentFix(fixAction) {
-    // Only list fixes that are ACTUALLY IMPLEMENTED in _applyClientContentFix
-    const implementedClientContentFixes = [
-      'addCitationComma',
-      'fixParentheticalConnector',
-      'fixEtAlFormatting'
-    ];
-    return implementedClientContentFixes.includes(fixAction);
-  }
-
   /**
-   * Check if a fix action is actually implemented
-   * Used to filter out issues with hasFix: true but no actual implementation
+   * Check if a fix action is actually implemented on backend
+   * All fixes now go through backend DOCX modification (Option A architecture)
    */
   isFixImplemented(fixAction) {
-    return this._isServerFormattingFix(fixAction) || this._isClientContentFix(fixAction);
+    const implementedFixes = [
+      // Formatting fixes
+      'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
+      // Text content fixes
+      'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting',
+      'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
+    ];
+    return implementedFixes.includes(fixAction);
   }
 
   async _applyServerFormattingFix(documentModel, issue) {
@@ -558,6 +543,12 @@ export class DocumentService {
       const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
       base64Buffer = this._bufferToBase64(decompressedBuffer);
     }
+
+    console.log('🔧 Sending fix to backend:', {
+      fixAction: issue.fixAction,
+      fixValue: issue.fixValue,
+      bufferLength: base64Buffer?.length
+    });
 
     const response = await fetch(`${this.serverBaseUrl}/api/apply-fix`, {
       method: 'POST',
@@ -710,52 +701,131 @@ export class DocumentService {
     }
   }
 
-  async _applyClientContentFix(documentModel, issue) {
-    // Find the paragraph containing the issue
-    const paragraphId = this._findIssueLocation(documentModel, issue);
-    if (!paragraphId) {
-      throw new Error('Could not locate issue in document');
-    }
-
-    const paragraph = documentModel.paragraphs.get(paragraphId);
-    if (!paragraph) {
-      throw new Error('Paragraph not found');
-    }
-
-    // Apply fix based on fix action
-    let fixedText;
-    switch (issue.fixAction) {
-      case 'addCitationComma':
-        fixedText = this._applyAddCitationComma(paragraph.text, issue);
-        break;
-      case 'fixParentheticalConnector':
-        fixedText = this._applyFixParentheticalConnector(paragraph.text, issue);
-        break;
-      case 'fixEtAlFormatting':
-        fixedText = this._applyFixEtAlFormatting(paragraph.text, issue);
-        break;
-      // Add more fix implementations as needed
-      default:
-        throw new Error(`Client fix not implemented: ${issue.fixAction}`);
-    }
-
-    if (fixedText !== paragraph.text) {
-      const oldText = paragraph.text;
-      paragraph.update({ text: fixedText });
+  /**
+   * Auto-save manual edits to DOCX and Supabase
+   * This method is called after user makes manual edits in the editor
+   */
+  async autoSaveDocument(documentModel) {
+    if (!documentModel) {
       return {
-        success: true,
-        updatedDocument: false,
-        paragraphId,
-        oldText: oldText,
-        newText: fixedText
+        success: false,
+        error: 'No document model provided'
       };
     }
 
-    return {
-      success: false,
-      error: 'No changes applied'
-    };
+    console.log('💾 Auto-saving document changes...');
+
+    try {
+      // Extract all paragraph text from document model
+      const paragraphs = documentModel.paragraphOrder.map(id => {
+        const paragraph = documentModel.paragraphs.get(id);
+        return {
+          index: paragraph.index,
+          text: paragraph.text,
+          runs: paragraph.runs || []
+        };
+      });
+
+      console.log(`📝 Saving ${paragraphs.length} paragraphs with text changes`);
+
+      // Download DOCX if needed (for Supabase documents)
+      let base64Buffer;
+      if (!documentModel.currentBuffer) {
+        if (!documentModel.supabase.filePath) {
+          return {
+            success: false,
+            error: 'Cannot auto-save: document file path not available'
+          };
+        }
+
+        console.log('📥 Downloading document from Supabase for auto-save...');
+
+        const { createBrowserClient } = await import('@supabase/ssr');
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('user-documents')
+          .download(documentModel.supabase.filePath);
+
+        if (downloadError || !fileData) {
+          return {
+            success: false,
+            error: 'Failed to download document for auto-save'
+          };
+        }
+
+        const arrayBuffer = await fileData.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        base64Buffer = this._bufferToBase64(buffer);
+      } else {
+        const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
+        base64Buffer = this._bufferToBase64(decompressedBuffer);
+      }
+
+      // Send to backend to rebuild DOCX with updated text
+      const response = await fetch(`${this.serverBaseUrl}/api/save-edits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentBuffer: base64Buffer,
+          paragraphs: paragraphs,
+          originalFilename: documentModel.metadata.name
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await this._handleApiError(response);
+        throw new Error(errorData.message || 'Auto-save failed');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Auto-save failed');
+      }
+
+      console.log('✅ Document rebuilt with updated text on backend');
+
+      // Update document model with reprocessed data
+      if (result.document) {
+        // Update document buffer
+        if (result.modifiedDocumentBuffer) {
+          const newBuffer = this._base64ToBuffer(result.modifiedDocumentBuffer);
+          documentModel.currentBuffer = await this.compressionUtils.compressBuffer(newBuffer);
+          console.log('✅ Document buffer updated with saved changes');
+        }
+
+        // Increment version
+        documentModel.version++;
+        documentModel.lastModified = Date.now();
+      }
+
+      // Save to Supabase if this is a Supabase document
+      if (documentModel.supabase.documentId && result.modifiedDocumentBuffer) {
+        console.log('💾 Saving auto-saved document to Supabase...');
+        await this._saveToSupabase(documentModel, result.modifiedDocumentBuffer, result.document);
+      }
+
+      console.log('✅ Auto-save completed successfully');
+
+      return {
+        success: true,
+        savedAt: Date.now()
+      };
+
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
+
+  // OLD CLIENT-SIDE FIX METHODS REMOVED - All fixes now go through backend DOCX modification (Option A)
 
   _extractFormattingForAnalysis(documentModel) {
     return {

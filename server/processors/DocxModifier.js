@@ -305,14 +305,20 @@ class DocxModifier {
       const textElements = xmlDoc.getElementsByTagName('w:t');
       let replacementsMade = 0;
 
+      console.log(`🔍 Searching for "${originalText}" in ${textElements.length} text elements...`);
+
       // Process each text element
       for (let i = 0; i < textElements.length; i++) {
         const textElement = textElements[i];
         const textContent = textElement.textContent || '';
 
         if (textContent.includes(originalText)) {
+          console.log(`✅ MATCH FOUND at element ${i}: "${textContent}"`);
+
           // Replace text content while preserving XML structure
           const newTextContent = textContent.replace(new RegExp(this.escapeRegex(originalText), 'g'), replacementText);
+
+          console.log(`📝 Replacing with: "${newTextContent}"`);
 
           // Clear existing text nodes and create new one
           while (textElement.firstChild) {

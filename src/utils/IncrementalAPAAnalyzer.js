@@ -339,6 +339,10 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
           },
           hasFix: true,
           fixAction: 'fixParentheticalConnector',
+          fixValue: {
+            original: fullCitation,
+            replacement: fullCitation.replace(' and ', ' & ')
+          },
           explanation: 'In parenthetical citations, use & to connect author names, not "and".'
         });
       }
@@ -361,6 +365,10 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
           },
           hasFix: true,
           fixAction: 'fixEtAlFormatting',
+          fixValue: {
+            original: fullCitation,
+            replacement: fullCitation.replace(', et al.', ' et al.')
+          },
           explanation: 'APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021).'
         });
       }

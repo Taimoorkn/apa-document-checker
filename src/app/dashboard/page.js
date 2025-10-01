@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import DashboardClient from './DashboardClient';
 
+// Disable caching to ensure fresh data after document updates
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Dashboard page (Server Component)
  * Fetches user data and documents, then renders client component

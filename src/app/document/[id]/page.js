@@ -4,6 +4,10 @@ import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import DocumentViewerClient from './DocumentViewerClient';
 
+// Disable caching to ensure fresh data after fixes are applied
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * Server component that fetches document from Supabase and passes to client
  */

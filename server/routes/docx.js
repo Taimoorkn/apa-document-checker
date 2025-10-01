@@ -328,6 +328,7 @@ router.post('/apply-fix', async (req, res) => {
     }
 
     console.log(`🔧 Applying fix: ${fixAction}`);
+    console.log(`📋 Fix value:`, fixValue);
 
     // Convert base64 to buffer if needed
     let docxBuffer;

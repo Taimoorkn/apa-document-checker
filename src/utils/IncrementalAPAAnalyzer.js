@@ -589,7 +589,8 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
         !trimmedText.includes('\n') &&
         !trimmedText.includes('(') &&
         !trimmedText.includes(',') &&
-        trimmedText.split(' ').length <= 8) {
+        trimmedText.split(' ').length <= 8 &&
+        /^[A-Z\s]+$/.test(trimmedText)) {
       // This is likely an ALL CAPS heading, skip abbreviation checking
       return issues;
     }

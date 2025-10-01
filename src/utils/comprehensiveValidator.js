@@ -151,7 +151,8 @@ export class ComprehensiveValidator {
       // Only consider it a heading if it meets the criteria
       if (heading.length >= 3 && heading === heading.toUpperCase() &&
           !heading.includes('(') && !heading.includes(',') &&
-          heading.split(' ').length <= 8) {
+          heading.split(' ').length <= 8 &&
+          /^[A-Z\s]+$/.test(heading)) {
         // Extract individual words from heading
         heading.split(/\s+/).forEach(word => {
           if (word.length >= 2) {

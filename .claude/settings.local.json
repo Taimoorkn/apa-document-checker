@@ -16,7 +16,9 @@
       "Bash(npm uninstall:*)",
       "Bash(npm ls:*)",
       "Bash(git mv:*)",
-      "Read(//c/Users/Taimoor/Pictures/Screenshots/**)"
+      "Read(//c/Users/Taimoor/Pictures/Screenshots/**)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

@@ -87,10 +87,6 @@ export const useUnifiedDocumentEditor = () => {
 
         lastContentRef.current = contentString;
 
-        if (process.env.NODE_ENV === 'development') {
-          console.log('📝 Editor content changed, scheduling sync...');
-        }
-
         // Debounce sync to avoid excessive updates
         if (syncTimeoutRef.current) {
           clearTimeout(syncTimeoutRef.current);
@@ -148,10 +144,6 @@ export const useUnifiedDocumentEditor = () => {
       const result = syncWithEditor(editorContent, changesMeta);
 
       if (result.success) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`🔄 Sync completed: ${result.hasChanges ? 'changes detected' : 'no changes'}`);
-        }
-
         // Schedule auto-save if there were changes
         if (result.hasChanges) {
           scheduleAutoSave(5000); // 5 second debounce for auto-save

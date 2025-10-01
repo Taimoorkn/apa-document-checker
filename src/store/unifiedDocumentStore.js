@@ -223,13 +223,16 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         documentModel.supabase.userId = supabaseMetadata.userId;
       }
 
+      // NEW: If tiptap_content is available, use it as editor content (edited version)
+      const initialEditorContent = documentData.tiptapContent || null;
+
       // Store document model and issues
       set(state => ({
         documentModel,
         editorState: {
           ...state.editorState,
           needsSync: true,
-          content: null // Will be set by editor sync
+          content: initialEditorContent // Use saved tiptap_content if available
         },
         analysisState: {
           ...state.analysisState,
@@ -510,6 +513,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
 
   /**
    * Get current editor content from document model
+   * NEW: Prefers stored tiptap_content (edited version) over generated content
    */
   getEditorContent: () => {
     const state = get();
@@ -517,6 +521,12 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       return null;
     }
 
+    // If we have saved tiptap_content in editorState, use it (edited version)
+    if (state.editorState.content) {
+      return state.editorState.content;
+    }
+
+    // Otherwise, generate from DocumentModel (original version)
     return state.documentModel.getTiptapJson();
   },
 
@@ -572,7 +582,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       try {
         await get().performAutoSave();
       } catch (error) {
-        console.error('Scheduled auto-save failed:', error);
+        console.error('Auto-save failed:', error);
       }
     }, debounceMs);
 
@@ -591,16 +601,12 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     const state = get();
 
     if (!state.documentModel) {
-      console.warn('No document model available for auto-save');
       return;
     }
 
     if (state.autoSaveState.isSaving) {
-      console.warn('Auto-save already in progress');
       return;
     }
-
-    console.log('💾 Starting auto-save...');
 
     set(currentState => ({
       autoSaveState: {

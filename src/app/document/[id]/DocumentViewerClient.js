@@ -28,10 +28,26 @@ export default function DocumentViewerClient({ user, document, analysisResult })
         setLoading(true);
         setError(null);
 
-        // Extract document_data from analysis result
-        const documentData = analysisResult.document_data;
+        // NEW ARCHITECTURE: Prefer tiptap_content over document_data
+        // This ensures edited documents are loaded with changes
+        let documentData;
 
-        if (!documentData) {
+        if (analysisResult.tiptap_content) {
+          // Load from saved Tiptap JSON (includes manual edits)
+          console.log('📄 Loading from tiptap_content (edited version)');
+          documentData = {
+            // We need to convert tiptap_content back to document_data format
+            // For now, fall back to document_data with a note to implement converter
+            ...analysisResult.document_data,
+            tiptapContent: analysisResult.tiptap_content
+          };
+        } else {
+          // Fallback to original document_data (first load)
+          console.log('📄 Loading from document_data (original version)');
+          documentData = analysisResult.document_data;
+        }
+
+        if (!documentData && !analysisResult.tiptap_content) {
           throw new Error('Document data is missing from analysis results');
         }
 

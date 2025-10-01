@@ -382,111 +382,23 @@ class DocxModifier {
   }
 
   /**
-   * Apply text changes from manual edits to DOCX
-   * Updates paragraph text in the document XML
+   * DEPRECATED: applyTextChanges - REMOVED
+   * This method was fundamentally flawed (regex-based XML manipulation).
+   *
+   * NEW ARCHITECTURE:
+   * - Manual edits are saved as Tiptap JSON to Supabase
+   * - DOCX is generated fresh on export only (not incrementally modified)
+   * - See DocxGenerator.js for export functionality
+   *
+   * This stub remains for backward compatibility during migration.
    */
   async applyTextChanges(inputBuffer, paragraphs) {
-    try {
-      console.log(`🔧 DocxModifier.applyTextChanges called with ${paragraphs.length} paragraphs`);
-
-      if (!inputBuffer || inputBuffer.length === 0) {
-        throw new Error('Invalid or empty input buffer provided');
-      }
-
-      if (!paragraphs || paragraphs.length === 0) {
-        throw new Error('No paragraphs provided');
-      }
-
-      // Create zip from buffer
-      console.log('📦 Creating PizZip from buffer...');
-      const zip = new PizZip(inputBuffer);
-      console.log('✅ PizZip created successfully');
-
-      // Get the main document XML
-      const docXmlFile = zip.file('word/document.xml');
-      if (!docXmlFile) {
-        throw new Error('Could not find document.xml in DOCX file');
-      }
-
-      console.log('📄 Found document.xml, reading content...');
-      let documentContent = docXmlFile.asText();
-
-      // Parse XML
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(documentContent, 'text/xml');
-
-      if (!xmlDoc || xmlDoc.getElementsByTagName('parsererror').length > 0) {
-        throw new Error('Failed to parse document XML');
-      }
-
-      // Find all paragraph elements
-      const paragraphElements = xmlDoc.getElementsByTagName('w:p');
-      console.log(`📄 Found ${paragraphElements.length} paragraph elements in XML`);
-
-      let changesApplied = 0;
-
-      // Update each paragraph
-      for (let i = 0; i < paragraphs.length && i < paragraphElements.length; i++) {
-        const newText = paragraphs[i].text;
-        const paragraphElement = paragraphElements[i];
-
-        // Find all text elements in this paragraph
-        const textElements = paragraphElement.getElementsByTagName('w:t');
-
-        if (textElements.length > 0) {
-          // Get current paragraph text
-          let currentText = '';
-          for (let j = 0; j < textElements.length; j++) {
-            currentText += textElements[j].textContent || '';
-          }
-
-          // Only update if text has changed
-          if (currentText !== newText) {
-            console.log(`📝 Updating paragraph ${i}: "${currentText.substring(0, 50)}..." → "${newText.substring(0, 50)}..."`);
-
-            // Clear all existing text elements except the first one
-            while (textElements.length > 1) {
-              const textElement = textElements[textElements.length - 1];
-              const parent = textElement.parentNode;
-              if (parent) {
-                parent.removeChild(parent);
-              }
-            }
-
-            // Update the first text element with the new text
-            if (textElements.length > 0) {
-              const firstTextElement = textElements[0];
-              while (firstTextElement.firstChild) {
-                firstTextElement.removeChild(firstTextElement.firstChild);
-              }
-              firstTextElement.appendChild(xmlDoc.createTextNode(newText));
-              changesApplied++;
-            }
-          }
-        }
-      }
-
-      console.log(`✅ Applied ${changesApplied} text changes`);
-
-      // Serialize back to XML
-      const serializer = new XMLSerializer();
-      const modifiedXml = serializer.serializeToString(xmlDoc);
-
-      // Update the document.xml in the zip
-      zip.file('word/document.xml', modifiedXml);
-
-      // Generate the modified DOCX buffer
-      const outputBuffer = zip.generate({
-        type: 'nodebuffer',
-        compression: 'DEFLATE'
-      });
-
-      return { success: true, buffer: outputBuffer, changesApplied };
-
-    } catch (error) {
-      console.error('Error applying text changes:', error);
-      return { success: false, error: error.message };
-    }
+    console.warn('⚠️ applyTextChanges is deprecated - use JSON-based auto-save instead');
+    return {
+      success: false,
+      error: 'This method is deprecated. Use JSON-based architecture.',
+      deprecated: true
+    };
   }
 
   /**

@@ -145,25 +145,11 @@ export class DocumentModel {
   getTiptapJson() {
     const content = [];
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📋 getTiptapJson: Converting ${this.paragraphOrder.length} paragraphs to Tiptap JSON`);
-    }
-
     this.paragraphOrder.forEach((id, index) => {
       const paragraph = this.paragraphs.get(id);
       if (paragraph) {
         const node = paragraph.toTiptapNode();
         content.push(node);
-
-        // Log first paragraph for debugging
-        if (index === 0 && process.env.NODE_ENV === 'development') {
-          console.log('📋 First paragraph node:', {
-            text: paragraph.text.substring(0, 50),
-            hasFormatting: !!node.attrs,
-            fontFamily: paragraph.formatting?.font?.family,
-            fontSize: paragraph.formatting?.font?.size
-          });
-        }
       }
     });
 

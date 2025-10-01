@@ -680,11 +680,21 @@ export class DocumentService {
 
       console.log('✅ Modified document uploaded to storage');
 
-      // Update analysis_results table with new document data
+      // Get current Tiptap JSON and issues for the NEW architecture
+      const tiptapContent = documentModel.getTiptapJson();
+      const issues = documentModel.issues.getAllIssues();
+      const complianceScore = this._calculateComplianceScore(issues);
+
+      // Update analysis_results table with BOTH old and new data
       const { error: updateError } = await supabase
         .from('analysis_results')
         .update({
-          document_data: updatedDocumentData
+          document_data: updatedDocumentData, // Keep for backward compatibility
+          tiptap_content: tiptapContent, // NEW: JSON-based content
+          issues: issues,
+          compliance_score: complianceScore,
+          issue_count: issues.length,
+          editor_version: 1
         })
         .eq('document_id', documentModel.supabase.documentId);
 
@@ -693,7 +703,7 @@ export class DocumentService {
         throw updateError;
       }
 
-      console.log('✅ Analysis results updated in database');
+      console.log('✅ Analysis results updated in database (with tiptap_content)');
 
     } catch (error) {
       console.error('❌ Error saving to Supabase:', error);
@@ -702,118 +712,71 @@ export class DocumentService {
   }
 
   /**
-   * Auto-save manual edits to DOCX and Supabase
-   * This method is called after user makes manual edits in the editor
+   * Auto-save manual edits to Supabase (JSON-based, no DOCX manipulation)
+   * This is the NEW architecture - DOCX is generated only on export
    */
   async autoSaveDocument(documentModel) {
     if (!documentModel) {
+      console.error('❌ Auto-save failed: No document model provided');
       return {
         success: false,
         error: 'No document model provided'
       };
     }
 
-    console.log('💾 Auto-saving document changes...');
-
     try {
-      // Extract all paragraph text from document model
-      const paragraphs = documentModel.paragraphOrder.map(id => {
-        const paragraph = documentModel.paragraphs.get(id);
+      // Check if this document has Supabase metadata
+      if (!documentModel.supabase.documentId) {
+        console.warn('⚠️ Auto-save skipped: No Supabase document ID');
         return {
-          index: paragraph.index,
-          text: paragraph.text,
-          runs: paragraph.runs || []
+          success: false,
+          error: 'Document not linked to Supabase'
         };
-      });
-
-      console.log(`📝 Saving ${paragraphs.length} paragraphs with text changes`);
-
-      // Download DOCX if needed (for Supabase documents)
-      let base64Buffer;
-      if (!documentModel.currentBuffer) {
-        if (!documentModel.supabase.filePath) {
-          return {
-            success: false,
-            error: 'Cannot auto-save: document file path not available'
-          };
-        }
-
-        console.log('📥 Downloading document from Supabase for auto-save...');
-
-        const { createBrowserClient } = await import('@supabase/ssr');
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
-
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from('user-documents')
-          .download(documentModel.supabase.filePath);
-
-        if (downloadError || !fileData) {
-          return {
-            success: false,
-            error: 'Failed to download document for auto-save'
-          };
-        }
-
-        const arrayBuffer = await fileData.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        base64Buffer = this._bufferToBase64(buffer);
-      } else {
-        const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
-        base64Buffer = this._bufferToBase64(decompressedBuffer);
       }
 
-      // Send to backend to rebuild DOCX with updated text
-      const response = await fetch(`${this.serverBaseUrl}/api/save-edits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentBuffer: base64Buffer,
-          paragraphs: paragraphs,
-          originalFilename: documentModel.metadata.name
+      // Get current Tiptap JSON content (source of truth)
+      const tiptapContent = documentModel.getTiptapJson();
+
+      // Get current issues for compliance score
+      const issues = documentModel.issues.getAllIssues();
+      const complianceScore = this._calculateComplianceScore(issues);
+
+      // Initialize Supabase client
+      const { createBrowserClient } = await import('@supabase/ssr');
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      // Update analysis_results table with new content
+      const { error: updateError } = await supabase
+        .from('analysis_results')
+        .update({
+          tiptap_content: tiptapContent,
+          issues: issues,
+          compliance_score: complianceScore,
+          issue_count: issues.length,
+          editor_version: 1
+          // content_saved_at is automatically updated by trigger
         })
-      });
+        .eq('document_id', documentModel.supabase.documentId);
 
-      if (!response.ok) {
-        const errorData = await this._handleApiError(response);
-        throw new Error(errorData.message || 'Auto-save failed');
+      if (updateError) {
+        console.error('❌ Supabase update failed:', updateError);
+        throw new Error(`Failed to save to database: ${updateError.message}`);
       }
 
-      const result = await response.json();
+      console.log('✅ Document auto-saved to Supabase (JSON)');
 
-      if (!result.success) {
-        throw new Error(result.error || 'Auto-save failed');
-      }
-
-      console.log('✅ Document rebuilt with updated text on backend');
-
-      // Update document model with reprocessed data
-      if (result.document) {
-        // Update document buffer
-        if (result.modifiedDocumentBuffer) {
-          const newBuffer = this._base64ToBuffer(result.modifiedDocumentBuffer);
-          documentModel.currentBuffer = await this.compressionUtils.compressBuffer(newBuffer);
-          console.log('✅ Document buffer updated with saved changes');
-        }
-
-        // Increment version
-        documentModel.version++;
-        documentModel.lastModified = Date.now();
-      }
-
-      // Save to Supabase if this is a Supabase document
-      if (documentModel.supabase.documentId && result.modifiedDocumentBuffer) {
-        console.log('💾 Saving auto-saved document to Supabase...');
-        await this._saveToSupabase(documentModel, result.modifiedDocumentBuffer, result.document);
-      }
-
-      console.log('✅ Auto-save completed successfully');
+      // Update local state
+      documentModel.version++;
+      documentModel.lastModified = Date.now();
 
       return {
         success: true,
-        savedAt: Date.now()
+        savedAt: Date.now(),
+        method: 'json-based',
+        size: JSON.stringify(tiptapContent).length
       };
 
     } catch (error) {

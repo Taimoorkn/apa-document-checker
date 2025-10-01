@@ -490,6 +490,39 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
   _analyzeParagraphFormatting(paragraph, paragraphIndex) {
     const issues = [];
 
+    // Check for ALL CAPS headings
+    const text = paragraph.text?.trim() || '';
+    if (text.length >= 3 &&
+        text === text.toUpperCase() &&
+        !text.includes('\n') &&
+        !text.includes('(') &&
+        !text.includes(',') &&
+        text.split(' ').length <= 8 &&
+        /^[A-Z\s]+$/.test(text)) {
+      issues.push({
+        id: `all-caps-heading-${paragraphIndex}`,
+        title: 'ALL CAPS heading detected',
+        description: 'Headings should use title case or sentence case, not ALL CAPS',
+        text: text,
+        highlightText: text,
+        severity: 'Minor',
+        category: 'formatting',
+        location: {
+          paragraphIndex,
+          charOffset: 0,
+          length: text.length,
+          type: 'text'
+        },
+        hasFix: true,
+        fixAction: 'fixAllCapsHeading',
+        fixValue: {
+          original: text,
+          replacement: text.charAt(0) + text.slice(1).toLowerCase()
+        },
+        explanation: 'APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.'
+      });
+    }
+
     // Check paragraph indentation
     if (paragraph.indentation?.firstLine) {
       const indent = paragraph.indentation.firstLine;
@@ -548,6 +581,18 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
 
   _analyzeParagraphAbbreviations(text, paragraphIndex) {
     const issues = [];
+
+    // Skip if the entire text is an ALL CAPS heading (3+ chars, all uppercase, single line)
+    const trimmedText = text.trim();
+    if (trimmedText.length >= 3 &&
+        trimmedText === trimmedText.toUpperCase() &&
+        !trimmedText.includes('\n') &&
+        !trimmedText.includes('(') &&
+        !trimmedText.includes(',') &&
+        trimmedText.split(' ').length <= 8) {
+      // This is likely an ALL CAPS heading, skip abbreviation checking
+      return issues;
+    }
 
     // Check for abbreviations that might need definition
     const abbrPattern = /\b([A-Z]{2,})\b/g;

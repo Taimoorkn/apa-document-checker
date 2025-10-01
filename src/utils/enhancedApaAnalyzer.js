@@ -847,13 +847,14 @@ export class EnhancedAPAAnalyzer {
     }
     
     // 7. Check for ALL CAPS headings (more precise detection)
-    const allCapsHeadingPattern = /\n\s*([A-Z][A-Z\s]{8,})\s*\n/g;
+    const allCapsHeadingPattern = /\n\s*([A-Z][A-Z\s]{2,})\s*\n/g;
     let titleMatch;
     while ((titleMatch = allCapsHeadingPattern.exec(text)) !== null) {
       const heading = titleMatch[1].trim();
       // Only flag if it's truly ALL CAPS and looks like a heading
-      if (heading.length > 8 && heading === heading.toUpperCase() && 
-          !heading.includes('(') && !heading.includes(',') && 
+      // Changed from > 8 to >= 3 to catch shorter headings like "ABSTRACT" (8 chars)
+      if (heading.length >= 3 && heading === heading.toUpperCase() &&
+          !heading.includes('(') && !heading.includes(',') &&
           heading.split(' ').length <= 8) {
         issues.push({
           title: "ALL CAPS heading detected",

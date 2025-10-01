@@ -131,29 +131,51 @@ export class ComprehensiveValidator {
     const issues = [];
     const definedAbbreviations = new Set();
     const usedAbbreviations = new Map();
-    
+
     // Find abbreviation definitions [ABBR] or (ABBR)
     const definitionPattern = /\b([A-Za-z][A-Za-z\s]+)\s*[\[(]([A-Z]{2,})\s*[\])]/g;
     const definitions = [...text.matchAll(definitionPattern)];
-    
+
     definitions.forEach(match => {
       const fullTerm = match[1];
       const abbr = match[2];
       definedAbbreviations.add(abbr);
     });
-    
+
+    // Detect ALL CAPS headings first to exclude them from abbreviation detection
+    const allCapsHeadingPattern = /\n\s*([A-Z][A-Z\s]{2,})\s*\n/g;
+    const headings = new Set();
+    let headingMatch;
+    while ((headingMatch = allCapsHeadingPattern.exec(text)) !== null) {
+      const heading = headingMatch[1].trim();
+      // Only consider it a heading if it meets the criteria
+      if (heading.length >= 3 && heading === heading.toUpperCase() &&
+          !heading.includes('(') && !heading.includes(',') &&
+          heading.split(' ').length <= 8) {
+        // Extract individual words from heading
+        heading.split(/\s+/).forEach(word => {
+          if (word.length >= 2) {
+            headings.add(word);
+          }
+        });
+      }
+    }
+
     // Find used abbreviations (2+ capital letters)
     const abbrPattern = /\b([A-Z]{2,})\b/g;
     const abbreviations = [...text.matchAll(abbrPattern)];
-    
+
     abbreviations.forEach(match => {
       const abbr = match[1];
       const position = match.index;
-      
+
       // Skip common ones that don't need definition
       const skipList = ['USA', 'UK', 'US', 'AM', 'PM', 'BC', 'AD', 'DC', 'ID', 'OK', 'TV'];
       if (skipList.includes(abbr)) return;
-      
+
+      // Skip if it's part of an ALL CAPS heading
+      if (headings.has(abbr)) return;
+
       if (!usedAbbreviations.has(abbr)) {
         usedAbbreviations.set(abbr, []);
       }

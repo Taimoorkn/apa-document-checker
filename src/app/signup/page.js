@@ -92,7 +92,7 @@ export default function SignupPage() {
               Check your email
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              We've sent you a confirmation link. Click the link in the email to activate your account.
+              We&apos;ve sent you a confirmation link. Click the link in the email to activate your account.
             </p>
             <p className="mt-4 text-sm text-gray-500">
               Already confirmed? <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">Sign in</Link>

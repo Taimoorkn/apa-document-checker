@@ -22,6 +22,7 @@ export const useUnifiedDocumentEditor = () => {
     setActiveIssue,
     editorState,
     scheduleIncrementalAnalysis,
+    scheduleAutoSave,
     events
   } = useUnifiedDocumentStore();
 
@@ -150,6 +151,11 @@ export const useUnifiedDocumentEditor = () => {
         if (process.env.NODE_ENV === 'development') {
           console.log(`🔄 Sync completed: ${result.hasChanges ? 'changes detected' : 'no changes'}`);
         }
+
+        // Schedule auto-save if there were changes
+        if (result.hasChanges) {
+          scheduleAutoSave(5000); // 5 second debounce for auto-save
+        }
       } else {
         console.warn('Sync failed:', result.error);
       }
@@ -160,7 +166,7 @@ export const useUnifiedDocumentEditor = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [documentModel, syncWithEditor, isSyncing]);
+  }, [documentModel, syncWithEditor, isSyncing, scheduleAutoSave]);
 
   /**
    * Sync editor content from document model

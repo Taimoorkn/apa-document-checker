@@ -27,7 +27,8 @@ export default function Header() {
     documentName,
     exportDocument,
     processingState,
-    analyzeDocument
+    analyzeDocument,
+    autoSaveState
   } = useUnifiedDocumentStore();
 
   const [uploadError, setUploadError] = useState(null);
@@ -212,6 +213,36 @@ export default function Header() {
                   <Share2 className="h-4 w-4" />
                   <span>Share</span>
                 </button>
+              )}
+
+              {/* Auto-save Status Indicator */}
+              {documentName && (
+                <div className="flex items-center space-x-2 px-3 py-2 text-xs font-medium text-slate-600">
+                  {autoSaveState.saveStatus === 'saving' && (
+                    <>
+                      <div className="animate-spin h-3 w-3 border-2 border-emerald-600 border-t-transparent rounded-full"></div>
+                      <span>Saving...</span>
+                    </>
+                  )}
+                  {autoSaveState.saveStatus === 'saved' && (
+                    <>
+                      <CheckCircle className="h-3 w-3 text-emerald-600" />
+                      <span className="text-emerald-600">Saved</span>
+                    </>
+                  )}
+                  {autoSaveState.saveStatus === 'unsaved' && (
+                    <>
+                      <div className="h-2 w-2 bg-amber-500 rounded-full"></div>
+                      <span className="text-amber-600">Unsaved changes</span>
+                    </>
+                  )}
+                  {autoSaveState.saveStatus === 'error' && (
+                    <>
+                      <AlertCircle className="h-3 w-3 text-red-600" />
+                      <span className="text-red-600" title={autoSaveState.lastSaveError}>Save failed</span>
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Export */}

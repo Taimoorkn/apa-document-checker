@@ -77,6 +77,15 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     isInitialized: false
   },
 
+  // Auto-save state
+  autoSaveState: {
+    isSaving: false,
+    lastSaveTimestamp: 0,
+    lastSaveError: null,
+    saveStatus: 'saved', // 'saved' | 'saving' | 'unsaved' | 'error'
+    autoSaveDebounceTimeout: null
+  },
+
   // Analysis state
   analysisState: {
     lastAnalysisTimestamp: 0,
@@ -537,6 +546,107 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         pendingAnalysis: true
       }
     }));
+  },
+
+  /**
+   * Schedule auto-save with debouncing
+   * Called when user makes manual edits
+   */
+  scheduleAutoSave: (debounceMs = 5000) => {
+    const state = get();
+
+    // Mark as unsaved immediately
+    set(currentState => ({
+      autoSaveState: {
+        ...currentState.autoSaveState,
+        saveStatus: 'unsaved'
+      }
+    }));
+
+    // Clear existing timeout
+    if (state.autoSaveState.autoSaveDebounceTimeout) {
+      clearTimeout(state.autoSaveState.autoSaveDebounceTimeout);
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        await get().performAutoSave();
+      } catch (error) {
+        console.error('Scheduled auto-save failed:', error);
+      }
+    }, debounceMs);
+
+    set(currentState => ({
+      autoSaveState: {
+        ...currentState.autoSaveState,
+        autoSaveDebounceTimeout: timeoutId
+      }
+    }));
+  },
+
+  /**
+   * Perform auto-save to backend and Supabase
+   */
+  performAutoSave: async () => {
+    const state = get();
+
+    if (!state.documentModel) {
+      console.warn('No document model available for auto-save');
+      return;
+    }
+
+    if (state.autoSaveState.isSaving) {
+      console.warn('Auto-save already in progress');
+      return;
+    }
+
+    console.log('💾 Starting auto-save...');
+
+    set(currentState => ({
+      autoSaveState: {
+        ...currentState.autoSaveState,
+        isSaving: true,
+        saveStatus: 'saving',
+        lastSaveError: null
+      }
+    }));
+
+    try {
+      const result = await state.documentService.autoSaveDocument(state.documentModel);
+
+      if (result.success) {
+        set(currentState => ({
+          autoSaveState: {
+            ...currentState.autoSaveState,
+            isSaving: false,
+            lastSaveTimestamp: result.savedAt,
+            saveStatus: 'saved',
+            lastSaveError: null
+          }
+        }));
+
+        // Emit save event
+        storeEvents.emit('documentSaved', {
+          timestamp: result.savedAt
+        });
+
+        console.log('✅ Auto-save completed successfully');
+      } else {
+        throw new Error(result.error || 'Auto-save failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+
+      set(currentState => ({
+        autoSaveState: {
+          ...currentState.autoSaveState,
+          isSaving: false,
+          saveStatus: 'error',
+          lastSaveError: error.message
+        }
+      }));
+    }
   },
 
   // === DERIVED STATE GETTERS ===

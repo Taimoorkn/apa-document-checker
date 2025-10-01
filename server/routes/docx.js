@@ -786,6 +786,182 @@ router.use((error, req, res, next) => {
   next(error);
 });
 
+/**
+ * POST /api/save-edits - Save manual editor changes to DOCX
+ * Updates paragraph text in DOCX XML based on editor changes
+ */
+router.post('/save-edits', async (req, res, next) => {
+  try {
+    console.log('2025-10-01T' + new Date().toISOString().split('T')[1] + ' - POST /api/save-edits');
+    console.log('💾 /api/save-edits endpoint called');
+
+    const initialMemory = process.memoryUsage();
+    console.log(`🧠 Initial memory usage: ${Math.round(initialMemory.heapUsed / 1024 / 1024)}MB`);
+
+    const { documentBuffer, paragraphs, originalFilename } = req.body;
+
+    // Validate required fields
+    if (!documentBuffer) {
+      return res.status(400).json({
+        success: false,
+        error: 'Document buffer is required',
+        code: 'MISSING_BUFFER'
+      });
+    }
+
+    if (!paragraphs || !Array.isArray(paragraphs)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Paragraphs array is required',
+        code: 'MISSING_PARAGRAPHS'
+      });
+    }
+
+    console.log(`📝 Saving ${paragraphs.length} paragraph text changes`);
+
+    // Convert base64 to buffer
+    let docxBuffer;
+    if (typeof documentBuffer === 'string') {
+      try {
+        docxBuffer = Buffer.from(documentBuffer, 'base64');
+        console.log(`✅ Buffer conversion successful, size: ${docxBuffer.length} bytes`);
+      } catch (error) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid base64 document buffer: ${error.message}`,
+          code: 'INVALID_BUFFER'
+        });
+      }
+    } else {
+      docxBuffer = Buffer.from(documentBuffer);
+    }
+
+    // Process save using Worker Pool if available
+    let saveResult;
+    let reprocessingResult;
+    let processingMethod;
+
+    if (workerPool) {
+      console.log(`🔄 Sending save-edits job to Worker Pool`);
+      processingMethod = 'worker-pool';
+
+      try {
+        // Step 1: Apply text changes via worker
+        const editResult = await workerPool.executeJob({
+          type: 'save-edits',
+          data: {
+            buffer: docxBuffer,
+            paragraphs: paragraphs,
+            filename: originalFilename || 'document.docx'
+          }
+        }, 60000); // 60 second timeout
+
+        const modifiedBuffer = editResult.modifiedBuffer;
+
+        if (!modifiedBuffer) {
+          throw new Error('Worker did not return modified buffer');
+        }
+
+        console.log('✅ Text changes applied successfully, reprocessing document...');
+
+        // Step 2: Reprocess the modified document via worker
+        const reprocessResult = await workerPool.executeJob({
+          type: 'upload',
+          data: {
+            buffer: modifiedBuffer,
+            filename: originalFilename || 'document.docx'
+          }
+        }, 60000);
+
+        if (!reprocessResult.document) {
+          throw new Error('Document reprocessing failed - no document returned');
+        }
+
+        saveResult = { success: true, buffer: modifiedBuffer };
+        reprocessingResult = reprocessResult.document;
+        console.log('✅ Worker Pool save-edits processing completed');
+
+      } catch (error) {
+        console.error('Worker Pool save-edits processing failed:', error);
+        return res.status(500).json({
+          success: false,
+          error: `Worker processing failed: ${error.message}`,
+          code: 'WORKER_PROCESSING_FAILED'
+        });
+      }
+
+    } else {
+      // ⚠️ Worker Pool not available - use direct processing
+      console.log('🔧 Processing save-edits directly (no Worker Pool)');
+      processingMethod = 'direct';
+
+      // Apply text changes
+      const docxModifier = new DocxModifier();
+      saveResult = await docxModifier.applyTextChanges(docxBuffer, paragraphs);
+
+      if (!saveResult.success) {
+        return res.status(500).json({
+          success: false,
+          error: `Failed to apply text changes: ${saveResult.error}`,
+          code: 'TEXT_CHANGES_FAILED'
+        });
+      }
+
+      // Reprocess document
+      reprocessingResult = await xmlDocxProcessor.processDocumentBuffer(
+        saveResult.buffer,
+        originalFilename || 'document.docx'
+      );
+    }
+
+    // Monitor memory usage
+    const finalMemory = process.memoryUsage();
+    const memoryUsed = Math.round((finalMemory.heapUsed - initialMemory.heapUsed) / 1024 / 1024);
+    console.log(`🧠 Final memory: ${Math.round(finalMemory.heapUsed / 1024 / 1024)}MB (+${memoryUsed}MB)`);
+
+    // Convert buffer to base64
+    const bufferToConvert = Buffer.isBuffer(saveResult.buffer)
+      ? saveResult.buffer
+      : Buffer.from(saveResult.buffer);
+
+    const base64String = bufferToConvert.toString('base64');
+    console.log(`📦 Buffer converted to base64, length: ${base64String.length}`);
+
+    // Return the reprocessed document with the modified buffer
+    res.json({
+      success: true,
+      document: reprocessingResult,
+      modifiedDocumentBuffer: base64String,
+      paragraphsUpdated: paragraphs.length,
+      message: `Successfully saved ${paragraphs.length} paragraph changes and reprocessed document`
+    });
+
+    // Force garbage collection if available
+    if (global.gc) {
+      console.log('🗑️ Running garbage collection...');
+      global.gc();
+    }
+
+  } catch (error) {
+    console.error('❌ Critical error in save-edits route:', error);
+
+    // Monitor memory on error
+    const errorMemory = process.memoryUsage();
+    console.log(`🧠 Error memory usage: ${Math.round(errorMemory.heapUsed / 1024 / 1024)}MB`);
+
+    // Force garbage collection on error
+    if (global.gc) {
+      global.gc();
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'INTERNAL_SERVER_ERROR'
+    });
+  }
+});
+
 // Export the router and worker pool for health check access
 module.exports = router;
 module.exports.workerPool = workerPool;

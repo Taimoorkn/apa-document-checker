@@ -33,6 +33,10 @@ parentPort.on('message', async (message) => {
         result = await processFix(data);
         break;
 
+      case 'save-edits':
+        result = await processSaveEdits(data);
+        break;
+
       default:
         throw new Error(`Unknown job type: ${type}`);
     }
@@ -132,6 +136,39 @@ async function processFix(data) {
   return {
     modifiedBuffer: fixResult.buffer,
     fixAction,
+    success: true
+  };
+}
+
+/**
+ * Process manual edit saves (text changes to DOCX)
+ */
+async function processSaveEdits(data) {
+  const { buffer, paragraphs, filename } = data;
+
+  console.log(`💾 Processing save-edits: ${paragraphs.length} paragraphs for ${filename}`);
+
+  // Validate input
+  if (!buffer || buffer.length === 0) {
+    throw new Error('Invalid or empty document buffer');
+  }
+
+  if (!paragraphs || paragraphs.length === 0) {
+    throw new Error('Paragraphs array is required');
+  }
+
+  // Apply text changes using DocxModifier
+  const saveResult = await docxModifier.applyTextChanges(buffer, paragraphs);
+
+  if (!saveResult.success) {
+    throw new Error(saveResult.error || 'Save edits failed');
+  }
+
+  console.log(`✅ Text changes applied: ${saveResult.changesApplied} paragraphs updated`);
+
+  return {
+    modifiedBuffer: saveResult.buffer,
+    changesApplied: saveResult.changesApplied,
     success: true
   };
 }

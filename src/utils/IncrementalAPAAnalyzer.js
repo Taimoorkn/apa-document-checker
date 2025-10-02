@@ -499,6 +499,13 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
         !text.includes(',') &&
         text.split(' ').length <= 8 &&
         /^[A-Z\s]+$/.test(text)) {
+      // Convert to Title Case (capitalize first letter of each word)
+      const titleCase = text
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
       issues.push({
         id: `all-caps-heading-${paragraphIndex}`,
         title: 'ALL CAPS heading detected',
@@ -517,7 +524,7 @@ export class IncrementalAPAAnalyzer extends EnhancedAPAAnalyzer {
         fixAction: 'fixAllCapsHeading',
         fixValue: {
           original: text,
-          replacement: text.charAt(0) + text.slice(1).toLowerCase()
+          replacement: titleCase
         },
         explanation: 'APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.'
       });

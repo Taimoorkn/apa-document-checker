@@ -552,9 +552,27 @@ export class DocumentService {
       }
     }
 
+    // Fallback: Search for text if location missing or paragraph not found
     if (!paragraphId) {
-      console.error('❌ Paragraph not found for fix:', location);
-      return { success: false, error: 'Paragraph not found' };
+      console.warn('⚠️ Location missing or invalid, searching for text:', issue.text || issue.highlightText);
+      const searchText = issue.text || issue.highlightText || fixValue?.original;
+
+      if (searchText) {
+        // Search all paragraphs for matching text
+        for (const id of documentModel.paragraphOrder) {
+          const para = documentModel.paragraphs.get(id);
+          if (para && para.text.includes(searchText)) {
+            paragraphId = id;
+            console.log('✓ Found paragraph via text search:', id);
+            break;
+          }
+        }
+      }
+
+      if (!paragraphId) {
+        console.error('❌ Paragraph not found for fix (location:', location, 'searchText:', searchText, ')');
+        return { success: false, error: 'Paragraph not found' };
+      }
     }
 
     const paragraph = documentModel.paragraphs.get(paragraphId);

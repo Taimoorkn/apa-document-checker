@@ -19,7 +19,8 @@
       "Read(//c/Users/Taimoor/Pictures/Screenshots/**)",
       "Bash(dir:*)",
       "Bash(findstr:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import Link from 'next/link';
+import { Sidebar } from '@/components/dashboard/Sidebar';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
+import { UploadSection } from '@/components/dashboard/UploadSection';
+import { RecentDocuments } from '@/components/dashboard/RecentDocuments';
 
 /**
  * Dashboard Client Component
@@ -15,12 +19,6 @@ export default function DashboardClient({ user, initialDocuments }) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
-  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -104,10 +102,7 @@ export default function DashboardClient({ user, initialDocuments }) {
     }
   };
 
-  const handleDelete = async (e, documentId, filePath) => {
-    // Stop event propagation to prevent row click
-    e.stopPropagation();
-
+  const handleDelete = async (documentId, filePath) => {
     if (!confirm('Are you sure you want to delete this document?')) return;
 
     try {
@@ -134,203 +129,48 @@ export default function DashboardClient({ user, initialDocuments }) {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      uploaded: 'bg-gray-100 text-gray-800',
-      processing: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
-    };
-
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${styles[status] || styles.uploaded}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">APA Document Checker</h1>
-            <p className="text-sm text-gray-600">{user.email}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <Sidebar user={user} />
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Upload Section */}
-        <div className="bg-white shadow rounded-lg p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload New Document</h2>
-          <div className="flex items-center gap-4">
-            <label className="flex-1">
-              <input
-                type="file"
-                accept=".docx"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 disabled:opacity-50"
-              />
-            </label>
-            {uploading && (
-              <span className="text-sm text-gray-600">Uploading...</span>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <DashboardHeader user={user} />
+
+        {/* Dashboard Content */}
+        <main className="flex-1 p-6 space-y-6 overflow-auto">
+          {/* Welcome Section */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold mb-2">
+              Welcome back, {user?.email?.split('@')[0] || 'User'}!
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your APA documents and track compliance in one place.
+            </p>
+          </div>
+
+          {/* Overview Cards */}
+          <DashboardOverview documents={documents} />
+
+          {/* Upload and Recent Documents Section */}
+          <div className="grid grid-cols-1 gap-6">
+            {/* Upload Section */}
+            <UploadSection onFileUpload={handleFileUpload} uploading={uploading} />
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+                {error}
+              </div>
             )}
-          </div>
-          {error && (
-            <p className="mt-2 text-sm text-red-600">{error}</p>
-          )}
-          <p className="mt-2 text-xs text-gray-500">
-            Accepted format: .docx | Maximum size: 50MB
-          </p>
-        </div>
 
-        {/* Documents Table */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Your Documents</h2>
+            {/* Recent Documents */}
+            <RecentDocuments documents={documents} onDelete={handleDelete} />
           </div>
-
-          {documents.length === 0 ? (
-            <div className="text-center py-12">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No documents</h3>
-              <p className="mt-1 text-sm text-gray-500">Get started by uploading a document.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Filename
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Size
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Compliance
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Issues
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Uploaded
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/document/${doc.id}`)}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <Link href={`/document/${doc.id}`} className="text-emerald-600 hover:text-emerald-800 hover:underline">
-                          {doc.filename}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatFileSize(doc.file_size)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(doc.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {doc.status === 'completed' && doc.compliance_score !== null ? (
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            doc.compliance_score >= 90 ? 'bg-green-100 text-green-800' :
-                            doc.compliance_score >= 75 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {doc.compliance_score}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {doc.status === 'completed' && doc.issue_count !== null ? (
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            doc.issue_count === 0 ? 'bg-green-100 text-green-800' :
-                            doc.issue_count < 5 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {doc.issue_count}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(doc.uploaded_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          {doc.status === 'completed' && (
-                            <Link
-                              href={`/document/${doc.id}`}
-                              className="text-emerald-600 hover:text-emerald-900"
-                            >
-                              View
-                            </Link>
-                          )}
-                          <button
-                            onClick={(e) => handleDelete(e, doc.id, doc.file_path)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

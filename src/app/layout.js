@@ -2,6 +2,7 @@ import './globals.css'
 import '@/styles/tiptap.css'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { Analytics } from '@vercel/analytics/react'
+import { Toaster } from '@/components/ui/toaster'
 import AppLayout from './AppLayout'
 
 export const metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
         <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
           <AppLayout>{children}</AppLayout>
         </ErrorBoundary>
+        <Toaster />
         <Analytics />
       </body>
     </html>

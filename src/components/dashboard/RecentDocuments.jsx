@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Eye, Download, Trash2, MoreHorizontal } from "lucide-react";
+import { FileText, Trash2, Loader2, AlertTriangle, CheckCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function RecentDocuments({ documents, onDelete }) {
@@ -11,15 +11,7 @@ export function RecentDocuments({ documents, onDelete }) {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now - date);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const formatFileSize = (bytes) => {
@@ -29,97 +21,70 @@ export function RecentDocuments({ documents, onDelete }) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusInfo = (status) => {
     const styles = {
-      uploaded: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
-      processing: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-      completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-      failed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+      uploaded: { bg: 'bg-slate-100', text: 'text-slate-600', icon: <Loader2 className="w-4 h-4 animate-spin" /> },
+      processing: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: <Loader2 className="w-4 h-4 animate-spin" /> },
+      completed: { bg: 'bg-green-100', text: 'text-green-700', icon: <CheckCircle className="w-4 h-4" /> },
+      failed: { bg: 'bg-red-100', text: 'text-red-700', icon: <AlertTriangle className="w-4 h-4" /> },
     };
-
-    return (
-      <Badge className={styles[status] || styles.uploaded} variant="secondary">
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
+    return styles[status] || styles.uploaded;
   };
 
-  // Show only recent 6 documents
-  const recentDocs = documents.slice(0, 6);
-
   return (
-    <Card>
+    <Card className="shadow-lg border-none">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Recent Documents</CardTitle>
-        </div>
+        <CardTitle className="text-2xl font-bold text-slate-800">Recent Documents</CardTitle>
       </CardHeader>
       <CardContent>
-        {recentDocs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No documents yet. Upload your first document to get started.
+        {documents.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">
+            <FileText className="w-12 h-12 mx-auto mb-4 text-slate-400" />
+            <h3 className="text-lg font-semibold">No Documents Yet</h3>
+            <p>Upload your first document to see it here.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {recentDocs.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                onClick={() => router.push(`/document/${doc.id}`)}
-              >
-                <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{doc.filename}</p>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{formatFileSize(doc.file_size)}</span>
-                    <span>•</span>
-                    <span>{formatDate(doc.created_at)}</span>
+          <div className="space-y-3">
+            {documents.map((doc) => {
+              const statusInfo = getStatusInfo(doc.status);
+              return (
+                <div
+                  key={doc.id}
+                  className="grid grid-cols-6 items-center gap-4 p-4 rounded-xl hover:bg-slate-50 transition-colors duration-200 cursor-pointer"
+                  onClick={() => router.push(`/document/${doc.id}`)}
+                >
+                  <div className="col-span-3 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-800 truncate">{doc.filename}</p>
+                      <p className="text-sm text-slate-500">{formatDate(doc.created_at)}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {getStatusBadge(doc.status)}
-                    {doc.compliance_score !== null && (
-                      <Badge
-                        variant="secondary"
-                        className={
-                          doc.compliance_score >= 90
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                            : doc.compliance_score >= 75
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                        }
-                      >
-                        {doc.compliance_score}%
-                      </Badge>
-                    )}
+
+                  <div className="text-sm text-slate-500 text-center">{formatFileSize(doc.file_size)}</div>
+
+                  <div className="flex justify-center">
+                    <Badge className={`flex items-center gap-2 ${statusInfo.bg} ${statusInfo.text} font-semibold py-1 px-3 rounded-full`}>
+                      {statusInfo.icon}
+                      <span>{doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}</span>
+                    </Badge>
                   </div>
-                </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  {doc.status === 'completed' && (
+
+                  <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="w-8 h-8"
-                      onClick={() => router.push(`/document/${doc.id}`)}
+                      className="w-9 h-9 text-slate-500 hover:text-red-600 hover:bg-red-100"
+                      onClick={() => onDelete(doc.id, doc.file_path)}
                     >
-                      <Eye className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8 text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(doc.id, doc.file_path);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

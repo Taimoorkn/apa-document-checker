@@ -1,24 +1,22 @@
-"use client";
+'use client';
 
 import { Button } from "@/components/ui/button";
 import {
-  LayoutDashboard,
+  LayoutGrid,
   FileText,
-  Upload,
-  User,
-  Settings,
   LogOut,
   FileCheck2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", active: true },
-  { icon: FileText, label: "My Documents", href: "/dashboard" },
+  { icon: LayoutGrid, label: "Dashboard", href: "/dashboard", active: true },
+  { icon: FileText, label: "All Documents", href: "/documents" },
 ];
 
-export function Sidebar({ user }) {
+export default function Sidebar({ user }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -29,51 +27,47 @@ export function Sidebar({ user }) {
   };
 
   return (
-    <div className="w-64 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
+    <div className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col shadow-sm">
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <FileCheck2 className="w-6 h-6 text-primary-foreground" />
+      <div className="p-6 border-b border-slate-200">
+        <Link href="/" className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+            <FileCheck2 className="h-5 w-5 text-white" />
           </div>
-          <div>
-            <h2 className="font-semibold text-sidebar-foreground">APA Checker</h2>
-            <p className="text-sm text-sidebar-foreground/60">Document Portal</p>
-          </div>
-        </div>
+          <span className="text-2xl font-bold text-slate-800">
+            APA Pro
+          </span>
+        </Link>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 p-4">
-        <div className="space-y-1">
+        <div className="space-y-2">
           {navItems.map((item, index) => (
             <Button
               key={index}
               variant={item.active ? "secondary" : "ghost"}
-              className={`w-full justify-start gap-3 h-11 ${
-                item.active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
+              className={`w-full justify-start gap-3 h-12 text-md font-semibold ${item.active ? 'text-blue-600 bg-blue-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
               onClick={() => router.push(item.href)}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-6 h-6" />
               {item.label}
             </Button>
           ))}
         </div>
+      </nav>
 
-        <div className="my-4 h-px bg-sidebar-border" />
-
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-200">
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 h-11 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="w-full justify-start gap-3 h-12 text-md font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800"
           onClick={handleSignOut}
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-6 h-6" />
           Logout
         </Button>
-      </nav>
+      </div>
     </div>
   );
 }

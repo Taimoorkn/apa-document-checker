@@ -3,16 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Sidebar } from '@/components/dashboard/Sidebar';
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { DashboardOverview } from '@/components/dashboard/DashboardOverview';
-import { UploadSection } from '@/components/dashboard/UploadSection';
-import { RecentDocuments } from '@/components/dashboard/RecentDocuments';
+import Sidebar from '@/components/dashboard/Sidebar';
+import Dashboard from '@/components/dashboard/Dashboard.jsx';
 
-/**
- * Dashboard Client Component
- * Displays user's documents and handles document operations
- */
 export default function DashboardClient({ user, initialDocuments }) {
   const router = useRouter();
   const supabase = createClient();
@@ -20,8 +13,7 @@ export default function DashboardClient({ user, initialDocuments }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = async (file) => {
     if (!file) return;
 
     // Validate file type
@@ -98,7 +90,6 @@ export default function DashboardClient({ user, initialDocuments }) {
       setError(err.message || 'Failed to upload document');
     } finally {
       setUploading(false);
-      e.target.value = ''; // Reset input
     }
   };
 
@@ -130,46 +121,17 @@ export default function DashboardClient({ user, initialDocuments }) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-slate-100 flex">
       <Sidebar user={user} />
-
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <DashboardHeader user={user} />
-
-        {/* Dashboard Content */}
-        <main className="flex-1 p-6 space-y-6 overflow-auto">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold mb-2">
-              Welcome back, {user?.email?.split('@')[0] || 'User'}!
-            </h1>
-            <p className="text-muted-foreground">
-              Manage your APA documents and track compliance in one place.
-            </p>
-          </div>
-
-          {/* Overview Cards */}
-          <DashboardOverview documents={documents} />
-
-          {/* Upload and Recent Documents Section */}
-          <div className="grid grid-cols-1 gap-6">
-            {/* Upload Section */}
-            <UploadSection onFileUpload={handleFileUpload} uploading={uploading} />
-
-            {/* Error Message */}
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            {/* Recent Documents */}
-            <RecentDocuments documents={documents} onDelete={handleDelete} />
-          </div>
-        </main>
+        <Dashboard 
+          user={user} 
+          documents={documents} 
+          onFileUpload={handleFileUpload} 
+          uploading={uploading} 
+          error={error} 
+          onDelete={handleDelete} 
+        />
       </div>
     </div>
   );

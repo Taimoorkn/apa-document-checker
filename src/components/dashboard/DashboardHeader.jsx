@@ -1,8 +1,6 @@
-"use client";
+'use client';
 
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search } from "lucide-react";
 
 export function DashboardHeader({ user }) {
   // Get user initials for avatar
@@ -16,33 +14,20 @@ export function DashboardHeader({ user }) {
   };
 
   return (
-    <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-      <div className="flex items-center justify-between h-full px-6">
-        {/* Search Bar */}
-        <div className="flex-1 max-w-xl">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search documents..."
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        {/* Right Section */}
-        <div className="flex items-center gap-4">
-          {/* Profile */}
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user?.email?.split('@')[0] || 'User'}</p>
-              <p className="text-xs text-muted-foreground">{user?.email || ''}</p>
-            </div>
-            <Avatar className="w-9 h-9">
-              <AvatarFallback>{getInitials(user?.email)}</AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
+    <div className="flex items-center justify-between">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900">Welcome back, {user?.email?.split('@')[0] || 'User'}!</h1>
+        <p className="text-slate-500">Here&apos;s a summary of your documents and their compliance.</p>
       </div>
-    </header>
+      <div className="flex items-center gap-4">
+        <div className="text-right hidden sm:block">
+          <p className="text-sm font-semibold text-slate-800">{user?.email?.split('@')[0] || 'User'}</p>
+          <p className="text-xs text-slate-500">{user?.email || ''}</p>
+        </div>
+        <Avatar className="w-12 h-12">
+          <AvatarFallback className="text-lg bg-blue-100 text-blue-600 font-semibold">{getInitials(user?.email)}</AvatarFallback>
+        </Avatar>
+      </div>
+    </div>
   );
 }

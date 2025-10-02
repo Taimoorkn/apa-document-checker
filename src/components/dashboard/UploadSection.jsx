@@ -1,54 +1,54 @@
-"use client";
+'use client';
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, Plus } from "lucide-react";
+import { UploadCloud, FilePlus2 } from "lucide-react";
 import { useRef } from "react";
+import { useDropzone } from 'react-dropzone';
 
 export function UploadSection({ onFileUpload, uploading }) {
   const fileInputRef = useRef(null);
 
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e) => {
-    if (onFileUpload) {
-      onFileUpload(e);
+  const onDrop = (acceptedFiles) => {
+    if (onFileUpload && acceptedFiles.length > 0) {
+      onFileUpload(acceptedFiles[0]);
     }
   };
 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    },
+    multiple: false,
+    disabled: uploading,
+  });
+
   return (
-    <Card className="border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors">
-      <CardContent className="p-8">
-        <div className="flex flex-col items-center justify-center text-center space-y-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <Upload className="w-8 h-8 text-primary" />
+    <Card 
+      {...getRootProps()} 
+      className={`border-2 border-dashed transition-colors duration-300 h-full flex items-center justify-center ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400'}`}>
+      <input {...getInputProps()} ref={fileInputRef} />
+      <CardContent className="p-8 text-center">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors duration-300 ${isDragActive ? 'bg-blue-100' : 'bg-slate-100'}`}>
+            <UploadCloud className={`w-10 h-10 transition-colors duration-300 ${isDragActive ? 'text-blue-600' : 'text-slate-500'}`} />
           </div>
           <div>
-            <h3 className="text-lg font-semibold mb-2">Upload New Document</h3>
-            <p className="text-muted-foreground mb-4">
-              Click to browse or drag and drop your DOCX file here
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Supports .docx files up to 50MB
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              {isDragActive ? "Drop it here!" : "Upload New Document"}
+            </h3>
+            <p className="text-slate-500 mb-4">
+              Drag & drop or click to select a DOCX file.
             </p>
           </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".docx"
-            onChange={handleFileChange}
-            disabled={uploading}
-            className="hidden"
-          />
           <Button
             type="button"
-            className="gap-2"
-            onClick={handleClick}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
-            <Plus className="w-4 h-4" />
+            <FilePlus2 className="w-5 h-5" />
             {uploading ? 'Uploading...' : 'Choose File'}
           </Button>
         </div>

@@ -4,11 +4,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { FileCheck, ArrowRight, UserPlus, MailCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 
-/**
- * Signup page component
- * Handles user registration with email/password
- */
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -80,129 +78,150 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-emerald-600">
-              <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">
-              Check your email
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              We&apos;ve sent you a confirmation link. Click the link in the email to activate your account.
-            </p>
-            <p className="mt-4 text-sm text-gray-500">
-              Already confirmed? <Link href="/login" className="font-medium text-emerald-600 hover:text-emerald-700">Sign in</Link>
-            </p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-md w-full text-center bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80"
+        >
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600">
+            <MailCheck className="h-8 w-8 text-white" />
           </div>
-        </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-slate-900">
+            Confirm Your Email
+          </h2>
+          <p className="mt-2 text-slate-600">
+            We&apos;ve sent a confirmation link to <strong>{email}</strong>. Please check your inbox to activate your account.
+          </p>
+          <p className="mt-6 text-sm text-slate-500">
+            Already confirmed? <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">Sign in</Link>
+          </p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div>
-          <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-md w-full space-y-8"
+      >
+        <div className="text-center">
+          <Link href="/" className="inline-block mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+              <FileCheck className="h-8 w-8 text-white" />
             </div>
-          </div>
-          <h2 className="text-3xl font-bold text-center text-gray-900">
-            Create Account
+          </Link>
+          <h2 className="text-4xl font-extrabold text-slate-900">
+            Create Your Account
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Join APA Document Checker today
+          <p className="mt-2 text-slate-600">
+            Get started with the most powerful APA tool.
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSignup}>
-          <div className="space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80"
+        >
+          <form className="space-y-6" onSubmit={handleSignup}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-bold text-slate-700 mb-2">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-bold text-slate-700 mb-2">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="••••••••"
+                />
+                 <p className="mt-2 text-xs text-slate-500">
+                  Must be at least 6 characters long.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-bold text-slate-700 mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-sm">
+                <span className="font-medium">Error:</span> {error}
+              </div>
+            )}
+
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 transition-colors"
-                placeholder="you@example.com"
-              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center items-center space-x-2 py-3 px-4 border border-transparent rounded-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Creating Account...</span>
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-5 w-5"/>
+                    <span>Sign Up</span>
+                  </>
+                )}
+              </button>
             </div>
+          </form>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 transition-colors"
-                placeholder="••••••••"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Must be at least 6 characters
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </div>
-
-          <div className="text-center text-sm">
-            <span className="text-gray-600">Already have an account? </span>
-            <Link href="/login" className="font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+          <div className="text-center mt-6 text-sm">
+            <span className="text-slate-600">Already have an account? </span>
+            <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700 transition-colors">
               Sign in
             </Link>
           </div>
-        </form>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

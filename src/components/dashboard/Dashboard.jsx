@@ -5,11 +5,11 @@ import { DashboardOverview } from './DashboardOverview';
 import { UploadSection } from './UploadSection';
 import { RecentDocuments } from './RecentDocuments';
 
-export default function Dashboard({ user, documents, onFileUpload, uploading, error, onDelete }) {
+export default function Dashboard({ user, documents, onFileUpload, uploading, uploadingFileName, error, onDelete }) {
   return (
     <main className="flex-1 p-6 sm:p-8 space-y-8">
       <DashboardHeader user={user} />
-      
+
       <div className="space-y-8">
         <DashboardOverview documents={documents} />
 
@@ -18,7 +18,7 @@ export default function Dashboard({ user, documents, onFileUpload, uploading, er
             <RecentDocuments documents={documents} onDelete={onDelete} />
           </div>
           <div className="lg:col-span-1">
-            <UploadSection onFileUpload={onFileUpload} uploading={uploading} />
+            <UploadSection onFileUpload={onFileUpload} uploading={uploading} uploadingFileName={uploadingFileName} />
           </div>
         </div>
 

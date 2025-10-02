@@ -3,33 +3,52 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import Sidebar from '@/components/dashboard/Sidebar';
+import MobileSidebar from '@/components/dashboard/MobileSidebar';
 import Dashboard from '@/components/dashboard/Dashboard.jsx';
 
 export default function DashboardClient({ user, initialDocuments }) {
   const router = useRouter();
   const supabase = createClient();
+  const { toast } = useToast();
   const [documents, setDocuments] = useState(initialDocuments);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState('');
   const [error, setError] = useState('');
 
   const handleFileUpload = async (file) => {
     if (!file) return;
 
+    setUploadingFileName(file.name);
+
     // Validate file type
     if (!file.name.endsWith('.docx')) {
-      setError('Please upload a .docx file');
+      toast({
+        variant: "destructive",
+        title: "Invalid file type",
+        description: "Please upload a .docx file",
+      });
       return;
     }
 
     // Validate file size (50MB limit)
     if (file.size > 50 * 1024 * 1024) {
-      setError('File size must be less than 50MB');
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "File size must be less than 50MB",
+      });
       return;
     }
 
     setUploading(true);
     setError('');
+
+    toast({
+      title: "Uploading document",
+      description: `Uploading ${file.name}...`,
+    });
 
     try {
       // Upload to Supabase Storage
@@ -84,12 +103,22 @@ export default function DashboardClient({ user, initialDocuments }) {
       }
 
       // Redirect to document viewer to see processing results
+      toast({
+        title: "Document uploaded successfully",
+        description: "Analyzing document for APA compliance...",
+      });
       router.push(`/document/${documentData.id}`);
     } catch (err) {
       console.error('Upload error:', err);
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: err.message || 'Failed to upload document. Please try again.',
+      });
       setError(err.message || 'Failed to upload document');
     } finally {
       setUploading(false);
+      setUploadingFileName('');
     }
   };
 
@@ -114,8 +143,18 @@ export default function DashboardClient({ user, initialDocuments }) {
 
       // Update local state
       setDocuments(documents.filter((doc) => doc.id !== documentId));
+
+      toast({
+        title: "Document deleted",
+        description: "Document has been permanently removed.",
+      });
     } catch (err) {
       console.error('Delete error:', err);
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: err.message || 'Failed to delete document. Please try again.',
+      });
       setError(err.message || 'Failed to delete document');
     }
   };
@@ -123,14 +162,16 @@ export default function DashboardClient({ user, initialDocuments }) {
   return (
     <div className="min-h-screen bg-slate-100 flex">
       <Sidebar user={user} />
+      <MobileSidebar user={user} />
       <div className="flex-1 flex flex-col">
-        <Dashboard 
-          user={user} 
-          documents={documents} 
-          onFileUpload={handleFileUpload} 
-          uploading={uploading} 
-          error={error} 
-          onDelete={handleDelete} 
+        <Dashboard
+          user={user}
+          documents={documents}
+          onFileUpload={handleFileUpload}
+          uploading={uploading}
+          uploadingFileName={uploadingFileName}
+          error={error}
+          onDelete={handleDelete}
         />
       </div>
     </div>

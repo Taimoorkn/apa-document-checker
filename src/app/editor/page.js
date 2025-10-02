@@ -1,16 +1,16 @@
 'use client';
 import { useState } from 'react';
 import IssuesPanel from '@/components/IssuesPanel';
-import Header from '@/components/Header';
+import EditorHeader from '@/components/EditorHeader';
 import NewDocumentEditor from '@/components/NewDocumentEditor';
 
-export default function Home() {
+export default function EditorPage() {
   const [splitRatio, setSplitRatio] = useState(60);
   const [isDragging, setIsDragging] = useState(false);
 
   return (
     <main className="flex flex-col h-screen bg-white">
-      <Header />
+      <EditorHeader />
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Document Viewer (left panel) */}

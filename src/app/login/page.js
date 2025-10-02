@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { FileCheck, ArrowRight, LogIn } from 'lucide-react';
+import { FileCheck, ArrowRight, LogIn, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
@@ -69,7 +69,7 @@ export default function LoginPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80"
         >
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={handleLogin} method="POST" action="#">
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-bold text-slate-700 mb-2">
@@ -120,7 +120,7 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Signing in...</span>
                   </>
                 ) : (

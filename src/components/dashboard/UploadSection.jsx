@@ -2,11 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, FilePlus2 } from "lucide-react";
+import { UploadCloud, FilePlus2, Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { useDropzone } from 'react-dropzone';
 
-export function UploadSection({ onFileUpload, uploading }) {
+export function UploadSection({ onFileUpload, uploading, uploadingFileName }) {
   const fileInputRef = useRef(null);
 
   const onDrop = (acceptedFiles) => {
@@ -30,28 +30,50 @@ export function UploadSection({ onFileUpload, uploading }) {
       className={`border-2 border-dashed transition-colors duration-300 h-full flex items-center justify-center ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400'}`}>
       <input {...getInputProps()} ref={fileInputRef} />
       <CardContent className="p-8 text-center">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors duration-300 ${isDragActive ? 'bg-blue-100' : 'bg-slate-100'}`}>
-            <UploadCloud className={`w-10 h-10 transition-colors duration-300 ${isDragActive ? 'text-blue-600' : 'text-slate-500'}`} />
+        {uploading ? (
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
+              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">
+                Uploading Document...
+              </h3>
+              <p className="text-slate-500 mb-2">
+                {uploadingFileName || 'Processing your file'}
+              </p>
+              <p className="text-sm text-slate-400">
+                Please wait while we upload and prepare your document for analysis
+              </p>
+            </div>
+            <div className="w-full max-w-xs bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full animate-pulse" style={{ width: '66%' }}></div>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-slate-800 mb-2">
-              {isDragActive ? "Drop it here!" : "Upload New Document"}
-            </h3>
-            <p className="text-slate-500 mb-4">
-              Drag & drop or click to select a DOCX file.
-            </p>
+        ) : (
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center transition-colors duration-300 ${isDragActive ? 'bg-blue-100' : 'bg-slate-100'}`}>
+              <UploadCloud className={`w-10 h-10 transition-colors duration-300 ${isDragActive ? 'text-blue-600' : 'text-slate-500'}`} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">
+                {isDragActive ? "Drop it here!" : "Upload New Document"}
+              </h3>
+              <p className="text-slate-500 mb-4">
+                Drag & drop or click to select a DOCX file.
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <FilePlus2 className="w-5 h-5" />
+              Choose File
+            </Button>
           </div>
-          <Button
-            type="button"
-            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-          >
-            <FilePlus2 className="w-5 h-5" />
-            {uploading ? 'Uploading...' : 'Choose File'}
-          </Button>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -1,16 +1,19 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Header from '@/components/Header';
+import LandingHeader from '@/components/LandingHeader';
 import Footer from '@/components/Footer';
 
 export default function AppLayout({ children }) {
   const pathname = usePathname();
-  const showHeaderFooter = !pathname.startsWith('/dashboard') && !pathname.startsWith('/document');
+
+  // Only show marketing Header/Footer on landing page
+  // Exclude: dashboard, document viewer, login, signup, editor
+  const showHeaderFooter = pathname === '/';
 
   return (
     <div className="flex flex-col min-h-screen">
-      {showHeaderFooter && <Header />}
+      {showHeaderFooter && <LandingHeader />}
       <main className="flex-grow">
         {children}
       </main>

@@ -69,7 +69,7 @@ export default function LoginPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200/80"
         >
-          <form className="space-y-6" onSubmit={handleLogin}>
+          <form className="space-y-6" onSubmit={handleLogin} method="POST" action="#">
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-bold text-slate-700 mb-2">

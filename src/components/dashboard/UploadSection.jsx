@@ -12,6 +12,12 @@ export function UploadSection({ onFileUpload, uploading }) {
     fileInputRef.current?.click();
   };
 
+  const handleFileChange = (e) => {
+    if (onFileUpload) {
+      onFileUpload(e);
+    }
+  };
+
   return (
     <Card className="border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors">
       <CardContent className="p-8">
@@ -32,11 +38,12 @@ export function UploadSection({ onFileUpload, uploading }) {
             ref={fileInputRef}
             type="file"
             accept=".docx"
-            onChange={onFileUpload}
+            onChange={handleFileChange}
             disabled={uploading}
             className="hidden"
           />
           <Button
+            type="button"
             className="gap-2"
             onClick={handleClick}
             disabled={uploading}

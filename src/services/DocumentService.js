@@ -547,9 +547,15 @@ export class DocumentService {
     // Find target paragraph
     let paragraphId = null;
     if (location?.paragraphIndex !== undefined) {
+      console.log('✅ Using location.paragraphIndex:', location.paragraphIndex, '/', documentModel.paragraphOrder.length);
       if (location.paragraphIndex < documentModel.paragraphOrder.length) {
         paragraphId = documentModel.paragraphOrder[location.paragraphIndex];
+        console.log('✅ Found paragraph by index:', paragraphId);
+      } else {
+        console.warn('⚠️ paragraphIndex out of bounds:', location.paragraphIndex, '>=', documentModel.paragraphOrder.length);
       }
+    } else {
+      console.warn('⚠️ location.paragraphIndex is undefined or null:', location);
     }
 
     // Fallback: Search for text if location missing or paragraph not found
@@ -1116,7 +1122,16 @@ export class DocumentService {
       references: documentModel.structure.references,
       tables: documentModel.structure.tables,
       italicizedText: documentModel.structure.italicizedText,
-      headersFooters: documentModel.structure.headersFooters
+      headersFooters: documentModel.structure.headersFooters,
+      // Add paragraph map for accurate index mapping
+      paragraphMap: documentModel.paragraphOrder.map((id, index) => {
+        const para = documentModel.paragraphs.get(id);
+        return {
+          index: index,
+          id: id,
+          text: para?.text || ''
+        };
+      })
     };
   }
 

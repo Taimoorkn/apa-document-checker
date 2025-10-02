@@ -25,13 +25,22 @@ function findTextInNode(text, searchText, basePos, positions, isTruncated) {
 function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncated) {
   let currentPara = 0;
   let found = false;
-  
+
   doc.descendants((node, pos) => {
     if (found) return false;
-    
+
     if (node.type.name === 'paragraph' || node.type.name === 'heading') {
       if (currentPara === paragraphIndex) {
         const text = node.textContent;
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔍 Searching in paragraph ${paragraphIndex}:`, {
+            searchText: searchText.substring(0, 50),
+            paragraphText: text.substring(0, 100),
+            found: text.includes(searchText)
+          });
+        }
+
         findTextInNode(text, searchText, pos + 1, positions, isTruncated);
         found = true;
         return false;
@@ -39,6 +48,23 @@ function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncat
       currentPara++;
     }
   });
+
+  if (process.env.NODE_ENV === 'development' && !found) {
+    console.warn(`⚠️ Paragraph ${paragraphIndex} not found. Total paragraphs in editor: ${currentPara}`);
+  }
+
+  // Debug: Log actual paragraph content at target index
+  if (process.env.NODE_ENV === 'development' && paragraphIndex >= 37 && paragraphIndex <= 52) {
+    let debugPara = 0;
+    doc.descendants((node) => {
+      if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+        if (debugPara >= 37 && debugPara <= 52) {
+          console.log(`📋 Tiptap paragraph ${debugPara}: ${node.textContent.substring(0, 60)}`);
+        }
+        debugPara++;
+      }
+    });
+  }
 }
 
 function searchInDocument(doc, searchText, positions, isTruncated) {

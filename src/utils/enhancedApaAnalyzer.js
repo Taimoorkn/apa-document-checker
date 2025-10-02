@@ -762,30 +762,11 @@ export class EnhancedAPAAnalyzer {
     
     
     // 3. Analyze References section for consistency issues
+    // NOTE: Reference connector validation ("and" vs "&") is handled by referenceValidator.js
+    // which provides more accurate paragraph indexing for fixes
     const referencesSection = text.match(/REFERENCES([\s\S]*?)(?=\n\n[A-Z]|$)/i);
     if (referencesSection) {
       const referencesText = referencesSection[1];
-      
-      // Check for "and" instead of "&" in references
-      const andInReferencesPattern = /^[^.]+,\s+[^,]+,\s+and\s+[^,]+\./gm;
-      let andMatch;
-      while ((andMatch = andInReferencesPattern.exec(referencesText)) !== null) {
-        issues.push({
-          title: "Incorrect connector in reference",
-          description: "Use '&' instead of 'and' in reference list",
-          text: andMatch[0],
-          highlightText: andMatch[0],
-          severity: "Minor",
-          category: "references",
-          hasFix: true,
-          fixAction: "fixReferenceConnector",
-          fixValue: {
-            original: andMatch[0],
-            replacement: andMatch[0].replace(' and ', ' & ')
-          },
-          explanation: "In reference lists, use & (ampersand) to connect author names, not 'and'."
-        });
-      }
       
       // Check for missing DOI/URL when available
       const lines = referencesText.split('\n').filter(line => line.trim().length > 0);

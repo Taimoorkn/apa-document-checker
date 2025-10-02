@@ -15,12 +15,12 @@ export class ReferenceValidator {
    */
   validateReferences(text, structure, italicizedText = []) {
     const issues = [];
-    
+
     if (!text) return issues;
-    
+
     // Extract references section
     const referencesMatch = text.match(/(?:^|\n)(?:references|REFERENCES|References)\s*\n([\s\S]*?)(?=\n(?:appendix|APPENDIX|Appendix)|$)/i);
-    
+
     if (!referencesMatch) {
       // Check if there are citations that need references
       const hasCitations = /\([^)]+,\s*\d{4}\)/.test(text);
@@ -36,9 +36,9 @@ export class ReferenceValidator {
       }
       return issues;
     }
-    
+
     const referencesText = referencesMatch[1].trim();
-    
+
     // Check for empty references section
     if (referencesText.length < 50 || !referencesText.match(/[A-Z]/)) {
       issues.push({
@@ -51,10 +51,50 @@ export class ReferenceValidator {
       });
       return issues;
     }
-    
-    // Parse individual references
-    const referenceEntries = this.parseReferenceEntries(referencesText);
-    
+
+    // Use DocumentModel's paragraph map if available (most accurate)
+    // Otherwise fall back to text splitting (less accurate due to empty line handling)
+    let paragraphMap;
+
+    if (structure?.paragraphMap && Array.isArray(structure.paragraphMap)) {
+      paragraphMap = structure.paragraphMap;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Using DocumentModel paragraph map (accurate)');
+      }
+    } else {
+      // Fallback: Build paragraph map from text splitting
+      paragraphMap = [];
+      let charOffset = 0;
+
+      text.split('\n').forEach((paraText) => {
+        if (paraText.trim()) { // Only non-empty paragraphs (matches DocumentModel.getPlainText filter)
+          paragraphMap.push({
+            index: paragraphMap.length,
+            text: paraText,
+            charStart: charOffset,
+            charEnd: charOffset + paraText.length
+          });
+        }
+        charOffset += paraText.length + 1; // +1 for newline
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Using fallback text-based paragraph map (may be inaccurate)');
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📍 References section location:', {
+        totalParagraphs: paragraphMap.length,
+        totalTextLength: text.length,
+        referencesTextLength: referencesText.length,
+        sampleParagraphs: paragraphMap.slice(Math.max(0, paragraphMap.length - 15), paragraphMap.length).map(p => `${p.index}: ${p.text.substring(0, 60)}`)
+      });
+    }
+
+    // Parse individual references with paragraph mapping
+    const referenceEntries = this.parseReferenceEntries(referencesText, text, paragraphMap);
+
     // Run all validation checks including deep formatting with italicized text
     issues.push(...this.checkAlphabeticalOrder(referenceEntries));
     issues.push(...this.checkHangingIndent(referenceEntries, referencesText));
@@ -62,42 +102,93 @@ export class ReferenceValidator {
     issues.push(...this.crossCheckCitationsAndReferences(text, referenceEntries));
     issues.push(...this.checkDuplicateReferences(referenceEntries));
     issues.push(...this.checkDOIAndURLFormatting(referenceEntries));
-    
+
     return issues;
   }
 
   /**
-   * Parse reference entries from text
+   * Parse reference entries from text with accurate paragraph index mapping
    */
-  parseReferenceEntries(referencesText) {
+  parseReferenceEntries(referencesText, fullText, paragraphMap) {
     const entries = [];
     const lines = referencesText.split('\n');
     let currentEntry = '';
     let entryStartLine = 0;
-    
+
+    // Helper function to find paragraph index for entry text using paragraph map
+    const findParagraphIndex = (entryText) => {
+      // Search for the first 50 characters of the entry to find which paragraph contains it
+      const searchText = entryText.substring(0, Math.min(50, entryText.length));
+
+      for (let i = 0; i < paragraphMap.length; i++) {
+        if (paragraphMap[i].text.includes(searchText)) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✅ Found "${searchText.substring(0, 30)}..." at paragraph ${paragraphMap[i].index}`);
+          }
+          return paragraphMap[i].index;
+        }
+      }
+
+      // Fallback: search by character position in full text
+      const entryIndex = fullText.indexOf(entryText.substring(0, 30));
+      if (entryIndex !== -1) {
+        // Find which paragraph this character position falls into
+        for (let i = 0; i < paragraphMap.length; i++) {
+          if (entryIndex >= paragraphMap[i].charStart && entryIndex <= paragraphMap[i].charEnd) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`⚠️ Using fallback (char position) for "${searchText.substring(0, 30)}..." - found at paragraph ${paragraphMap[i].index}`);
+            }
+            return paragraphMap[i].index;
+          }
+        }
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ Could not find paragraph index for: "${searchText.substring(0, 30)}..."`);
+      }
+
+      return null;
+    };
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const trimmedLine = line.trim();
-      
+
       // Check if this is a new reference entry (starts with capital letter, previous entry has year)
-      const isNewEntry = trimmedLine.length > 0 && 
-                         /^[A-Z]/.test(trimmedLine) && 
-                         currentEntry.includes('(') && 
+      const isNewEntry = trimmedLine.length > 0 &&
+                         /^[A-Z]/.test(trimmedLine) &&
+                         currentEntry.includes('(') &&
                          currentEntry.includes(')');
-      
+
       if (trimmedLine.length === 0 || isNewEntry) {
         if (currentEntry.trim().length > 10) {
-          entries.push({
-            text: currentEntry.trim(),
+          const entryText = currentEntry.trim();
+          const paragraphIndex = findParagraphIndex(entryText);
+
+          const entry = {
+            text: entryText,
             firstAuthor: this.extractFirstAuthor(currentEntry),
             year: this.extractYear(currentEntry),
             hasMultipleAuthors: this.hasMultipleAuthors(currentEntry),
             type: this.detectReferenceType(currentEntry),
             lineNumber: entryStartLine,
+            paragraphIndex: paragraphIndex,
             indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine, i))
-          });
+          };
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('📝 Parsed reference entry:', {
+              firstAuthor: entry.firstAuthor,
+              year: entry.year,
+              paragraphIndex: entry.paragraphIndex,
+              lineNumber: entry.lineNumber,
+              textPreview: entry.text.substring(0, 60)
+            });
+          }
+
+          entries.push(entry);
         }
-        
+
         if (isNewEntry) {
           currentEntry = trimmedLine;
           entryStartLine = i;
@@ -108,20 +199,36 @@ export class ReferenceValidator {
         currentEntry += (currentEntry ? ' ' : '') + trimmedLine;
       }
     }
-    
+
     // Add last entry
     if (currentEntry.trim().length > 10) {
-      entries.push({
-        text: currentEntry.trim(),
+      const entryText = currentEntry.trim();
+      const paragraphIndex = findParagraphIndex(entryText);
+
+      const entry = {
+        text: entryText,
         firstAuthor: this.extractFirstAuthor(currentEntry),
         year: this.extractYear(currentEntry),
         hasMultipleAuthors: this.hasMultipleAuthors(currentEntry),
         type: this.detectReferenceType(currentEntry),
         lineNumber: entryStartLine,
+        paragraphIndex: paragraphIndex,
         indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine))
-      });
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📝 Parsed reference entry (last):', {
+          firstAuthor: entry.firstAuthor,
+          year: entry.year,
+          paragraphIndex: entry.paragraphIndex,
+          lineNumber: entry.lineNumber,
+          textPreview: entry.text.substring(0, 60)
+        });
+      }
+
+      entries.push(entry);
     }
-    
+
     return entries;
   }
 
@@ -264,7 +371,7 @@ export class ReferenceValidator {
   checkReferenceFormatting(entries, italicizedText) {
     const issues = [];
     const reportedTypes = new Set();
-    
+
     entries.forEach((entry, index) => {
       // Deep validation of author format
       const authorIssues = this.validateAuthorFormat(entry);
@@ -272,7 +379,7 @@ export class ReferenceValidator {
         issues.push(authorIssues);
         reportedTypes.add('author-format');
       }
-      
+
       // Check for missing year
       if (!entry.year && !reportedTypes.has('year')) {
         issues.push({
@@ -286,7 +393,7 @@ export class ReferenceValidator {
         });
         reportedTypes.add('year');
       }
-      
+
       // Deep validation based on reference type
       const typeSpecificIssues = this.validateReferenceByType(entry, italicizedText);
       typeSpecificIssues.forEach(issue => {
@@ -295,10 +402,10 @@ export class ReferenceValidator {
           reportedTypes.add(issue.type);
         }
       });
-      
+
       // Check for missing DOI/URL in journal articles
-      if (entry.type === 'journal' && 
-          !entry.text.match(/(?:https?:\/\/|doi:|DOI:)/) && 
+      if (entry.type === 'journal' &&
+          !entry.text.match(/(?:https?:\/\/|doi:|DOI:)/) &&
           !reportedTypes.has('doi')) {
         issues.push({
           title: "Missing DOI or URL in journal article",
@@ -311,7 +418,7 @@ export class ReferenceValidator {
         });
         reportedTypes.add('doi');
       }
-      
+
       // Check for "and" instead of "&"
       if (entry.hasMultipleAuthors && entry.text.includes(', and ')) {
         issues.push({
@@ -321,6 +428,12 @@ export class ReferenceValidator {
           highlightText: entry.text, // Full text for search fallback
           severity: "Minor",
           category: "references",
+          location: {
+            paragraphIndex: entry.paragraphIndex, // Use entry's paragraph index
+            charOffset: 0,
+            length: entry.text.length,
+            type: 'text'
+          },
           hasFix: true,
           fixAction: "fixReferenceConnector",
           fixValue: {

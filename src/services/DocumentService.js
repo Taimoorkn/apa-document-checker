@@ -151,7 +151,7 @@ export class DocumentService {
   }
 
   /**
-   * Apply fix to document
+   * Apply fix to document (JSON-First Architecture)
    */
   async applyFix(documentModel, issueId) {
     if (!documentModel || !issueId) {
@@ -173,9 +173,22 @@ export class DocumentService {
     try {
       let fixResult;
 
-      // ALL fixes now go through server to modify DOCX (Option A: DOCX as source of truth)
-      // This ensures the DOCX file is always updated and is the single source of truth
-      fixResult = await this._applyServerFormattingFix(documentModel, issue);
+      // Route to appropriate fix handler based on type
+      if (this._isTextFix(issue.fixAction)) {
+        // Text fixes: client-side JSON mutation (instant)
+        console.log('🔧 Applying text fix (client-side):', issue.fixAction);
+        fixResult = this._applyTextFixToJSON(documentModel, issue);
+      }
+      else if (this._isFormattingFix(issue.fixAction)) {
+        // Formatting fixes: client-side JSON property update (instant)
+        console.log('🎨 Applying formatting fix (client-side):', issue.fixAction);
+        fixResult = this._applyFormattingFixToJSON(documentModel, issue);
+      }
+      else {
+        // Fallback to server for unsupported fix types (legacy)
+        console.warn('⚠️ Using server-side fix (legacy):', issue.fixAction);
+        fixResult = await this._applyServerFormattingFix(documentModel, issue);
+      }
 
       if (fixResult.success) {
         // Remove fixed issue
@@ -187,7 +200,8 @@ export class DocumentService {
           fixAction: issue.fixAction,
           issueId,
           timestamp: Date.now(),
-          snapshotId: snapshot.id
+          snapshotId: snapshot.id,
+          clientSide: fixResult.clientSide || false
         });
 
         return {
@@ -195,6 +209,7 @@ export class DocumentService {
           fixedIssueId: issueId,
           fixAction: issue.fixAction,
           updatedDocument: fixResult.updatedDocument || false,
+          clientSide: fixResult.clientSide || false,
           snapshotId: snapshot.id
         };
       }
@@ -207,6 +222,7 @@ export class DocumentService {
 
     } catch (error) {
       // Restore from snapshot on error
+      console.error('❌ Fix application failed:', error);
       documentModel.restoreFromSnapshot(snapshot);
       throw error;
     }
@@ -486,18 +502,254 @@ export class DocumentService {
   }
 
   /**
-   * Check if a fix action is actually implemented on backend
-   * All fixes now go through backend DOCX modification (Option A architecture)
+   * Check if a fix action is actually implemented
    */
   isFixImplemented(fixAction) {
-    const implementedFixes = [
-      // Formatting fixes
-      'fixFont', 'fixFontSize', 'fixLineSpacing', 'fixMargins', 'fixIndentation',
-      // Text content fixes
-      'addCitationComma', 'fixParentheticalConnector', 'fixEtAlFormatting',
-      'fixReferenceConnector', 'fixAllCapsHeading', 'addPageNumber'
-    ];
-    return implementedFixes.includes(fixAction);
+    return this._isTextFix(fixAction) || this._isFormattingFix(fixAction);
+  }
+
+  /**
+   * Check if fix is a text-based fix (search/replace in JSON)
+   */
+  _isTextFix(fixAction) {
+    return [
+      'addCitationComma',
+      'fixParentheticalConnector',
+      'fixEtAlFormatting',
+      'fixReferenceConnector',
+      'fixAllCapsHeading',
+      'addPageNumber'
+    ].includes(fixAction);
+  }
+
+  /**
+   * Check if fix is a formatting fix (JSON property update)
+   */
+  _isFormattingFix(fixAction) {
+    return [
+      'fixFont',
+      'fixFontSize',
+      'fixLineSpacing',
+      'fixMargins',
+      'fixIndentation'
+    ].includes(fixAction);
+  }
+
+  /**
+   * Apply text-based fix by mutating paragraph text in DocumentModel
+   * This is instant (<100ms) and triggers auto-save in background
+   */
+  _applyTextFixToJSON(documentModel, issue) {
+    const { fixAction, fixValue, location } = issue;
+
+    console.log('📝 Text fix details:', { fixAction, fixValue, location });
+
+    // Find target paragraph
+    let paragraphId = null;
+    if (location?.paragraphIndex !== undefined) {
+      if (location.paragraphIndex < documentModel.paragraphOrder.length) {
+        paragraphId = documentModel.paragraphOrder[location.paragraphIndex];
+      }
+    }
+
+    if (!paragraphId) {
+      console.error('❌ Paragraph not found for fix:', location);
+      return { success: false, error: 'Paragraph not found' };
+    }
+
+    const paragraph = documentModel.paragraphs.get(paragraphId);
+    if (!paragraph) {
+      return { success: false, error: 'Paragraph not found in model' };
+    }
+
+    const oldText = paragraph.text;
+
+    // Apply text replacement based on fixValue
+    let newText = oldText;
+    if (fixValue && fixValue.original && fixValue.replacement) {
+      newText = oldText.replace(fixValue.original, fixValue.replacement);
+    } else {
+      // Legacy: use predefined replacement logic
+      newText = this._applyLegacyTextFix(oldText, fixAction, issue);
+    }
+
+    if (oldText === newText) {
+      console.warn('⚠️ No changes applied - text unchanged');
+      return { success: false, error: 'No changes detected' };
+    }
+
+    console.log('✏️ Text change:', {
+      old: oldText.substring(0, 100),
+      new: newText.substring(0, 100)
+    });
+
+    // Update paragraph text
+    paragraph.update({ text: newText });
+
+    // Update runs to match new text
+    if (paragraph.runs && paragraph.runs.size > 0) {
+      const firstRun = Array.from(paragraph.runs.values())[0];
+      paragraph.runs.clear();
+      paragraph.runOrder = [];
+
+      const newRun = {
+        text: newText,
+        font: firstRun?.font || {},
+        color: firstRun?.color || null
+      };
+
+      const RunModel = require('@/models/ParagraphModel').RunModel;
+      const runModel = RunModel.fromData(newRun, 0);
+      paragraph.runs.set(runModel.id, runModel);
+      paragraph.runOrder.push(runModel.id);
+    }
+
+    // Update document version
+    documentModel.version++;
+    documentModel.lastModified = Date.now();
+
+    // Trigger auto-save (non-blocking, 1 second debounce)
+    if (this._scheduleAutoSaveCallback) {
+      this._scheduleAutoSaveCallback(documentModel, 1000);
+    }
+
+    console.log('✅ Text fix applied successfully (client-side)');
+
+    return {
+      success: true,
+      clientSide: true,
+      paragraphId,
+      oldText,
+      newText
+    };
+  }
+
+  /**
+   * Apply formatting fix by updating DocumentModel properties
+   * This is instant (<200ms) and triggers editor re-render + auto-save
+   */
+  _applyFormattingFixToJSON(documentModel, issue) {
+    const { fixAction } = issue;
+
+    console.log('🎨 Formatting fix:', fixAction);
+
+    switch (fixAction) {
+      case 'fixFont':
+        // Update document-level default
+        documentModel.formatting.document.font.family = 'Times New Roman';
+
+        // Update all paragraph runs
+        documentModel.paragraphOrder.forEach(id => {
+          const para = documentModel.paragraphs.get(id);
+          if (para && para.runs) {
+            para.runs.forEach(run => {
+              run.font.family = 'Times New Roman';
+            });
+          }
+        });
+        break;
+
+      case 'fixFontSize':
+        documentModel.formatting.document.font.size = 12;
+
+        documentModel.paragraphOrder.forEach(id => {
+          const para = documentModel.paragraphs.get(id);
+          if (para && para.runs) {
+            para.runs.forEach(run => {
+              run.font.size = 12;
+            });
+          }
+        });
+        break;
+
+      case 'fixLineSpacing':
+        documentModel.formatting.document.spacing.line = 2.0;
+
+        documentModel.paragraphOrder.forEach(id => {
+          const para = documentModel.paragraphs.get(id);
+          if (para && para.formatting) {
+            para.formatting.spacing = para.formatting.spacing || {};
+            para.formatting.spacing.line = 2.0;
+          }
+        });
+        break;
+
+      case 'fixMargins':
+        documentModel.formatting.document.margins = {
+          top: 1.0,
+          bottom: 1.0,
+          left: 1.0,
+          right: 1.0
+        };
+        break;
+
+      case 'fixIndentation':
+        // Apply to all body paragraphs (exclude headings)
+        documentModel.paragraphOrder.forEach(id => {
+          const para = documentModel.paragraphs.get(id);
+          if (para && para.formatting) {
+            const styleName = para.formatting.styleName?.toLowerCase() || '';
+            if (!styleName.includes('heading') && !styleName.includes('title')) {
+              para.formatting.indentation = para.formatting.indentation || {};
+              para.formatting.indentation.firstLine = 0.5;
+            }
+          }
+        });
+        break;
+
+      default:
+        return { success: false, error: `Unknown formatting fix: ${fixAction}` };
+    }
+
+    // Update document version
+    documentModel.version++;
+    documentModel.lastModified = Date.now();
+
+    // Trigger auto-save (non-blocking)
+    if (this._scheduleAutoSaveCallback) {
+      this._scheduleAutoSaveCallback(documentModel, 1000);
+    }
+
+    console.log('✅ Formatting fix applied successfully (client-side)');
+
+    return {
+      success: true,
+      clientSide: true,
+      fixAction,
+      requiresEditorRefresh: true
+    };
+  }
+
+  /**
+   * Legacy text fix logic (for backward compatibility)
+   */
+  _applyLegacyTextFix(text, fixAction, issue) {
+    const originalText = issue.text || issue.highlightText;
+    if (!originalText) return text;
+
+    switch (fixAction) {
+      case 'addCitationComma':
+        return this._applyAddCitationComma(text, issue);
+      case 'fixParentheticalConnector':
+        return text.replace(originalText, originalText.replace(' and ', ' & '));
+      case 'fixEtAlFormatting':
+        return text.replace(originalText, originalText.replace(', et al.', ' et al.'));
+      case 'fixReferenceConnector':
+        return text.replace(originalText, originalText.replace(' and ', ' & '));
+      case 'fixAllCapsHeading':
+        return text.replace(originalText, originalText.charAt(0) + originalText.slice(1).toLowerCase());
+      case 'addPageNumber':
+        return text.replace(originalText, originalText.replace(')', ', p. XX)'));
+      default:
+        return text;
+    }
+  }
+
+  /**
+   * Set callback for scheduling auto-save from store
+   */
+  setScheduleAutoSaveCallback(callback) {
+    this._scheduleAutoSaveCallback = callback;
   }
 
   async _applyServerFormattingFix(documentModel, issue) {

@@ -55,7 +55,14 @@ const storeEvents = new StoreEventEmitter();
 export const useUnifiedDocumentStore = create((set, get) => ({
   // Single source of truth - DocumentModel
   documentModel: null,
-  documentService: new DocumentService(),
+  documentService: (() => {
+    const service = new DocumentService();
+    // Wire auto-save callback immediately
+    service.setScheduleAutoSaveCallback((documentModel, debounceMs) => {
+      get().scheduleAutoSave(false, debounceMs);
+    });
+    return service;
+  })(),
   changeTracker: new ChangeTracker(),
 
   // UI state (derived from document model)
@@ -532,9 +539,10 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   /**
-   * Schedule incremental analysis (debounced)
+   * Schedule incremental analysis with smart debounce
+   * @param {number} debounceMs - Debounce delay (default: 1000ms, reduced from 3000ms)
    */
-  scheduleIncrementalAnalysis: (debounceMs = 3000) => {
+  scheduleIncrementalAnalysis: (debounceMs = 1000) => {
     const state = get();
 
     // Clear existing timeout
@@ -560,10 +568,11 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   /**
-   * Schedule auto-save with debouncing
-   * Called when user makes manual edits
+   * Schedule auto-save with smart debounce
+   * @param {boolean} immediate - If true, save immediately (for explicit actions)
+   * @param {number} debounceMs - Debounce delay in milliseconds (default: 2000ms)
    */
-  scheduleAutoSave: (debounceMs = 5000) => {
+  scheduleAutoSave: (immediate = false, debounceMs = 2000) => {
     const state = get();
 
     // Mark as unsaved immediately
@@ -579,6 +588,13 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       clearTimeout(state.autoSaveState.autoSaveDebounceTimeout);
     }
 
+    // Immediate save for explicit actions
+    if (immediate) {
+      get().performAutoSave();
+      return;
+    }
+
+    // Debounced save for typing
     const timeoutId = setTimeout(async () => {
       try {
         await get().performAutoSave();
@@ -638,6 +654,10 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         });
 
         console.log('✅ Auto-save completed successfully');
+
+        // Trigger fast analysis after save (100ms delay)
+        get().scheduleIncrementalAnalysis(100);
+
       } else {
         throw new Error(result.error || 'Auto-save failed');
       }

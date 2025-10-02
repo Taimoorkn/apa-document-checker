@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, Settings, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 /**
  * Client component for viewing and editing documents from Supabase
@@ -240,21 +240,6 @@ export default function DocumentViewerClient({ user, document: docData, analysis
                     </div>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => router.push('/profile')}
-                  className="cursor-pointer rounded-lg py-2.5"
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  <span className="font-medium">Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => router.push('/settings')}
-                  className="cursor-pointer rounded-lg py-2.5"
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span className="font-medium">Settings</span>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}

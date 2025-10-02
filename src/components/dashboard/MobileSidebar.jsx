@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import Sidebar from './Sidebar';
 
-export default function MobileSidebar({ user }) {
+export default function MobileSidebar({ user, profile }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -21,7 +21,7 @@ export default function MobileSidebar({ user }) {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="p-0 w-64">
-        <Sidebar user={user} onNavigate={() => setOpen(false)} />
+        <Sidebar user={user} profile={profile} onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );

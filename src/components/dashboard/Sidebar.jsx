@@ -18,7 +18,7 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
-export default function Sidebar({ user, onNavigate }) {
+export default function Sidebar({ user, profile, onNavigate }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();

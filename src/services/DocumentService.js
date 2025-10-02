@@ -728,16 +728,28 @@ export class DocumentService {
     if (!originalText) return text;
 
     switch (fixAction) {
-      case 'addCitationComma':
-        return this._applyAddCitationComma(text, issue);
+      case 'addCitationComma': {
+        const pattern = /\(([A-Za-z][A-Za-z\s&.]+(?<!et\s+al))\s+(\d{4})\)/g;
+        return text.replace(pattern, (match, author, year) => {
+          if (match === originalText) return `(${author}, ${year})`;
+          return match;
+        });
+      }
       case 'fixParentheticalConnector':
         return text.replace(originalText, originalText.replace(' and ', ' & '));
       case 'fixEtAlFormatting':
         return text.replace(originalText, originalText.replace(', et al.', ' et al.'));
       case 'fixReferenceConnector':
         return text.replace(originalText, originalText.replace(' and ', ' & '));
-      case 'fixAllCapsHeading':
-        return text.replace(originalText, originalText.charAt(0) + originalText.slice(1).toLowerCase());
+      case 'fixAllCapsHeading': {
+        // Convert ALL CAPS to Title Case
+        const titleCase = originalText
+          .toLowerCase()
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+        return text.replace(originalText, titleCase);
+      }
       case 'addPageNumber':
         return text.replace(originalText, originalText.replace(')', ', p. XX)'));
       default:
@@ -1139,34 +1151,6 @@ ${documentModel.getFormattedHtml()}
       }
     }
     return null;
-  }
-
-  _applyAddCitationComma(text, issue) {
-    const originalText = issue.text || issue.highlightText;
-    if (!originalText) return text;
-
-    // Pattern to match citations missing comma (Author YEAR)
-    const pattern = /\(([A-Za-z][A-Za-z\s&.]+(?<!et\s+al))\s+(\d{4})\)/g;
-    return text.replace(pattern, (match, author, year) => {
-      if (match === originalText) {
-        return `(${author}, ${year})`;
-      }
-      return match;
-    });
-  }
-
-  _applyFixParentheticalConnector(text, issue) {
-    const originalText = issue.text || issue.highlightText;
-    if (!originalText) return text;
-
-    return text.replace(originalText, originalText.replace(' and ', ' & '));
-  }
-
-  _applyFixEtAlFormatting(text, issue) {
-    const originalText = issue.text || issue.highlightText;
-    if (!originalText) return text;
-
-    return text.replace(originalText, originalText.replace(', et al.', ' et al.'));
   }
 
   async _handleApiError(response) {

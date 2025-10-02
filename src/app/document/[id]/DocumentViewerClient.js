@@ -22,7 +22,7 @@ import { LogOut } from "lucide-react";
 /**
  * Client component for viewing and editing documents from Supabase
  */
-export default function DocumentViewerClient({ user, document: docData, analysisResult }) {
+export default function DocumentViewerClient({ user, profile, document: docData, analysisResult }) {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);

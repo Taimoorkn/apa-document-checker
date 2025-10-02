@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { getUserWithProfile } from '@/lib/profiles';
 import DashboardClient from './DashboardClient';
 
 // Disable caching to ensure fresh data after document updates
@@ -13,11 +14,8 @@ export const revalidate = 0;
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  // Get current user
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  // Get current user with profile data
+  const { user, profile, error: userError } = await getUserWithProfile(supabase);
 
   // Redirect to login if not authenticated (fallback - middleware should handle this)
   if (userError || !user) {
@@ -51,6 +49,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       user={user}
+      profile={profile}
       initialDocuments={documentsWithScores}
     />
   );

@@ -1,193 +1,350 @@
-'use client';
-import Link from 'next/link';
-import { FileTextIcon, CheckCircleIcon, ChartBarIcon, CloudArrowUpIcon } from '@phosphor-icons/react';
+"use client";
+import Link from "next/link";
+import {
+  FileCheck,
+  CheckCircle2,
+  FileSearch,
+  Sparkles,
+  ArrowRight,
+  Globe,
+  Shield,
+  Zap,
+  BookOpen,
+  Award,
+  ChevronRight,
+} from "lucide-react";
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation - 60% white, minimal emerald accent */}
-      <nav className="bg-white border-b border-gray-200">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <FileTextIcon size={20} weight="bold" className="text-white" />
+          <div className="h-16 flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                <FileCheck className="h-5 w-5 text-white" />
               </div>
-              <span className="ml-3 text-xl font-bold text-gray-900">APA Checker</span>
+              <div>
+                <span className="text-lg font-bold text-slate-900">
+                  APA Checker
+                </span>
+                <div className="text-xs text-slate-500 font-medium">
+                  7th Edition Validator
+                </div>
+              </div>
             </div>
+
+            {/* Navigation Links */}
+            <div className="hidden md:flex items-center space-x-8">
+              <a
+                href="#features"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                How It Works
+              </a>
+              <a
+                href="#pricing"
+                className="text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Pricing
+              </a>
+            </div>
+
+            {/* Auth Buttons */}
             <div className="flex items-center space-x-4">
               <Link
                 href="/login"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                className="text-slate-600 hover:text-slate-900 font-medium transition-colors"
               >
-                Log in
+                Sign In
               </Link>
               <Link
                 href="/signup"
-                className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 shadow-lg shadow-emerald-500/25"
               >
-                Sign up
+                <span>Get Started</span>
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section - 60% white space, 30% gray text, 10% emerald accent */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center">
-          <div className="inline-block mb-4 px-4 py-2 bg-gray-100 rounded-full">
-            <span className="text-sm font-medium text-gray-700">APA 7th Edition Compliance</span>
-          </div>
-          <h1 className="text-5xl font-bold text-gray-900 sm:text-6xl md:text-7xl mb-6">
-            Perfect Your Academic<br/>
-            <span className="text-emerald-600">Document Formatting</span>
-          </h1>
-          <p className="mt-6 max-w-2xl mx-auto text-xl text-gray-600 leading-relaxed">
-            Upload your Word document and get instant APA compliance analysis with actionable suggestions to fix formatting issues.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-            <Link
-              href="/signup"
-              className="bg-emerald-600 text-white hover:bg-emerald-700 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-200"
-            >
-              Get Started Free
-            </Link>
-            <Link
-              href="/editor"
-              className="bg-gray-100 text-gray-900 hover:bg-gray-200 px-8 py-4 rounded-lg text-lg font-semibold transition-all duration-200"
-            >
-              Try Without Login
-            </Link>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-slate-50 to-emerald-50/30 py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            {/* Badge */}
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium mb-8">
+              <Award className="h-4 w-4" />
+              <span>APA 7th Edition Compliant</span>
+            </div>
+
+            {/* Headline */}
+            <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+              Perfect Your
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-600">
+                APA Documents
+              </span>
+            </h1>
+
+            {/* Subheadline */}
+            <p className="text-xl md:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+              Get instant, comprehensive feedback on APA 7th edition compliance.
+              Upload your DOCX files and receive detailed analysis with smart
+              corrections.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center space-x-2 px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-200 shadow-xl shadow-emerald-500/25 text-lg"
+              >
+                <span>Start Checking Documents</span>
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="/editor"
+                className="inline-flex items-center justify-center space-x-2 px-8 py-4 bg-white text-slate-700 font-semibold rounded-xl border border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-all duration-200 text-lg"
+              >
+                <span>Try Without Login</span>
+              </Link>
+            </div>
+
+            {/* Hero Visual */}
+            <div className="relative mx-auto max-w-4xl">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+                <div className="bg-slate-100 px-6 py-4 border-b border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                    <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                    <div className="ml-4 text-sm text-slate-600 font-medium">
+                      Research_Paper.docx
+                    </div>
+                  </div>
+                </div>
+                <div className="p-8 text-left">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="text-slate-700">
+                        Title page formatting validated
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="text-slate-700">
+                        Citation format verified
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="text-slate-700">
+                        Reference list organized alphabetically
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-5 h-5 bg-orange-100 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      </div>
+                      <span className="text-slate-700">
+                        3 formatting suggestions available
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Features Grid - Gray background for 30%, emerald icons for 10% */}
-        <div className="mt-24 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Feature 1 */}
-          <div className="bg-gray-50 p-6 rounded-lg hover:bg-gray-100 transition-colors">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-600">
-              <CloudArrowUpIcon size={24} weight="bold" className="text-white" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Instant Upload
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Upload your .docx file and get results in seconds with our advanced processing engine.
-            </p>
-          </div>
-
-          {/* Feature 2 */}
-          <div className="bg-gray-50 p-6 rounded-lg hover:bg-gray-100 transition-colors">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-600">
-              <CheckCircleIcon size={24} weight="bold" className="text-white" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              APA 7th Compliance
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Comprehensive validation against all APA 7th edition formatting guidelines and rules.
-            </p>
-          </div>
-
-          {/* Feature 3 */}
-          <div className="bg-gray-50 p-6 rounded-lg hover:bg-gray-100 transition-colors">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-600">
-              <ChartBarIcon size={24} weight="bold" className="text-white" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Compliance Score
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Get a detailed compliance score with categorized issues and severity levels.
-            </p>
-          </div>
-
-          {/* Feature 4 */}
-          <div className="bg-gray-50 p-6 rounded-lg hover:bg-gray-100 transition-colors">
-            <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 bg-emerald-600">
-              <FileTextIcon size={24} weight="bold" className="text-white" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Save & Track
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Save your documents, track revisions, and monitor compliance improvements over time.
-            </p>
-          </div>
-        </div>
-
-        {/* How It Works Section - Gray background for 30% */}
-        <div className="mt-32 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-20">
-          <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-gray-900 mb-16">
-              How It Works
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              Everything You Need for APA Compliance
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-              <div className="text-center">
-                <div className="bg-emerald-600 text-white w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6 text-xl font-bold shadow-lg">
-                  1
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Upload Document</h3>
-                <p className="text-gray-600">
-                  Upload your Word document (.docx) to our secure platform.
-                </p>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+              Our comprehensive analysis covers all aspects of APA 7th edition
+              guidelines
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <FileSearch className="h-6 w-6 text-emerald-600" />
               </div>
-              <div className="text-center">
-                <div className="bg-emerald-600 text-white w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6 text-xl font-bold shadow-lg">
-                  2
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Get Analysis</h3>
-                <p className="text-gray-600">
-                  Our analyzer checks your document against APA 7th edition standards.
-                </p>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Comprehensive Analysis
+              </h3>
+              <p className="text-slate-600">
+                Citations, references, formatting, structure, and bias-free
+                language validation
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Zap className="h-6 w-6 text-emerald-600" />
               </div>
-              <div className="text-center">
-                <div className="bg-emerald-600 text-white w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6 text-xl font-bold shadow-lg">
-                  3
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">Fix Issues</h3>
-                <p className="text-gray-600">
-                  Review issues with severity levels and apply suggested fixes.
-                </p>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Real-time Feedback
+              </h3>
+              <p className="text-slate-600">
+                Instant validation as you edit with live issue highlighting and
+                suggestions
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Sparkles className="h-6 w-6 text-emerald-600" />
               </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Smart Corrections
+              </h3>
+              <p className="text-slate-600">
+                One-click fixes for common APA issues with context-aware
+                suggestions
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Shield className="h-6 w-6 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Privacy Focused
+              </h3>
+              <p className="text-slate-600">
+                Your documents are processed securely and never stored without
+                permission
+              </p>
+            </div>
+
+            {/* Feature 5 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <BookOpen className="h-6 w-6 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Educational Insights
+              </h3>
+              <p className="text-slate-600">
+                Learn APA guidelines through detailed explanations and examples
+              </p>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="group p-8 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Globe className="h-6 w-6 text-emerald-600" />
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Cloud Sync
+              </h3>
+              <p className="text-slate-600">
+                Access your documents and analysis history from anywhere
+              </p>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* CTA Section - Emerald accent only for button */}
-        <div className="mt-32 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Ready to Perfect Your APA Formatting?
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              Simple 3-Step Process
+            </h2>
+            <p className="text-xl text-slate-600">
+              Get professional APA validation in minutes
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Step 1 */}
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <span className="text-2xl font-bold text-white">1</span>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Upload Your Document
+              </h3>
+              <p className="text-slate-600">
+                Drag and drop your DOCX file or click to browse. We support
+                documents up to 10MB.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <span className="text-2xl font-bold text-white">2</span>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                AI-Powered Analysis
+              </h3>
+              <p className="text-slate-600">
+                Our advanced algorithms check citations, references, formatting,
+                and more against APA 7th edition.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+                <span className="text-2xl font-bold text-white">3</span>
+              </div>
+              <h3 className="text-xl font-semibold text-slate-900 mb-3">
+                Review & Apply Fixes
+              </h3>
+              <p className="text-slate-600">
+                Review detailed feedback and apply suggested corrections with
+                one-click fixes.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-br from-emerald-500 to-teal-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to Perfect Your APA Documents?
           </h2>
-          <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
-            Join students and researchers who trust APA Checker for accurate, comprehensive document analysis.
+          <p className="text-xl text-emerald-100 mb-8">
+            Join thousands of students and researchers who trust APA Checker for
+            their academic work.
           </p>
           <Link
             href="/signup"
-            className="inline-block bg-emerald-600 text-white hover:bg-emerald-700 px-8 py-4 rounded-lg text-lg font-semibold transition-colors"
+            className="inline-flex items-center space-x-2 px-8 py-4 bg-white text-emerald-600 font-semibold rounded-xl hover:bg-slate-50 transition-all duration-200 shadow-xl text-lg"
           >
-            Create Free Account
+            <span>Get Started Free</span>
+            <ChevronRight className="h-5 w-5" />
           </Link>
         </div>
-      </div>
-
-      {/* Footer - Gray for 30% */}
-      <footer className="bg-gray-50 border-t border-gray-200 mt-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-                <FileTextIcon size={16} weight="bold" className="text-white" />
-              </div>
-              <span className="ml-2 text-lg font-bold text-gray-900">APA Checker</span>
-            </div>
-            <p className="text-gray-600">
-              &copy; 2025 APA Checker. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      </section>
     </div>
   );
 }

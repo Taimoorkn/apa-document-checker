@@ -58,9 +58,6 @@ export class ReferenceValidator {
 
     if (structure?.paragraphMap && Array.isArray(structure.paragraphMap)) {
       paragraphMap = structure.paragraphMap;
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ Using DocumentModel paragraph map (accurate)');
-      }
     } else {
       // Fallback: Build paragraph map from text splitting
       paragraphMap = [];
@@ -76,19 +73,6 @@ export class ReferenceValidator {
           });
         }
         charOffset += paraText.length + 1; // +1 for newline
-      });
-
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Using fallback text-based paragraph map (may be inaccurate)');
-      }
-    }
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📍 References section location:', {
-        totalParagraphs: paragraphMap.length,
-        totalTextLength: text.length,
-        referencesTextLength: referencesText.length,
-        sampleParagraphs: paragraphMap.slice(Math.max(0, paragraphMap.length - 15), paragraphMap.length).map(p => `${p.index}: ${p.text.substring(0, 60)}`)
       });
     }
 
@@ -122,29 +106,22 @@ export class ReferenceValidator {
 
       for (let i = 0; i < paragraphMap.length; i++) {
         if (paragraphMap[i].text.includes(searchText)) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`✅ Found "${searchText.substring(0, 30)}..." at paragraph ${paragraphMap[i].index}`);
-          }
           return paragraphMap[i].index;
         }
       }
 
-      // Fallback: search by character position in full text
+      // Fallback: search by character position in full text (if charStart/charEnd available)
       const entryIndex = fullText.indexOf(entryText.substring(0, 30));
       if (entryIndex !== -1) {
         // Find which paragraph this character position falls into
         for (let i = 0; i < paragraphMap.length; i++) {
-          if (entryIndex >= paragraphMap[i].charStart && entryIndex <= paragraphMap[i].charEnd) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log(`⚠️ Using fallback (char position) for "${searchText.substring(0, 30)}..." - found at paragraph ${paragraphMap[i].index}`);
-            }
+          if (paragraphMap[i].charStart !== undefined &&
+              paragraphMap[i].charEnd !== undefined &&
+              entryIndex >= paragraphMap[i].charStart &&
+              entryIndex <= paragraphMap[i].charEnd) {
             return paragraphMap[i].index;
           }
         }
-      }
-
-      if (process.env.NODE_ENV === 'development') {
-        console.error(`❌ Could not find paragraph index for: "${searchText.substring(0, 30)}..."`);
       }
 
       return null;
@@ -176,16 +153,6 @@ export class ReferenceValidator {
             indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine, i))
           };
 
-          if (process.env.NODE_ENV === 'development') {
-            console.log('📝 Parsed reference entry:', {
-              firstAuthor: entry.firstAuthor,
-              year: entry.year,
-              paragraphIndex: entry.paragraphIndex,
-              lineNumber: entry.lineNumber,
-              textPreview: entry.text.substring(0, 60)
-            });
-          }
-
           entries.push(entry);
         }
 
@@ -215,16 +182,6 @@ export class ReferenceValidator {
         paragraphIndex: paragraphIndex,
         indentation: this.checkIndentation(currentEntry, lines.slice(entryStartLine))
       };
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📝 Parsed reference entry (last):', {
-          firstAuthor: entry.firstAuthor,
-          year: entry.year,
-          paragraphIndex: entry.paragraphIndex,
-          lineNumber: entry.lineNumber,
-          textPreview: entry.text.substring(0, 60)
-        });
-      }
 
       entries.push(entry);
     }

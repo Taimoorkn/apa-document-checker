@@ -542,27 +542,18 @@ export class DocumentService {
   _applyTextFixToJSON(documentModel, issue) {
     const { fixAction, fixValue, location } = issue;
 
-    console.log('📝 Text fix details:', { fixAction, fixValue, location });
-
     // Find target paragraph
     let paragraphId = null;
     if (location?.paragraphIndex !== undefined) {
-      console.log('✅ Using location.paragraphIndex:', location.paragraphIndex, '/', documentModel.paragraphOrder.length);
       if (location.paragraphIndex < documentModel.paragraphOrder.length) {
         paragraphId = documentModel.paragraphOrder[location.paragraphIndex];
-        console.log('✅ Found paragraph by index:', paragraphId);
-      } else {
-        console.warn('⚠️ paragraphIndex out of bounds:', location.paragraphIndex, '>=', documentModel.paragraphOrder.length);
       }
-    } else {
-      console.warn('⚠️ location.paragraphIndex is undefined or null:', location);
     }
 
     // Fallback: Search for text if location missing or paragraph not found
     if (!paragraphId) {
       // Prefer fixValue.original (full text) or highlightText over issue.text (may be truncated)
       const searchText = fixValue?.original || issue.highlightText || issue.text;
-      console.warn('⚠️ Location missing or invalid, searching for text:', searchText?.substring(0, 100));
 
       if (searchText) {
         // Search all paragraphs for matching text
@@ -570,14 +561,12 @@ export class DocumentService {
           const para = documentModel.paragraphs.get(id);
           if (para && para.text.includes(searchText)) {
             paragraphId = id;
-            console.log('✓ Found paragraph via text search:', id);
             break;
           }
         }
       }
 
       if (!paragraphId) {
-        console.error('❌ Paragraph not found for fix (location:', location, 'searchText:', searchText, ')');
         return { success: false, error: 'Paragraph not found' };
       }
     }

@@ -1,20 +1,10 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Search, Bell, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Search } from "lucide-react";
 
 export function DashboardHeader({ user }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark');
-  };
-
   // Get user initials for avatar
   const getInitials = (email) => {
     if (!email) return "U";
@@ -34,27 +24,13 @@ export function DashboardHeader({ user }) {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search documents..."
-              className="pl-10 bg-input border-0 h-10"
+              className="pl-10"
             />
           </div>
         </div>
 
         {/* Right Section */}
         <div className="flex items-center gap-4">
-          {/* Theme Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleTheme}
-            className="w-9 h-9"
-          >
-            {isDarkMode ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
-          </Button>
-
           {/* Profile */}
           <div className="flex items-center gap-3">
             <div className="text-right hidden sm:block">

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { FileCheck, ArrowRight, UserPlus, MailCheck } from 'lucide-react';
+import { FileCheck, ArrowRight, UserPlus, MailCheck, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function SignupPage() {
@@ -201,7 +201,7 @@ export default function SignupPage() {
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <Loader2 className="h-5 w-5 animate-spin" />
                     <span>Creating Account...</span>
                   </>
                 ) : (

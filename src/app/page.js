@@ -92,7 +92,7 @@ export default function LandingPage() {
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <Link
-                  href="/editor"
+                  href="/signup"
                   className="inline-flex items-center justify-center space-x-2 px-8 py-4 bg-white text-slate-700 font-semibold rounded-xl border border-slate-300 hover:border-slate-400 hover:bg-slate-100 transition-all duration-200 text-lg"
                 >
                   <span>Try the Editor</span>

@@ -46,7 +46,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/editor" className="text-slate-400 hover:text-white transition-colors text-sm">
+                <Link href="/signup" className="text-slate-400 hover:text-white transition-colors text-sm">
                   Editor
                 </Link>
               </li>

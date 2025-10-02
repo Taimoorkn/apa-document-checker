@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { FileCheck, ArrowRight, UserPlus, MailCheck, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Feature flag: Set to true when email verification is enabled in Supabase
+const EMAIL_VERIFICATION_ENABLED = false;
+
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -60,15 +63,15 @@ export default function SignupPage() {
       }
 
       // Successful signup
-      setSuccess(true);
       setLoading(false);
 
-      // If email confirmation is disabled, redirect to dashboard
-      if (data.session) {
-        setTimeout(() => {
-          router.push('/dashboard');
-          router.refresh();
-        }, 2000);
+      // If email confirmation is disabled, redirect to dashboard immediately
+      if (data.session || !EMAIL_VERIFICATION_ENABLED) {
+        router.push('/dashboard');
+        router.refresh();
+      } else {
+        // Show email verification screen only if verification is enabled
+        setSuccess(true);
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -76,7 +79,8 @@ export default function SignupPage() {
     }
   };
 
-  if (success) {
+  // Only show email verification screen if the feature is enabled
+  if (success && EMAIL_VERIFICATION_ENABLED) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4">
         <motion.div 

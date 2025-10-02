@@ -14,10 +14,13 @@ export default function DashboardClient({ user, initialDocuments }) {
   const { toast } = useToast();
   const [documents, setDocuments] = useState(initialDocuments);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFileName, setUploadingFileName] = useState('');
   const [error, setError] = useState('');
 
   const handleFileUpload = async (file) => {
     if (!file) return;
+
+    setUploadingFileName(file.name);
 
     // Validate file type
     if (!file.name.endsWith('.docx')) {
@@ -115,6 +118,7 @@ export default function DashboardClient({ user, initialDocuments }) {
       setError(err.message || 'Failed to upload document');
     } finally {
       setUploading(false);
+      setUploadingFileName('');
     }
   };
 
@@ -165,6 +169,7 @@ export default function DashboardClient({ user, initialDocuments }) {
           documents={documents}
           onFileUpload={handleFileUpload}
           uploading={uploading}
+          uploadingFileName={uploadingFileName}
           error={error}
           onDelete={handleDelete}
         />

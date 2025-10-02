@@ -11,7 +11,7 @@ import NewDocumentEditor from '@/components/NewDocumentEditor';
 /**
  * Client component for viewing and editing documents from Supabase
  */
-export default function DocumentViewerClient({ user, document, analysisResult }) {
+export default function DocumentViewerClient({ user, document: docData, analysisResult }) {
   const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
         setError(null);
 
         // THREE-LAYER ARCHITECTURE: Check IndexedDB first for reload safety
-        const localDraft = await indexedDBManager.loadFromIndexedDB(document.id);
+        const localDraft = await indexedDBManager.loadFromIndexedDB(docData.id);
 
         let documentData;
         let useLocalDraft = false;
@@ -59,7 +59,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
           } else {
             console.log('⚠️ Supabase version is newer - discarding local draft');
             // Clear stale local draft
-            await indexedDBManager.clearFromIndexedDB(document.id);
+            await indexedDBManager.clearFromIndexedDB(docData.id);
           }
         }
 
@@ -85,7 +85,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
 
         // Add originalName to processingInfo for DocumentModel
         if (documentData.processingInfo && !documentData.processingInfo.originalName) {
-          documentData.processingInfo.originalName = document.filename;
+          documentData.processingInfo.originalName = docData.filename;
         }
 
         // Load issues from analysis results
@@ -93,8 +93,8 @@ export default function DocumentViewerClient({ user, document, analysisResult })
 
         // Add Supabase metadata for fix application
         const supabaseMetadata = {
-          documentId: document.id,
-          filePath: document.file_path,
+          documentId: docData.id,
+          filePath: docData.file_path,
           userId: user.id
         };
 
@@ -122,7 +122,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
     };
 
     loadDocument();
-  }, [document.id, analysisResult, document.filename, loadExistingDocument, analyzeDocument, user.id]);
+  }, [docData.id, analysisResult, docData.filename, loadExistingDocument, analyzeDocument, user.id]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -171,7 +171,7 @@ export default function DocumentViewerClient({ user, document, analysisResult })
       <header className="bg-white shadow border-b border-gray-200">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{document.filename}</h1>
+            <h1 className="text-xl font-bold text-gray-900">{docData.filename}</h1>
             <div className="flex items-center gap-4 mt-1">
               <span className="text-sm text-gray-600">{user.email}</span>
               <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">

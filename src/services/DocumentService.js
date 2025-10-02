@@ -554,8 +554,9 @@ export class DocumentService {
 
     // Fallback: Search for text if location missing or paragraph not found
     if (!paragraphId) {
-      console.warn('⚠️ Location missing or invalid, searching for text:', issue.text || issue.highlightText);
-      const searchText = issue.text || issue.highlightText || fixValue?.original;
+      // Prefer fixValue.original (full text) or highlightText over issue.text (may be truncated)
+      const searchText = fixValue?.original || issue.highlightText || issue.text;
+      console.warn('⚠️ Location missing or invalid, searching for text:', searchText?.substring(0, 100));
 
       if (searchText) {
         // Search all paragraphs for matching text

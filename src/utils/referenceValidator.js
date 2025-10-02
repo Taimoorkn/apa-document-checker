@@ -318,10 +318,15 @@ export class ReferenceValidator {
           title: "Incorrect connector in reference",
           description: "Use '&' instead of 'and' between authors",
           text: entry.text.substring(0, 60) + '...',
+          highlightText: entry.text, // Full text for search fallback
           severity: "Minor",
           category: "references",
           hasFix: true,
           fixAction: "fixReferenceConnector",
+          fixValue: {
+            original: entry.text,
+            replacement: entry.text.replace(', and ', ', & ')
+          },
           explanation: "In reference lists, use & (ampersand) to connect the last two author names."
         });
       }

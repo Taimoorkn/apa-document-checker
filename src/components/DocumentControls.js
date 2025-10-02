@@ -1,12 +1,16 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
   CheckCircle2,
   Eye,
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  Download,
+  FileText,
+  File
 } from 'lucide-react';
+import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
 
 const DocumentControls = memo(({
   lastFixAppliedAt,
@@ -21,6 +25,44 @@ const DocumentControls = memo(({
   editor,
   tiptapConverter
 }) => {
+  const { documentModel, exportDocument } = useUnifiedDocumentStore();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async (format) => {
+    if (!documentModel) {
+      alert('No document loaded');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const result = await exportDocument(format);
+
+      if (result.success) {
+        // Create blob and download
+        const blob = format === 'html' || format === 'text'
+          ? new Blob([result.content], { type: format === 'html' ? 'text/html' : 'text/plain' })
+          : new Blob([result.content], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`✅ Exported as ${format}${result.method ? ` (${result.method})` : ''}`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(`Export failed: ${error.message}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="bg-white border-b border-slate-200 flex-shrink-0">
       <div className="px-6 py-4 border-b border-slate-100">
@@ -35,6 +77,29 @@ const DocumentControls = memo(({
             )}
           </div>
           <div className="flex items-center space-x-3">
+
+            {/* Export Buttons */}
+            {documentModel && (
+              <>
+                <button
+                  onClick={() => handleExport('docx')}
+                  disabled={isExporting}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-600/25 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>{isExporting ? 'Exporting...' : 'Export DOCX'}</span>
+                </button>
+
+                <button
+                  onClick={() => handleExport('html')}
+                  disabled={isExporting}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 shadow-sm disabled:bg-slate-100 disabled:cursor-not-allowed"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>HTML</span>
+                </button>
+              </>
+            )}
 
             {/* Run Check Button */}
             <button

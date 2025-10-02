@@ -199,8 +199,8 @@ export const useUnifiedDocumentEditor = () => {
           // LAYER 2: Save to IndexedDB for reload safety (2.5s debounce)
           saveToIndexedDB(editorContent);
 
-          // LAYER 3: Schedule Supabase save for long-term storage (5s debounce)
-          scheduleAutoSave(5000);
+          // LAYER 3: Schedule Supabase save for long-term storage (3s debounce)
+          scheduleAutoSave(false, 3000); // immediate=false, debounceMs=3000
         }
       } else {
         console.warn('Sync failed:', result.error);

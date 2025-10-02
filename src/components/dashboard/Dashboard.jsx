@@ -5,10 +5,10 @@ import { DashboardOverview } from './DashboardOverview';
 import { UploadSection } from './UploadSection';
 import { RecentDocuments } from './RecentDocuments';
 
-export default function Dashboard({ user, documents, onFileUpload, uploading, uploadingFileName, error, onDelete }) {
+export default function Dashboard({ user, profile, documents, onFileUpload, uploading, uploadingFileName, error, onDelete }) {
   return (
     <main className="flex-1 p-6 sm:p-8 space-y-8">
-      <DashboardHeader user={user} />
+      <DashboardHeader user={user} profile={profile} />
 
       <div className="space-y-8">
         <DashboardOverview documents={documents} />

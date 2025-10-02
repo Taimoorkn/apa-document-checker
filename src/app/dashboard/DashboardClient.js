@@ -8,7 +8,7 @@ import Sidebar from '@/components/dashboard/Sidebar';
 import MobileSidebar from '@/components/dashboard/MobileSidebar';
 import Dashboard from '@/components/dashboard/Dashboard.jsx';
 
-export default function DashboardClient({ user, initialDocuments }) {
+export default function DashboardClient({ user, profile, initialDocuments }) {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -161,11 +161,12 @@ export default function DashboardClient({ user, initialDocuments }) {
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
-      <Sidebar user={user} />
-      <MobileSidebar user={user} />
+      <Sidebar user={user} profile={profile} />
+      <MobileSidebar user={user} profile={profile} />
       <div className="flex-1 flex flex-col">
         <Dashboard
           user={user}
+          profile={profile}
           documents={documents}
           onFileUpload={handleFileUpload}
           uploading={uploading}

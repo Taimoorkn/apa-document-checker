@@ -14,6 +14,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import DisclaimerModal from "@/components/DisclaimerModal";
 
 const FeatureCard = ({ icon, title, children, delay }) => (
   <motion.div
@@ -54,7 +55,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-
+      {/* Disclaimer Modal - Shows once for new visitors */}
+      <DisclaimerModal />
 
       {/* Hero Section */}
       <main>

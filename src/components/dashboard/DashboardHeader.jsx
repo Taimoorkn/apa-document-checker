@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut } from "lucide-react";
 
-export function DashboardHeader({ user }) {
+export function DashboardHeader({ user, profile }) {
   const router = useRouter();
   const supabase = createClient();
 

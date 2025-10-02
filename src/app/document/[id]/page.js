@@ -2,6 +2,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
+import { getUserProfile } from '@/lib/profiles';
 import DocumentViewerClient from './DocumentViewerClient';
 
 // Disable caching to ensure fresh data after fixes are applied
@@ -35,6 +36,9 @@ export default async function DocumentPage({ params }) {
   if (authError || !user) {
     redirect('/login');
   }
+
+  // Fetch user profile
+  const profile = await getUserProfile(supabase, user.id);
 
   // Fetch document metadata from documents table
   const { data: document, error: docError } = await supabase
@@ -137,6 +141,7 @@ export default async function DocumentPage({ params }) {
   return (
     <DocumentViewerClient
       user={user}
+      profile={profile}
       document={document}
       analysisResult={analysisResult}
     />

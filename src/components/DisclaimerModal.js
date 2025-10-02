@@ -95,7 +95,7 @@ export default function DisclaimerModal() {
           </div>
 
           <div className="text-xs text-slate-500 leading-relaxed">
-            We only show this once using your browser's memory—no tracking, no data collection.
+            We only show this once using your browser&apos;s memory—no tracking, no data collection.
           </div>
         </div>
 

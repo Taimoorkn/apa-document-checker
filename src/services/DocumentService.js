@@ -314,9 +314,27 @@ export class DocumentService {
           filename: `${documentModel.metadata.name || 'document'}.html`
         };
 
-      case 'docx':
+      case 'docx': {
+        // NEW: Generate DOCX from JSON using DocxExportService
+        const { DocxExportService } = await import('./DocxExportService');
+        const exportService = new DocxExportService();
+
+        console.log('📤 Exporting document as DOCX (JSON-based)...');
+        const docxBuffer = await exportService.exportToDocx(documentModel);
+
+        return {
+          success: true,
+          format: 'docx',
+          content: docxBuffer,
+          filename: `${documentModel.metadata.name || 'document'}.docx`,
+          method: 'json-based' // Indicate new architecture
+        };
+      }
+
+      case 'docx-legacy': {
+        // LEGACY: Export from original buffer (for fallback)
         if (!documentModel.currentBuffer) {
-          throw new Error('No DOCX buffer available for export');
+          throw new Error('No DOCX buffer available for legacy export');
         }
 
         const decompressedBuffer = await this.compressionUtils.decompressBuffer(documentModel.currentBuffer);
@@ -325,8 +343,10 @@ export class DocumentService {
           success: true,
           format: 'docx',
           content: decompressedBuffer,
-          filename: `${documentModel.metadata.name || 'document'}.docx`
+          filename: `${documentModel.metadata.name || 'document'}.docx`,
+          method: 'legacy-buffer'
         };
+      }
 
       case 'text':
         return {
@@ -992,8 +1012,10 @@ export class DocumentService {
   /**
    * Auto-save manual edits to Supabase (JSON-based, no DOCX manipulation)
    * This is the NEW architecture - DOCX is generated only on export
+   * @param {DocumentModel} documentModel - The document to save
+   * @param {AbortSignal} signal - Optional abort signal for cancellation
    */
-  async autoSaveDocument(documentModel) {
+  async autoSaveDocument(documentModel, signal = null) {
     if (!documentModel) {
       console.error('❌ Auto-save failed: No document model provided');
       return {
@@ -1003,6 +1025,11 @@ export class DocumentService {
     }
 
     try {
+      // Check if operation was aborted
+      if (signal?.aborted) {
+        throw new DOMException('Auto-save aborted', 'AbortError');
+      }
+
       // Check if this document has Supabase metadata
       if (!documentModel.supabase.documentId) {
         console.warn('⚠️ Auto-save skipped: No Supabase document ID');
@@ -1019,6 +1046,11 @@ export class DocumentService {
       const issues = documentModel.issues.getAllIssues();
       const complianceScore = this._calculateComplianceScore(issues);
 
+      // Check abort signal before network operations
+      if (signal?.aborted) {
+        throw new DOMException('Auto-save aborted', 'AbortError');
+      }
+
       // Initialize Supabase client
       const { createBrowserClient } = await import('@supabase/ssr');
       const supabase = createBrowserClient(
@@ -1026,8 +1058,23 @@ export class DocumentService {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       );
 
-      // Update analysis_results table with new content
-      const { error: updateError } = await supabase
+      // Verify user session (security check)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.error('❌ No active session - user not authenticated');
+        return {
+          success: false,
+          error: 'No active session'
+        };
+      }
+
+      // Check abort signal before database operations
+      if (signal?.aborted) {
+        throw new DOMException('Auto-save aborted', 'AbortError');
+      }
+
+      // Try to update existing record first
+      const { data: updateData, error: updateError } = await supabase
         .from('analysis_results')
         .update({
           tiptap_content: tiptapContent,
@@ -1037,14 +1084,38 @@ export class DocumentService {
           editor_version: 1
           // content_saved_at is automatically updated by trigger
         })
-        .eq('document_id', documentModel.supabase.documentId);
+        .eq('document_id', documentModel.supabase.documentId)
+        .select();
 
-      if (updateError) {
-        console.error('❌ Supabase update failed:', updateError);
-        throw new Error(`Failed to save to database: ${updateError.message}`);
+      // If update didn't affect any rows, insert new record
+      if (!updateData || updateData.length === 0) {
+        console.log('🆕 No existing analysis_results row, creating new one');
+
+        const { data: insertData, error: insertError } = await supabase
+          .from('analysis_results')
+          .insert({
+            document_id: documentModel.supabase.documentId,
+            tiptap_content: tiptapContent,
+            issues: issues,
+            compliance_score: complianceScore,
+            issue_count: issues.length,
+            editor_version: 1
+          })
+          .select();
+
+        if (insertError) {
+          console.error('❌ Supabase insert failed:', insertError);
+          throw new Error(`Failed to save to database: ${insertError.message}`);
+        }
+
+        console.log('✅ Document auto-saved to Supabase (JSON - new record)');
+      } else {
+        if (updateError) {
+          console.error('❌ Supabase update failed:', updateError);
+          throw new Error(`Failed to save to database: ${updateError.message}`);
+        }
+        console.log('✅ Document auto-saved to Supabase (JSON - updated)');
       }
-
-      console.log('✅ Document auto-saved to Supabase (JSON)');
 
       // Update local state
       documentModel.version++;

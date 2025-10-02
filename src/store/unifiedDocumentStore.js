@@ -90,7 +90,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     lastSaveTimestamp: 0,
     lastSaveError: null,
     saveStatus: 'saved', // 'saved' | 'saving' | 'unsaved' | 'error'
-    autoSaveDebounceTimeout: null
+    autoSaveDebounceTimeout: null,
+    autoSaveAbortController: null // For cancelling in-flight saves
   },
 
   // Analysis state
@@ -98,7 +99,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     lastAnalysisTimestamp: 0,
     pendingAnalysis: false,
     analysisDebounceTimeout: null,
-    incrementalMode: true
+    incrementalMode: true,
+    analysisAbortController: null // For cancelling in-flight analysis
   },
 
   // UI preferences
@@ -288,6 +290,9 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       return { success: false, message: 'Analysis already in progress' };
     }
 
+    // Create new AbortController for this analysis
+    const abortController = new AbortController();
+
     set(currentState => ({
       processingState: {
         ...currentState.processingState,
@@ -297,11 +302,17 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       },
       analysisState: {
         ...currentState.analysisState,
-        pendingAnalysis: false
+        pendingAnalysis: false,
+        analysisAbortController: abortController
       }
     }));
 
     try {
+      // Check if aborted before starting
+      if (abortController.signal.aborted) {
+        throw new DOMException('Analysis aborted', 'AbortError');
+      }
+
       // Determine analysis type
       let changedParagraphs = null;
       const lastAnalysis = state.analysisState.lastAnalysisTimestamp;
@@ -316,6 +327,10 @@ export const useUnifiedDocumentStore = create((set, get) => ({
               ...currentState.processingState,
               isAnalyzing: false,
               stage: null
+            },
+            analysisState: {
+              ...currentState.analysisState,
+              analysisAbortController: null
             }
           }));
 
@@ -330,10 +345,17 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       const analysisOptions = {
         force,
         changedParagraphs,
-        preserveUnchanged: state.analysisState.incrementalMode
+        preserveUnchanged: state.analysisState.incrementalMode,
+        signal: abortController.signal // Pass abort signal
       };
 
       const result = await state.documentService.analyzeDocument(state.documentModel, analysisOptions);
+
+      // Check if aborted after analysis
+      if (abortController.signal.aborted) {
+        console.log('🚫 Analysis was cancelled');
+        return { success: false, aborted: true };
+      }
 
       set(currentState => ({
         processingState: {
@@ -343,7 +365,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         },
         analysisState: {
           ...currentState.analysisState,
-          lastAnalysisTimestamp: Date.now()
+          lastAnalysisTimestamp: Date.now(),
+          analysisAbortController: null
         }
       }));
 
@@ -364,6 +387,23 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       };
 
     } catch (error) {
+      // Don't log or throw if aborted
+      if (error.name === 'AbortError') {
+        console.log('🚫 Analysis request was aborted');
+        set(currentState => ({
+          processingState: {
+            ...currentState.processingState,
+            isAnalyzing: false,
+            stage: null
+          },
+          analysisState: {
+            ...currentState.analysisState,
+            analysisAbortController: null
+          }
+        }));
+        return { success: false, aborted: true };
+      }
+
       console.error('Error analyzing document:', error);
       set(currentState => ({
         processingState: {
@@ -371,6 +411,10 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           isAnalyzing: false,
           lastError: error.message,
           stage: null
+        },
+        analysisState: {
+          ...currentState.analysisState,
+          analysisAbortController: null
         }
       }));
       throw error;
@@ -545,24 +589,41 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   scheduleIncrementalAnalysis: (debounceMs = 1000) => {
     const state = get();
 
+    // Cancel any in-flight analysis request
+    if (state.analysisState.analysisAbortController) {
+      state.analysisState.analysisAbortController.abort();
+      console.log('🚫 Cancelled previous analysis request');
+    }
+
     // Clear existing timeout
     if (state.analysisState.analysisDebounceTimeout) {
       clearTimeout(state.analysisState.analysisDebounceTimeout);
     }
 
+    set(currentState => ({
+      analysisState: {
+        ...currentState.analysisState,
+        analysisDebounceTimeout: null,
+        analysisAbortController: null,
+        pendingAnalysis: true
+      }
+    }));
+
     const timeoutId = setTimeout(async () => {
       try {
         await get().analyzeDocument({ incrementalOnly: true });
       } catch (error) {
-        console.error('Scheduled analysis failed:', error);
+        // Don't log if aborted
+        if (error.name !== 'AbortError') {
+          console.error('Scheduled analysis failed:', error);
+        }
       }
     }, debounceMs);
 
     set(currentState => ({
       analysisState: {
         ...currentState.analysisState,
-        analysisDebounceTimeout: timeoutId,
-        pendingAnalysis: true
+        analysisDebounceTimeout: timeoutId
       }
     }));
   },
@@ -575,11 +636,18 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   scheduleAutoSave: (immediate = false, debounceMs = 2000) => {
     const state = get();
 
+    // Cancel any in-flight auto-save request
+    if (state.autoSaveState.autoSaveAbortController) {
+      state.autoSaveState.autoSaveAbortController.abort();
+      console.log('🚫 Cancelled previous auto-save request');
+    }
+
     // Mark as unsaved immediately
     set(currentState => ({
       autoSaveState: {
         ...currentState.autoSaveState,
-        saveStatus: 'unsaved'
+        saveStatus: 'unsaved',
+        autoSaveAbortController: null
       }
     }));
 
@@ -625,17 +693,27 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       return;
     }
 
+    // Create new AbortController for this save operation
+    const abortController = new AbortController();
+
     set(currentState => ({
       autoSaveState: {
         ...currentState.autoSaveState,
         isSaving: true,
         saveStatus: 'saving',
-        lastSaveError: null
+        lastSaveError: null,
+        autoSaveAbortController: abortController
       }
     }));
 
     try {
-      const result = await state.documentService.autoSaveDocument(state.documentModel);
+      const result = await state.documentService.autoSaveDocument(state.documentModel, abortController.signal);
+
+      // Check if request was aborted
+      if (abortController.signal.aborted) {
+        console.log('🚫 Auto-save was cancelled');
+        return;
+      }
 
       if (result.success) {
         set(currentState => ({
@@ -644,7 +722,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
             isSaving: false,
             lastSaveTimestamp: result.savedAt,
             saveStatus: 'saved',
-            lastSaveError: null
+            lastSaveError: null,
+            autoSaveAbortController: null
           }
         }));
 
@@ -663,6 +742,12 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       }
 
     } catch (error) {
+      // Don't log error if it was aborted
+      if (error.name === 'AbortError') {
+        console.log('🚫 Auto-save request was aborted');
+        return;
+      }
+
       console.error('❌ Auto-save failed:', error);
 
       set(currentState => ({
@@ -670,7 +755,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           ...currentState.autoSaveState,
           isSaving: false,
           saveStatus: 'error',
-          lastSaveError: error.message
+          lastSaveError: error.message,
+          autoSaveAbortController: null
         }
       }));
     }

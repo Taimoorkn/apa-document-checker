@@ -9,13 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 const DISCLAIMER_STORAGE_KEY = "apa-pro-disclaimer-shown";
 
 export default function DisclaimerModal() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showCloseButton, setShowCloseButton] = useState(false);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     // Check if disclaimer has been shown before
@@ -25,12 +25,18 @@ export default function DisclaimerModal() {
       // Show modal for first-time visitors
       setIsOpen(true);
 
-      // Enable close button after 5 seconds
-      const timer = setTimeout(() => {
-        setShowCloseButton(true);
-      }, 5000);
+      // Countdown timer
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
 
-      return () => clearTimeout(timer);
+      return () => clearInterval(timer);
     }
   }, []);
 
@@ -44,15 +50,15 @@ export default function DisclaimerModal() {
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        // Only allow closing if close button is visible
-        if (!open && showCloseButton) {
+        // Only allow closing if countdown is finished
+        if (!open && countdown === 0) {
           handleClose();
         }
       }}
     >
       <DialogContent
         className="sm:max-w-[600px]"
-        hideCloseButton={!showCloseButton}
+        hideCloseButton={countdown > 0}
       >
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
@@ -63,45 +69,46 @@ export default function DisclaimerModal() {
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 pt-2">
+        <div className="space-y-5 pt-2">
           <div className="text-slate-700 leading-relaxed text-base">
             Thank you for visiting! Before you continue:
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 space-y-3">
             <div className="text-slate-700 font-semibold text-base">
-              🚧 This website is currently in active development and testing.
+              🚧 This website is currently in active development and testing
             </div>
             <div className="text-slate-600 text-sm leading-relaxed">
-              Ensuring accuracy and smooth experience is our prioriy but you may
-              encounter bugs or features under construction right now. Your
-              patience is appreciated.
+              Ensuring accuracy and a smooth experience is our priority, but you may
+              encounter bugs or features under construction. Your patience is appreciated!
+            </div>
+
+            <div className="pt-2 border-t border-blue-200">
+              <div className="text-slate-700 font-semibold text-base mb-1">
+                ✨ Get started today
+              </div>
+              <div className="text-slate-600 text-sm leading-relaxed">
+                Create a free account to access our APA 7th edition document
+                checker and editor.
+              </div>
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-emerald-50 to-blue-50 border border-emerald-200 rounded-lg p-4 space-y-2">
-            <div className="text-slate-700 font-semibold text-base">
-              Get started today!
-            </div>
-            <div className="text-slate-600 text-sm leading-relaxed">
-              Create a free account to access our APA 7th edition document
-              checker and editor.
-            </div>
+          <div className="text-xs text-slate-500 leading-relaxed">
+            We only show this once using your browser's memory—no tracking, no data collection.
           </div>
-          <p>This dialog will be shown only once. We place a flag in your browsers local storage to do this. This makes it possible to not show this dialog box everytime you visit and we dont have to use any user data to show this. Enjoy the website</p>
         </div>
 
         <div className="flex justify-end pt-4">
-          {showCloseButton ? (
-            <Button onClick={handleClose} className="gap-2">
-              Got it!
-              <X className="h-4 w-4" />
-            </Button>
-          ) : (
+          {countdown > 0 ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span>Please read the message above...</span>
+              <span>You can continue in {countdown} second{countdown !== 1 ? 's' : ''}...</span>
             </div>
+          ) : (
+            <Button onClick={handleClose}>
+              Got it!
+            </Button>
           )}
         </div>
       </DialogContent>

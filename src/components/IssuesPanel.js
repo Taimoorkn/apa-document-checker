@@ -52,6 +52,24 @@ export default function IssuesPanel({
     }
   }, [propsActiveIssueId]);
 
+  // Listen for activeIssueChanged events from editor (Ctrl+click on highlights)
+  useEffect(() => {
+    const cleanup = events.on('activeIssueChanged', (data) => {
+      if (data.currentId) {
+        setLocalActiveIssueId(data.currentId);
+        // Scroll the issue into view in the panel
+        setTimeout(() => {
+          const element = issueRefs.current[data.currentId];
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 100);
+      }
+    });
+
+    return cleanup;
+  }, [events]);
+
   // Handle issue click
   const handleIssueClick = useCallback((issueId) => {
     if (propsOnIssueClick) {

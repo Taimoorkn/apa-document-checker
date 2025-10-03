@@ -56,6 +56,18 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
       // Update issues state (triggers decoration update)
       setIssues(newIssues);
 
+      // IMPORTANT: Also update DocumentModel so IssuesPanel can see the new issues
+      if (documentModel && documentModel.issues) {
+        // Clear old issues by clearing the Maps
+        documentModel.issues.issues.clear();
+        documentModel.issues.paragraphIssues.clear();
+
+        // Add new issues
+        newIssues.forEach(issue => {
+          documentModel.issues.addIssue(issue);
+        });
+      }
+
       console.log(`✅ Analysis complete: ${newIssues.length} issues found`);
       setIsAnalyzing(false);
     } catch (error) {

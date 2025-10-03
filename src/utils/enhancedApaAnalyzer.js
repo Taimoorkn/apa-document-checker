@@ -1135,30 +1135,36 @@ export class EnhancedAPAAnalyzer {
    */
   prioritizeAndDeduplicateIssues(issues) {
     // Remove duplicates based on title and text
-    const unique = issues.filter((issue, index, self) => 
-      index === self.findIndex(i => 
+    const unique = issues.filter((issue, index, self) =>
+      index === self.findIndex(i =>
         i.title === issue.title && i.text === issue.text
       )
     );
-    
+
     // Sort by severity and category
     const severityOrder = { 'Critical': 0, 'Major': 1, 'Minor': 2 };
-    const categoryOrder = { 
-      'formatting': 0, 
-      'structure': 1, 
-      'citations': 2, 
-      'references': 3, 
-      'content': 4 
+    const categoryOrder = {
+      'formatting': 0,
+      'structure': 1,
+      'citations': 2,
+      'references': 3,
+      'content': 4
     };
-    
-    return unique.sort((a, b) => {
+
+    const sorted = unique.sort((a, b) => {
       // First by severity
       const severityCompare = severityOrder[a.severity] - severityOrder[b.severity];
       if (severityCompare !== 0) return severityCompare;
-      
+
       // Then by category
       return categoryOrder[a.category] - categoryOrder[b.category];
     });
+
+    // Assign unique IDs to each issue (required for highlighting and panel linking)
+    return sorted.map((issue, index) => ({
+      ...issue,
+      id: issue.id || `issue-${Date.now()}-${index}`
+    }));
   }
 }
 

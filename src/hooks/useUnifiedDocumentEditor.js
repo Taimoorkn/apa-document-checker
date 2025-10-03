@@ -46,7 +46,15 @@ export const useUnifiedDocumentEditor = () => {
         issues: [], // Will be updated by useIssueDecorations
         activeIssueId,
         showHighlighting,
-        onIssueClick: (issueId) => setActiveIssueId(issueId)
+        onIssueClick: (issueId) => {
+          setActiveIssueId(issueId);
+          // Emit event so issues panel can react
+          events.emit('activeIssueChanged', {
+            previousId: activeIssueId,
+            currentId: issueId,
+            shouldScroll: false // Already in view, don't scroll editor
+          });
+        }
       })
     ],
     content: '<p>Loading document...</p>',

@@ -846,8 +846,10 @@ export class EnhancedAPAAnalyzer {
           .join(' ');
 
         // Calculate paragraph index from text position
+        // NOTE: titleMatch.index points to the \n BEFORE the heading (part of the regex pattern)
+        // So we don't subtract 1, because that newline is the separator TO this paragraph
         const textBeforeMatch = text.substring(0, titleMatch.index);
-        const calculatedParagraphIndex = textBeforeMatch.split('\n').length - 1;
+        const calculatedParagraphIndex = textBeforeMatch.split('\n').length;
 
         issues.push({
           title: "ALL CAPS heading detected",

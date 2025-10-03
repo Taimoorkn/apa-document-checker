@@ -85,6 +85,22 @@ export class TiptapAPAAnalyzer {
       console.warn(`   ⚠️ MISMATCH: Split creates ${splitCheck.length} paragraphs, but we have ${tiptapParagraphs.length} Tiptap paragraphs!`);
     }
 
+    // Debug: Check if arrays actually match
+    let mismatchCount = 0;
+    splitCheck.forEach((text, i) => {
+      if (text !== tiptapParagraphs[i]) {
+        if (mismatchCount < 3) {
+          console.warn(`   ⚠️ Paragraph ${i} mismatch:`);
+          console.warn(`      Split: "${text.substring(0, 40)}..."`);
+          console.warn(`      Tiptap: "${tiptapParagraphs[i]?.substring(0, 40)}..."`);
+        }
+        mismatchCount++;
+      }
+    });
+    if (mismatchCount > 0) {
+      console.warn(`   ⚠️ Total paragraph content mismatches: ${mismatchCount}`);
+    }
+
     // Run existing analyzer
     const rawIssues = this.baseAnalyzer.analyzeDocument(documentData);
 

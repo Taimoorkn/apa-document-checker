@@ -7,8 +7,12 @@ import { createClient } from '@/lib/supabase/client';
 /**
  * Auto-save hook - Passive observer of editor changes
  * Saves to IndexedDB and Supabase without mutating editor
+ * @param {Object} editor - Tiptap editor instance
+ * @param {string} documentId - Document ID
+ * @param {boolean} enabled - Enable auto-save
+ * @param {Function} onSaveStatusChange - Callback for save status changes
  */
-export const useAutoSave = (editor, documentId, enabled = true) => {
+export const useAutoSave = (editor, documentId, enabled = true, onSaveStatusChange = null) => {
   const lastSavedContentRef = useRef(null);
   const activeSaveAbortRef = useRef(null); // Track active save operation
   const debounceTimeoutRef = useRef(null); // Minimal debounce to batch rapid keystrokes
@@ -42,6 +46,11 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
           }
 
           lastSavedContentRef.current = contentString;
+
+          // Notify saving started
+          if (onSaveStatusChange) {
+            onSaveStatusChange('saving');
+          }
 
           // Create abort controller for this save operation
           const abortController = new AbortController();
@@ -78,11 +87,20 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
 
             console.log('✅ Auto-saved to Supabase');
             activeSaveAbortRef.current = null;
+
+            // Notify save success
+            if (onSaveStatusChange) {
+              onSaveStatusChange('saved');
+            }
           } catch (error) {
             if (error.name === 'AbortError') {
               console.log('🔄 Supabase save cancelled (newer edit detected)');
             } else {
               console.error('❌ Supabase save failed:', error);
+              // Notify save error
+              if (onSaveStatusChange) {
+                onSaveStatusChange('error', error.message);
+              }
             }
             activeSaveAbortRef.current = null;
           }
@@ -90,6 +108,10 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
         } catch (error) {
           console.error('❌ Auto-save failed:', error);
           activeSaveAbortRef.current = null;
+          // Notify save error
+          if (onSaveStatusChange) {
+            onSaveStatusChange('error', error.message);
+          }
         }
       }, 300); // Minimal debounce to batch rapid keystrokes
     };

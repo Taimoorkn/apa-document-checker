@@ -4,10 +4,12 @@ import React from 'react';
 import { EditorContent } from '@tiptap/react';
 import { useUnifiedDocumentEditor } from '@/hooks/useUnifiedDocumentEditor';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
+import { useToast } from '@/hooks/use-toast';
 import EmptyDocumentState from '@/components/EmptyDocumentState';
 import LoadingState from '@/components/LoadingState';
 import DocumentControls from '@/components/DocumentControls';
 import FormattingToolbar from '@/components/FormattingToolbar';
+import { SavingIndicator } from '@/components/SavingIndicator';
 
 /**
  * New Document Editor Component
@@ -27,10 +29,25 @@ export const NewDocumentEditor = () => {
     isAnalyzing,
     triggerAnalysis,
     showHighlighting,
-    toggleHighlighting
+    toggleHighlighting,
+    saveStatus,
+    saveError,
+    retrySave
   } = useUnifiedDocumentEditor();
 
+  const { toast } = useToast();
   const isLoading = processingState.isUploading;
+
+  // Show error toast when save fails
+  React.useEffect(() => {
+    if (saveError) {
+      toast({
+        title: "Auto-save failed",
+        description: saveError,
+        variant: "destructive",
+      });
+    }
+  }, [saveError, toast]);
 
   // Loading state
   if (isLoading) {
@@ -102,6 +119,9 @@ export const NewDocumentEditor = () => {
           </div>
         </div>
       </div>
+
+      {/* Saving Indicator */}
+      <SavingIndicator saveStatus={saveStatus} onRetry={retrySave} />
     </div>
   );
 };

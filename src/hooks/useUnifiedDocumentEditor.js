@@ -29,6 +29,8 @@ export const useUnifiedDocumentEditor = () => {
   // UI state (moved from Zustand)
   const [activeIssueId, setActiveIssueId] = useState(null);
   const [showHighlighting, setShowHighlighting] = useState(true);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [saveError, setSaveError] = useState(null);
 
   const editor = useEditor({
     extensions: [
@@ -95,7 +97,15 @@ export const useUnifiedDocumentEditor = () => {
 
   // Auto-save hook (passive observer)
   const documentId = documentModel?.supabase?.documentId || documentModel?.id;
-  useAutoSave(editor, documentId, !!documentModel);
+  // Auto-save hook with status callback
+  useAutoSave(editor, documentId, !!documentModel, (status, errorMessage) => {
+    setSaveStatus(status);
+    if (status === 'error') {
+      setSaveError(errorMessage || 'Auto-save failed');
+    } else {
+      setSaveError(null);
+    }
+  });
 
   // Analysis hook (passive observer) - wait for editor to be initialized with content
   const { issues, isAnalyzing, triggerAnalysis } = useAnalysis(editor, documentModel, !!documentModel, editorInitialized);
@@ -529,6 +539,16 @@ export const useUnifiedDocumentEditor = () => {
     showHighlighting,
     toggleHighlighting: () => setShowHighlighting(!showHighlighting),
     scrollToIssue,
+
+    // Save status
+    saveStatus,
+    saveError,
+    retrySave: () => {
+      if (editor) {
+        // Trigger a dummy update to retry save
+        editor.commands.focus();
+      }
+    },
 
     // Stats for debugging
     stats: {

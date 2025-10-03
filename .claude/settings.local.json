@@ -22,7 +22,8 @@
       "Bash(echo:*)",
       "Bash(mkdir:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []

@@ -16,6 +16,8 @@ export class PositionCalculator {
    * Build a position map from editor document structure
    * This creates a mapping between text paragraph indices and ProseMirror positions
    *
+   * Maps both getText() newline-based indices AND actual Tiptap paragraph indices
+   *
    * @param {Editor} editor - Tiptap editor instance
    * @returns {Object} Position map with paragraph metadata
    */
@@ -27,20 +29,21 @@ export class PositionCalculator {
 
     const { doc } = editor.state;
     const paragraphMap = [];
-    let textParagraphIndex = 0;
+    let tiptapParagraphIndex = 0;
 
+    // Build mapping from Tiptap paragraphs
     doc.descendants((node, pos) => {
       // Only track block-level content nodes (paragraphs and headings)
       if (node.type.name === 'paragraph' || node.type.name === 'heading') {
         paragraphMap.push({
-          textIndex: textParagraphIndex,
+          tiptapIndex: tiptapParagraphIndex,
           pmPosition: pos,
           nodeSize: node.nodeSize,
           textContent: node.textContent,
           textLength: node.textContent.length,
           nodeType: node.type.name
         });
-        textParagraphIndex++;
+        tiptapParagraphIndex++;
       }
     });
 
@@ -65,36 +68,38 @@ export class PositionCalculator {
       return null;
     }
 
+    // SIMPLIFIED APPROACH: Given the mismatch between text-based indices (from getText().split('\n'))
+    // and Tiptap's actual paragraph structure, the most reliable approach is to use text search.
+    // The paragraph index is unreliable, so prioritize searchText.
+
+    if (searchText && editor) {
+      // Primary: Use text search (reliable)
+      const found = this.findTextInDocument(editor, searchText);
+      if (found) {
+        return found;
+      }
+    }
+
+    // Fallback: Try paragraph-based calculation (may fail due to index mismatch)
     const { paragraphIndex, charOffset, length } = location;
 
-    // Find the paragraph in our map
-    const paragraph = positionMap.paragraphs.find(p => p.textIndex === paragraphIndex);
+    // Try to find paragraph by index (knowing it may be wrong)
+    const paragraph = positionMap.paragraphs.find(p => p.tiptapIndex === paragraphIndex);
 
     if (!paragraph) {
-      console.warn(`⚠️ Paragraph ${paragraphIndex} not found in position map (total: ${positionMap.totalParagraphs})`);
-
-      // Fallback: search for text if provided
-      if (searchText && editor) {
-        return this.findTextInDocument(editor, searchText);
-      }
-
+      // Index mismatch expected - this is normal
       return null;
     }
 
     // Calculate ProseMirror positions
-    // Node content starts at position + 1 (position points to node start token)
     const from = paragraph.pmPosition + 1 + (charOffset || 0);
     const to = from + (length || searchText?.length || 0);
 
-    // Validate positions are within paragraph bounds
+    // Validate positions
     const maxPosition = paragraph.pmPosition + paragraph.nodeSize;
     if (to > maxPosition) {
-      console.warn(`⚠️ Calculated position ${to} exceeds paragraph boundary ${maxPosition}`);
-
-      // Try fallback search
-      if (searchText && editor) {
-        return this.findTextInDocument(editor, searchText);
-      }
+      // Position calculation failed
+      return null;
     }
 
     return { from, to };

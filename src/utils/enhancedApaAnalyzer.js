@@ -1161,10 +1161,33 @@ export class EnhancedAPAAnalyzer {
     });
 
     // Assign unique IDs to each issue (required for highlighting and panel linking)
-    return sorted.map((issue, index) => ({
-      ...issue,
-      id: issue.id || `issue-${Date.now()}-${index}`
-    }));
+    // Use content-based hash for stable IDs across re-analysis
+    return sorted.map((issue, index) => {
+      if (issue.id) return issue;
+
+      // Create stable ID from issue content (not timestamp)
+      const contentKey = `${issue.title}-${issue.category}-${issue.location?.paragraphIndex || 'doc'}-${issue.highlightText?.substring(0, 20) || issue.text?.substring(0, 20) || ''}`;
+      const stableHash = this._simpleHash(contentKey);
+
+      return {
+        ...issue,
+        id: `issue-${stableHash}-${index}`
+      };
+    });
+  }
+
+  /**
+   * Simple hash function for generating stable issue IDs
+   * @private
+   */
+  _simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
   }
 }
 

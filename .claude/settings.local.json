@@ -23,7 +23,8 @@
       "Bash(mkdir:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(git log:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

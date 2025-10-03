@@ -1,386 +1,548 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Development Commands
-
-- **Start development server**: `npm run dev` - Runs both Next.js frontend (port 3000) and Express backend (port 3001) concurrently
-- **Start backend only**: `npm run server` - Runs Express server with nodemon for hot reloading
-- **Build production**: `npm run build` - Creates production build of Next.js app
-- **Start production**: `npm start` - Starts production Next.js server
-- **Lint code**: `npm run lint` - Runs ESLint
-
-## Architecture Overview
-
-This is a sophisticated full-stack document analysis application that validates academic documents against APA 7th edition guidelines using advanced XML-based processing and Tiptap rich text editing with real-time issue highlighting.
-
-### Frontend Architecture (Next.js)
-- **Framework**: Next.js 15 with React 19, using JavaScript (not TypeScript)
-- **App Router**: Uses Next.js App Router with layout.js and page.js structure
-- **Styling**: Tailwind CSS 3.4.16 with custom Tiptap-specific styles (`src/styles/tiptap.css`)
-- **State Management**: Multiple specialized Zustand stores for different concerns
-- **Rich Text Editor**: Tiptap 3.4.2 with custom extensions for APA compliance and real-time issue highlighting
-- **Error Handling**: Multi-layered error boundaries for graceful degradation
-
-### Backend Architecture (Express)
-- **Server**: Express 4.21.2 with security middleware (helmet v7.2.0, cors v2.8.5)
-- **Document Processing**: XML-based .docx processing using PizZip v3.2.0 and xml2js v0.6.2
-- **File Handling**: Multer v1.4.5 for file uploads with 50MB limit and comprehensive security validation
-- **API Structure**: RESTful endpoints under `/api` prefix with standardized error handling
-- **Memory Management**: Automatic cleanup and memory monitoring for large document processing
-
-## System Flow Process
-
-### 1. Document Upload & Initial Processing
-```
-User Action → File Upload (DocumentEditor) → Security Validation → XML Processing
-   ↓
-MultipartForm → Multer Middleware → File Type Check → ZIP Signature Validation
-   ↓
-XmlDocxProcessor → DOCX Extraction → XML Parsing → Rich Data Extraction
-   ↓
-{text, html, formatting, structure, styles, headers, footers, italicizedText}
-```
-
-### 2. Client-Side Document Conversion
-```
-Server Response → TiptapDocumentConverter → Async Processing → UI Yielding
-   ↓
-Paragraph Batching → Formatted Node Creation → Custom Extensions → Tiptap JSON
-   ↓
-FormattedParagraph Nodes + FontFormatting Marks + DocumentDefaults
-```
-
-### 3. APA Analysis Pipeline
-```
-Document Data → EnhancedAPAAnalyzer → Validator Orchestration
-   ↓
-11 Specialized Validators (Parallel Processing):
-├── ReferenceValidator (alphabetical order, hanging indent, cross-checking)
-├── AdvancedCitationValidator (et al. rules, multi-author, secondary sources)
-├── TableFigureValidator (numbering, formatting, callouts, borders)
-├── QuotationValidator (block quotes, ellipsis, square brackets)
-├── StatisticalValidator (notation, decimals, italicization)
-├── BiasFreeLanguageValidator (inclusive language, person-first)
-├── HeaderFooterValidator (running heads, page numbers)
-├── ComprehensiveValidator (lists, abbreviations, appendices)
-├── AdditionalAPARules (footnotes, equations, legal, social media)
-├── Basic Structure Analysis (sections, hierarchy)
-└── Content Compliance Checks
-   ↓
-Issue Aggregation → Deduplication → Severity Prioritization → Return Issues[]
-```
-
-### 4. Real-Time Issue Highlighting
-```
-Issues Array → TiptapIssueHighlighter → ProseMirror Decorations
-   ↓
-Text Matching → Position Calculation → Decoration Creation
-   ↓
-Severity-Based Styling (Critical=Red, Major=Orange, Minor=Blue)
-   ↓
-Click Handlers → Active Issue State → Navigation Support
-```
-
-### 5. State Management Flow
-```
-Multiple Zustand Stores (Specialized Concerns):
-├── enhancedDocumentStore.js (main document state, server integration)
-├── documentStore.js (basic document data)
-├── issuesStore.js (issue management, highlighting control)
-├── processingStore.js (upload/analysis state, progress tracking)
-└── analysisStore.js (real-time analysis with debouncing)
-   ↓
-Store Synchronization → React Component Updates → UI Reactivity
-```
-
-### 6. Interactive Editing & Fix Application
-```
-User Edits → Tiptap Editor → Real-time Analysis (8s debounce)
-   ↓
-Text Change Detection → Issue Revalidation → Highlight Updates
-   ↓
-Fix Actions → Server Request (/api/apply-fixes) → DocxModifier
-   ↓
-XML Manipulation → DOCX Regeneration → Client Download
-```
-
-## Component Architecture
-
-### Core Components (`src/components/`)
-
-**Main Interface Components**:
-- **`page.js`**: Root page component orchestrating the entire application
-- **`Header.js`**: File upload controls, document statistics, processing status
-- **`DocumentEditor.js`**: Main Tiptap editor with custom extensions and formatting preservation
-- **`IssuesPanel.js`**: Categorized issue display with severity indicators and fix suggestions
-- **`LoadingState.js`**: Processing state display with progress indicators
-
-**Editor Components**:
-- **`EditorContent.js`**: Tiptap editor content wrapper with issue highlighting
-- **`FormattingToolbar.js`**: Text formatting controls (bold, italic, alignment)
-- **`DocumentControls.js`**: Document-level actions (save, export, reset)
-
-**State Components**:
-- **`EmptyDocumentState.js`**: Empty state with upload prompts
-- **`DocumentIssuesBanner.js`**: Quick issue summary and navigation
-
-**Error Handling**:
-- **`ErrorBoundary.js`**: General error boundary wrapper
-- **`AnalysisErrorBoundary.js`**: Specific error handling for analysis failures
-- **`EditorErrorBoundary.js`**: Editor-specific error recovery
-
-### State Management (`src/store/`)
-
-**Specialized Zustand Stores**:
-- **`enhancedDocumentStore.js`**: Main document state, server communication, analysis orchestration
-- **`documentStore.js`**: Basic document data (text, HTML, formatting)
-- **`issuesStore.js`**: Issue management, active issue tracking, highlighting control
-- **`processingStore.js`**: Upload/analysis state, progress tracking, real-time timers
-- **`analysisStore.js`**: Real-time analysis functions with debouncing (8s for performance)
-
-### Hooks (`src/hooks/`)
-
-**Custom React Hooks**:
-- **`useDocumentEditor.js`**: Main editor integration hook with issue highlighting
-- **`useKeyboardShortcuts.js`**: Keyboard navigation and editor shortcuts
-- **`useTextReplacement.js`**: Text replacement utilities for fixes
-
-## APA Validation System
-
-### Validator Architecture (`src/utils/`)
-
-**Core Orchestrator**:
-- **`enhancedApaAnalyzer.js`**: Main analysis coordinator with error handling and modular validator injection
-
-**Specialized Validators** (11 modules):
-
-1. **`referenceValidator.js`**: Reference list compliance
-   - Alphabetical ordering by first author surname
-   - Hanging indent detection (0.5 inches)
-   - Citation cross-checking (orphaned/missing references)
-   - Type-specific formatting (journal, book, online)
-   - DOI/URL validation and italicization compliance
-
-2. **`advancedCitationValidator.js`**: Complex citation rules
-   - Multi-author et al. rules (3+ authors)
-   - Secondary source validation ("as cited in")
-   - Personal communication format
-   - Corporate author abbreviations
-   - Chronological consistency (2021a, 2021b)
-
-3. **`tableFigureValidator.js`**: Visual element formatting
-   - Sequential numbering validation (Table 1, 2, 3...)
-   - Title case (tables) vs sentence case (figures)
-   - In-text callout verification
-   - APA border requirements (horizontal lines only)
-   - Placement validation
-
-4. **`quotationValidator.js`**: Quote formatting
-   - Block quote detection (40+ words)
-   - Proper indentation without quotation marks
-   - Ellipsis format validation (three dots with spacing)
-   - Square bracket modifications ([sic], clarifications)
-   - Citation placement requirements
-
-5. **`statisticalValidator.js`**: Statistical notation
-   - Context-aware italicization (p, t, F, r values)
-   - Decimal place enforcement (2-3 for p-values)
-   - Leading zero rules (correlation/p-value exceptions)
-   - Statistical test reporting formats
-   - Mathematical operator spacing
-
-6. **`biasFreeLanguageValidator.js`**: Inclusive language
-   - Gendered language alternatives ("chairperson" not "chairman")
-   - Person-first disability language preferences
-   - Age-appropriate terminology ("older adults")
-   - Racial/ethnic capitalization (Black, White)
-   - SOGI terminology updates
-   - Pronoun usage analysis
-
-7. **`headerFooterValidator.js`**: Headers and pagination
-   - Professional vs student paper distinction
-   - Running head format (50 characters, all caps)
-   - Page number placement (top-right in headers)
-   - Title page element validation
-   - Section consistency across document
-
-8. **`comprehensiveValidator.js`**: Structural elements
-   - List formatting (serial commas, parallel structure)
-   - Abbreviation management (first-use definitions)
-   - Appendix validation (sequential labeling A, B, C)
-   - Title and heading compliance
-   - Supplemental material notation
-
-9. **`additionalApaRules.js`**: Edge cases and specialties
-   - Footnote usage (discourages excessive use)
-   - Mathematical equation formatting
-   - Legal reference italicization
-   - Social media citation compliance
-   - Conference paper requirements
-   - Data availability statements
-
-### Tiptap Integration (`src/utils/`)
-
-**Document Processing**:
-- **`tiptapDocumentConverter.js`**: DOCX to Tiptap JSON conversion with async processing and memory monitoring
-- **`tiptapFormattingExtensions.js`**: Custom paragraph/text nodes preserving DOCX formatting
-- **`tiptapIssueHighlighter.js`**: Real-time issue highlighting using ProseMirror decorations
-
-**Supporting Utilities**:
-- **`errorHandler.js`**: Standardized error processing and user-friendly message mapping
-
-## Backend Services
-
-### Server Structure (`server/`)
-
-**Main Server**:
-- **`index.js`**: Express server with security middleware, graceful shutdown, and concurrent development support
-
-**API Routes** (`server/routes/`):
-- **`docx.js`**: Document processing endpoints
-  - `POST /api/upload-docx`: File upload, validation, and processing
-  - `POST /api/apply-fixes`: Apply APA formatting fixes to documents
-
-**Document Processors** (`server/processors/`):
-- **`XmlDocxProcessor.js`**: Comprehensive XML-based DOCX parsing
-  - ZIP extraction and XML parsing
-  - Rich formatting data extraction (fonts, spacing, indentation)
-  - Structure analysis (headings, tables, figures)
-  - Style and formatting preservation
-  - Memory-efficient processing with cleanup
-
-- **`DocxModifier.js`**: Document modification for fix application
-  - XML structure manipulation
-  - Formatting fix implementation
-  - DOCX regeneration with preserved structure
-
-## Data Flow Architecture
-
-### Upload → Processing → Analysis → Display → Editing → Fixes
-
-1. **File Upload**: Drag-and-drop or file picker → Multer validation → ZIP signature check
-2. **XML Processing**: DOCX extraction → XML parsing → Rich data extraction
-3. **Client Conversion**: Server data → Tiptap JSON → Editor rendering
-4. **APA Analysis**: 11 validators → Issue detection → Severity classification
-5. **Visual Feedback**: ProseMirror decorations → Real-time highlighting → User interaction
-6. **Real-time Editing**: Content changes → Debounced analysis (8s) → Live issue updates
-7. **Fix Application**: User fixes → Server processing → DOCX modification → Download
-
-### Error Handling Strategy
-
-**Multi-layered Error Boundaries**:
-- Component-level error boundaries for graceful degradation
-- Validator-level error handling with standardized error objects
-- API-level error handling with user-friendly messages
-- File processing error recovery with fallback mechanisms
-
-### Performance Optimizations
-
-**Client-Side**:
-- Async document conversion with UI yielding (MessageChannel/setTimeout)
-- Batch processing for large documents (50-100 paragraph batches)
-- Memory monitoring with garbage collection recommendations
-- Debounced real-time analysis (8 seconds for performance balance)
-
-**Server-Side**:
-- Memory-based processing with automatic cleanup
-- Streaming XML parsing for large documents
-- Efficient ZIP handling with PizZip
-- Request size limits (50MB) with proper error handling
-
-## Development Workflow
-
-### Local Development
-1. **Start Services**: `npm run dev` (concurrently runs Next.js:3000 + Express:3001)
-2. **File Changes**: Automatic reloading via nodemon (backend) and Next.js hot reload (frontend)
-3. **Error Monitoring**: Console logging with environment-based verbosity
-4. **Code Quality**: ESLint integration with Next.js configuration
-
-### Testing Strategy
-- Modular validator architecture enables isolated unit testing
-- Error boundary testing for graceful failure scenarios
-- Document processing testing with various DOCX formats
-- Performance testing with large document processing
-
-### Technical Dependencies
-
-**Core Technologies**:
-- Next.js 15.5.0 + React 19.1.0 (Frontend framework)
-- Express 4.21.2 (Backend API server)
-- Tiptap 3.4.2 (Rich text editing with ProseMirror)
-- Zustand 5.0.8 (State management)
-
-**Document Processing**:
-- PizZip 3.2.0 (ZIP/DOCX handling and extraction)
-- xml2js 0.6.2 (XML parsing and manipulation)
-- @xmldom/xmldom 0.8.11 (DOM manipulation for XML)
-- node-html-parser 6.1.13 (HTML processing and cleanup)
-
-**Security & Infrastructure**:
-- Helmet 7.2.0 (Security headers and protection)
-- CORS 2.8.5 (Cross-origin resource sharing)
-- Multer 1.4.5 (File upload handling with validation)
-- Natural 6.12.0 (Text processing and linguistic utilities)
-
-**Development & Build Tools**:
-- Concurrently 8.2.2 (Parallel process execution for dev mode)
-- Nodemon 3.1.10 (Development server auto-restart)
-- ESLint 9 + Next.js config (Code quality and linting)
-- Tailwind CSS 3.4.16 + PostCSS 8.5.3 (Styling framework)
-
-## APA Compliance Features
-
-### Comprehensive APA 7th Edition Coverage
-
-**Document Structure & Formatting**:
-- Font compliance (Times New Roman 12pt)
-- Spacing validation (double spacing, proper margins)
-- Heading hierarchy (Levels 1-5 with proper formatting)
-- Title page elements and organization
-
-**Citation & Reference Management**:
-- In-text citation formats (parenthetical vs narrative)
-- Multi-author rules and et al. usage
-- Secondary source handling
-- Reference list alphabetization and formatting
-- DOI/URL compliance and accessibility
-
-**Visual Elements**:
-- Table formatting (numbering, borders, titles)
-- Figure compliance (captions, numbering, placement)
-- Mathematical equation formatting
-- Statistical notation standards
-
-**Language & Style**:
-- Bias-free language recommendations
-- Person-first language for disabilities
-- Inclusive terminology for race, gender, age
-- Professional writing standards
-
-**Technical Requirements**:
-- Headers and footers (running heads, page numbers)
-- Appendix formatting and organization
-- Footnote usage guidelines
-- Supplemental material notation
-
-# Important Development Guidelines
-
-## Code Quality Standards
-- **Error Handling**: Always implement comprehensive error boundaries and graceful degradation
-- **Performance**: Monitor memory usage, implement batching for large documents, use debouncing for real-time features
-- **Security**: Validate all file uploads, sanitize user input, implement proper CORS and security headers
-- **Testing**: Write unit tests for validators, integration tests for document processing, error boundary tests
-- **Documentation**: Comment complex algorithms, maintain clear component interfaces, document API endpoints
-
-## Architecture Principles
-- **Modularity**: Keep validators independent and testable
-- **Separation of Concerns**: Clear boundaries between frontend/backend, UI/logic, state/presentation
-- **Error Recovery**: Implement fallback mechanisms for all critical operations
-- **Performance First**: Optimize for large document processing, real-time responsiveness
-- **User Experience**: Provide clear feedback, loading states, and helpful error messages
-
-# important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
+# APA Document Checker - LLM Context Guide
+
+## Project Overview
+
+APA Document Checker is a real-time web application that validates DOCX documents against APA 7th Edition formatting standards. Users upload Word documents, the system identifies compliance issues with precise locations, and provides both automated and manual fixes through a live rich-text editor.
+
+## Core Architecture Philosophy
+
+### Tiptap-First Real-Time Editing
+
+The application uses a **Tiptap-first architecture** where the ProseMirror-based rich text editor serves as the single source of truth during editing sessions. This design eliminates the traditional DOCX-centric model where changes require repeated file parsing and regeneration.
+
+**Key principle:** DOCX files are immutable artifacts. The editor owns the content during active sessions. DOCX is generated on-demand for export only.
+
+**Benefits:**
+- Real-time collaborative potential
+- Instant visual feedback for edits and fixes
+- Surgical position-aware updates via ProseMirror transactions
+- No file I/O overhead during editing
+
+### Three-Layer Persistence Strategy
+
+**Layer 1: IndexedDB (Browser Cache)**
+- Stores unsaved edits in compressed Tiptap JSON format
+- Provides instant recovery from accidental page reloads
+- Auto-clears after successful cloud save to prevent stale data
+- Isolated per document ID with quota management
+
+**Layer 2: Supabase (Cloud Database)**
+- Long-term persistence in `tiptap_content` JSONB column
+- Auto-saves every 300ms after user stops typing
+- Maintains version history through `content_saved_at` timestamp
+- Enables multi-device access and collaboration foundation
+
+**Layer 3: Supabase Storage (Original Files)**
+- Original uploaded DOCX preserved immutably
+- Used as reference and for fresh reprocessing if needed
+- Modified DOCX generated on-demand during export only
+
+## Data Model Architecture
+
+### DocumentModel (Unified Document Representation)
+
+Central data structure bridging server processing, client storage, and editor presentation.
+
+**Structure:**
+- `paragraphs`: Map of ParagraphModel instances keyed by stable IDs
+- `paragraphOrder`: Array maintaining paragraph sequence
+- `formatting.document`: Document-level properties (margins, default font, spacing)
+- `structure`: Extracted semantic elements (headings, citations, references, tables)
+- `issues`: Array of validation findings with precise locations
+- `version`: Change tracking number for optimistic updates
+- `supabase`: Metadata for cloud persistence
+
+**Key Methods:**
+- `getTiptapJson()`: Converts to Tiptap ProseMirror JSON for editor initialization
+- `updateFromTiptap()`: Syncs changes from editor back to model
+- `getText()`: Extracts plain text for analysis
+- `getHtml()`: Generates HTML representation
+- `createSnapshot()`: Captures state for undo/redo
+
+### ParagraphModel (Paragraph-Level Representation)
+
+Immutable paragraph data with formatting and change tracking.
+
+**Structure:**
+- `id`: Stable UUID for position-independent identification
+- `text`: Plain text content
+- `runs`: Map of RunModel instances (inline formatting segments)
+- `runOrder`: Array maintaining run sequence
+- `formatting`: Paragraph properties (spacing, indentation, alignment, style)
+- `issues`: Set of issue IDs associated with this paragraph
+- `changeSequence`: Incremental counter for change detection
+
+**Conversion Methods:**
+- `fromServerData()`: Creates from XmlDocxProcessor output
+- `fromTiptapNode()`: Creates from editor paragraph node
+- `toTiptapNode()`: Converts to ProseMirror paragraph representation
+- `toHtml()`: Generates HTML with inline styles
+
+### RunModel (Inline Formatting Representation)
+
+Represents a continuous text segment with uniform formatting.
+
+**Structure:**
+- `id`: Stable UUID
+- `text`: Text content
+- `font`: Family, size, bold, italic, underline
+- `color`: Text color in hex format
+- `index`: Position within paragraph
+
+**Purpose:** Preserves original DOCX formatting while enabling precise Tiptap mark application.
+
+## Data Flow Patterns
+
+### Document Upload and Initial Processing
+
+1. User uploads DOCX via drag-and-drop or file picker
+2. Next.js API route `/app/upload/page.js` handles multipart/form-data
+3. File proxied to Express server `POST /api/docx/upload`
+4. Server routes to WorkerPool (if available) or direct processing
+5. XmlDocxProcessor extracts:
+   - Text content and paragraph structure via xml2js + PizZip
+   - Formatting data from document.xml, styles.xml, settings.xml
+   - Semantic structure (headings, citations, references, tables)
+6. Server stores original DOCX in Supabase Storage
+7. Server creates database record in `documents` table
+8. Response returns structured JSON to client
+9. Client creates DocumentModel from JSON
+10. Client initializes Tiptap editor with `DocumentModel.getTiptapJson()`
+11. Client triggers initial APA analysis via TiptapAPAAnalyzer
+
+### Real-Time Editing Flow
+
+1. User types in Tiptap editor
+2. Editor emits `onUpdate` event with new ProseMirror document state
+3. `useAutoSave` hook debounces changes (300ms delay)
+4. Auto-save extracts `editor.getJSON()` (Tiptap format)
+5. Saves to IndexedDB immediately for reload safety
+6. Saves to Supabase `tiptap_content` column for cloud persistence
+7. Clears IndexedDB after successful Supabase save
+8. `useAnalysis` hook separately debounces analysis (2000ms delay)
+9. TiptapAPAAnalyzer traverses current ProseMirror document tree
+10. Issues with exact ProseMirror positions (`pmPosition: {from, to}`) returned
+11. `useIssueDecorations` hook converts issues to visual highlights
+12. IssueHighlighter plugin renders decorations without mutating content
+13. IssuesPanel updates with categorized findings
+
+### Fix Application Flow
+
+**Client-Side Text Fixes (Instant, Preferred):**
+1. User clicks "Fix" button in IssuesPanel
+2. FixButton extracts `fixValue.textReplacement` with original and replacement text
+3. Emits `fixApplied` event with `fixData` and `pmPosition`
+4. `useUnifiedDocumentEditor` hook receives event
+5. Uses `pmPosition` (if available) to locate exact content
+6. Creates ProseMirror transaction: `tr.insertText(replacement, from, to)`
+7. Editor applies transaction surgically (no setContent, no reload)
+8. Issue immediately removed from highlighting
+9. Auto-save persists change to IndexedDB and Supabase
+10. Triggers immediate re-analysis (no debounce) for instant feedback
+
+**Server-Side Formatting Fixes (Legacy, Complex):**
+1. User clicks formatting fix (e.g., "Fix Font")
+2. Client downloads original DOCX from Supabase Storage
+3. Sends to Express server `POST /api/docx/modify` with fixAction
+4. DocxModifier extracts ZIP, modifies document.xml and styles.xml
+5. Returns modified DOCX buffer
+6. Client reprocesses modified DOCX through upload pipeline
+7. DocumentModel updated with new formatting
+8. Editor content refreshed via `setContent()` (rare exception)
+9. Re-saves to Supabase
+
+### Analysis Architecture
+
+**TiptapAPAAnalyzer (Client-Side, Position-Aware)**
+
+Traverses ProseMirror document tree directly, calculating exact character positions during traversal.
+
+**Key Features:**
+- **Position Calculation:** Tracks absolute character position while traversing nodes
+- **Structural Awareness:** Identifies headings, paragraphs, lists via node types
+- **Immediate Positions:** Returns issues with `pmPosition: {from, to}` for decoration
+- **No Text Extraction:** Works with live editor document, avoiding serialization overhead
+
+**Validation Categories:**
+- Formatting: Font family, font size, line spacing, margins, indentation
+- Structure: Heading hierarchy, title page elements, section organization
+- Citations: Parenthetical format, author-date structure, et al. usage, punctuation
+- References: Alphabetization, hanging indents, DOI/URL formatting
+- Grammar: Contractions, first-person language, passive voice
+
+**IncrementalAPAAnalyzer (Legacy, Paragraph-Based Caching)**
+
+Paragraph-level caching for performance optimization on large documents.
+
+**Mechanism:**
+- Hashes paragraph text content as cache key
+- Stores analysis results per paragraph in LRU cache
+- Only re-analyzes modified paragraphs
+- Invalidates dependent paragraphs (e.g., reference order changes)
+
+**Performance:** 90% faster on subsequent analyses of unchanged content.
+
+### Issue Highlighting System
+
+**IssueHighlighter (Tiptap Extension)**
+
+ProseMirror plugin that manages visual decorations without mutating content.
+
+**Flow:**
+1. `useIssueDecorations` hook updates plugin state via `updateIssueHighlights` command
+2. Plugin receives issues array and active issue ID
+3. `findIssuePositions()` function locates text:
+   - **Primary:** Uses `issue.pmPosition` if available (accurate, fast)
+   - **Fallback:** Searches document text if position missing/stale
+4. Creates `Decoration.inline(from, to, {class, attributes})`
+5. Decorations sorted by position to avoid conflicts
+6. DecorationSet mapped through document changes automatically
+7. Ctrl+click on highlight cycles through overlapping issues
+8. Tooltip shows severity and title on hover
+
+**Decoration Classes:**
+- `apa-critical`: Red underline for critical issues
+- `apa-major`: Orange underline for major issues
+- `apa-minor`: Yellow underline for minor issues
+- `apa-active`: Bold highlight for currently selected issue
+
+## State Management
+
+### unifiedDocumentStore (Zustand)
+
+Central state container with derived getters and event emitter.
+
+**State:**
+- `documentModel`: Current DocumentModel instance
+- `processingState`: Upload/analysis/fix operation status
+- `snapshots`: Undo/redo history (time-travel debugging)
+
+**Derived Getters:**
+- `getIssues()`: Extracts all issues from documentModel
+- `getComplianceScore()`: Calculates percentage based on issue severity
+- `getStatistics()`: Word count, paragraph count, issue breakdown
+- `getEditorContent()`: Converts DocumentModel to Tiptap JSON
+
+**Methods:**
+- `createDocument()`: Initializes new DocumentModel from server data
+- `updateDocumentContent()`: Syncs editor changes back to model
+- `applyFix()`: Coordinates fix application and re-analysis
+- `exportDocument()`: Generates DOCX/HTML/Text from current state
+- `createSnapshot()`: Captures undo point
+- `restoreSnapshot()`: Time-travel to previous state
+
+**Events (StoreEventEmitter):**
+- `analysisComplete`: Emitted when validation finishes
+- `fixApplied`: Emitted when fix transaction dispatched
+- `activeIssueChanged`: Emitted when user selects different issue
+- `documentRestored`: Emitted on undo/redo
+
+### Hooks Composition
+
+**useUnifiedDocumentEditor (Orchestrator)**
+
+Initializes and coordinates all editor functionality.
+
+**Responsibilities:**
+- Creates Tiptap editor with formatting extensions
+- Loads initial content from DocumentModel
+- Coordinates auto-save, analysis, and decoration hooks
+- Handles fix application via event listener
+- Manages editor error states and recovery
+- Provides scroll-to-issue functionality
+
+**useAutoSave (Persistence)**
+
+Debounced auto-save with dual-layer persistence.
+
+**Logic:**
+- Listens to editor `onUpdate` event
+- Debounces 300ms to batch rapid edits
+- Extracts `editor.getJSON()` (Tiptap format)
+- Saves to IndexedDB immediately (synchronous, fast)
+- Saves to Supabase via API (asynchronous, durable)
+- Updates save status ('idle' → 'saving' → 'saved' → 'error')
+- Clears IndexedDB on successful Supabase save
+- Aborts pending save if new edits occur
+
+**useAnalysis (Validation)**
+
+Debounced re-analysis with incremental optimization.
+
+**Logic:**
+- Listens to editor `onUpdate` event
+- Debounces 2000ms to avoid analysis spam
+- Waits for editor initialization before first analysis
+- Extracts current editor state
+- Runs TiptapAPAAnalyzer with position calculation
+- Returns issues with `pmPosition` for decoration
+- Caches analysis results by paragraph hash (if incremental enabled)
+- Skips analysis during fix application to prevent flickering
+
+**useIssueDecorations (Visual)**
+
+Synchronizes issue array with editor decorations.
+
+**Logic:**
+- Watches `issues`, `activeIssueId`, `showHighlighting` state
+- Calls `editor.commands.updateIssueHighlights()` when changes detected
+- No content mutation - purely visual
+- Decorations automatically map through document changes
+
+## Server Processing
+
+### XmlDocxProcessor (DOCX Extraction)
+
+Parses DOCX ZIP archive and extracts structured data.
+
+**Process:**
+1. Accepts Buffer or file path
+2. Unzips using PizZip (tolerant of corrupt files)
+3. Parses XML files using xml2js
+4. Extracts from document.xml:
+   - Paragraph text and runs
+   - Font formatting (family, size, bold, italic, underline, color)
+   - Paragraph properties (spacing, indentation, alignment, style)
+5. Extracts from styles.xml:
+   - Style definitions
+   - Default document properties
+6. Extracts from settings.xml:
+   - Page margins
+   - Default tab stops
+7. Analyzes structure:
+   - Identifies headings by style name
+   - Extracts citations via regex patterns
+   - Locates references section
+   - Finds tables and lists
+8. Converts measurements: twips → inches, half-points → points
+9. Returns JSON with text, html, formatting, structure
+
+**Error Handling:** Graceful degradation - returns partial data if some XML files corrupt.
+
+### WorkerPool (Concurrent Processing)
+
+Manages Node.js Worker Threads for parallel document processing.
+
+**Architecture:**
+- Pool of 4 workers (configurable) using `worker_threads` module
+- Job queue with timeout management
+- Worker lifecycle: available → busy → available cycle
+- Graceful shutdown waits for active jobs (30s timeout)
+
+**Job Flow:**
+1. `executeJob(jobData, timeout)` called with document processing task
+2. Assigns to available worker or enqueues if all busy
+3. Worker processes job in isolated thread (prevents main thread blocking)
+4. Worker sends result via `postMessage`
+5. Promise resolves with result
+6. Worker returned to available pool
+7. Next queued job automatically assigned
+
+**Disabled in Serverless:** Vercel and other serverless platforms don't support worker threads, falls back to direct processing.
+
+### DocxModifier (XML Manipulation)
+
+Applies formatting fixes by modifying DOCX XML structure.
+
+**Supported Fixes:**
+- `fixFont`: Updates `w:rFonts` elements in runs and styles
+- `fixFontSize`: Updates `w:sz` and `w:szCs` elements
+- `fixLineSpacing`: Updates `w:spacing` in paragraph properties
+- `fixMargins`: Updates page margin settings
+- `fixTextContent`: DOM-based text replacement within `w:t` elements
+
+**Process:**
+1. Receives DOCX buffer and fix parameters
+2. Unzips using PizZip
+3. Extracts document.xml
+4. Parses with DOMParser (xmldom)
+5. Modifies specific elements based on fixAction
+6. Serializes back to XML
+7. Updates ZIP archive
+8. Generates modified DOCX buffer
+
+**Safety:** Uses DOM manipulation (not regex) for text changes to preserve XML structure.
+
+## Supabase Integration
+
+### Database Schema
+
+**documents table:**
+- `id`: UUID primary key
+- `user_id`: Foreign key to auth.users
+- `name`: Original filename
+- `file_path`: Supabase Storage path
+- `created_at`, `updated_at`: Timestamps
+- Row-level security enforces user isolation
+
+**analysis_results table:**
+- `id`: UUID primary key
+- `document_id`: Foreign key to documents
+- `user_id`: Foreign key to auth.users
+- `issues`: JSONB array of validation findings
+- `compliance_score`: Integer (0-100)
+- `document_data`: JSONB with formatting/structure
+- `tiptap_content`: JSONB with editor state (auto-save target)
+- `content_saved_at`: Timestamp of last edit
+- `analyzed_at`: Timestamp of last analysis
+
+**Storage:**
+- `user-documents` bucket: Original DOCX files
+- Public read access with RLS policies
+- Automatic cleanup on document deletion
+
+### Authentication
+
+- Supabase Auth with email/password
+- Server-side session validation via cookies
+- Middleware protection on /dashboard and /document routes
+- JWT token verification for API endpoints
+
+## Performance Optimizations
+
+### Caching Strategies
+
+**Paragraph-Level Analysis Caching:**
+- Hash paragraph text as cache key
+- Store validation results in Map (max 1000 entries)
+- LRU eviction prevents memory bloat
+- Invalidation on paragraph text change
+
+**Position Map Caching:**
+- Build once per analysis cycle
+- Maps text paragraph indices to ProseMirror positions
+- Reused across all issues in analysis batch
+
+**Tiptap JSON Caching:**
+- DocumentModel caches getTiptapJson() result
+- Invalidated on version increment
+- Prevents repeated conversion overhead
+
+### Debouncing Policies
+
+**Auto-Save: 300ms**
+- Balances responsiveness with API load
+- Short enough for invisible latency
+- Long enough to batch rapid keystrokes
+
+**Analysis: 2000ms**
+- Prevents analysis spam during active typing
+- Allows user to finish thought before validation
+- Configurable via environment variable
+
+**IndexedDB: Immediate**
+- No debounce - saves on every auto-save trigger
+- Fast enough for real-time execution
+- Provides instant reload safety
+
+### Memory Management
+
+**DocumentModel Optimizations:**
+- Paragraphs stored in Map for O(1) lookup
+- Runs within paragraphs also use Map
+- Tiptap JSON cached to avoid repeated conversion
+- Snapshots limited to last 20 states
+
+**Worker Pool Isolation:**
+- Each document processed in isolated thread
+- Memory freed after job completion
+- Worker termination on timeout prevents leaks
+- Garbage collection triggered after large operations
+
+**IndexedDB Cleanup:**
+- Auto-clears after successful Supabase save
+- Background task clears drafts older than 7 days
+- Quota monitoring prevents storage exhaustion
+
+## Development Patterns
+
+### Tiptap Custom Extensions
+
+**FormattedParagraph (Custom Node):**
+- Replaces default paragraph node
+- Preserves DOCX paragraph formatting in ProseMirror attributes
+- Maps spacing, indentation, alignment to data attributes
+- Renders as HTML with inline styles
+
+**FontFormatting (Custom Mark):**
+- Preserves font family, size, color
+- Applied as mark alongside bold/italic/underline
+- Maps to `<span>` with inline styles
+
+**DocumentDefaults (Extension):**
+- Applies document-level defaults
+- Provides global formatting context
+- Prevents formatting loss on paste
+
+**IssueHighlighter (Decoration Plugin):**
+- Pure visual layer - never mutates content
+- Decorations automatically remapped on edits
+- Supports Ctrl+click for issue navigation
+- Tooltip integration for issue details
+
+### Error Boundaries
+
+**EditorErrorBoundary:**
+- Catches Tiptap initialization errors
+- Provides reload button and fallback UI
+- Shows document text preview for recovery
+
+**AnalysisErrorBoundary:**
+- Isolates validation errors from editor
+- Allows editing to continue if analysis fails
+- Logs error context for debugging
+
+**Global ErrorBoundary:**
+- Catches unhandled React errors
+- Prevents full app crash
+- Shows friendly error message with report button
+
+### Event-Driven Communication
+
+**StoreEventEmitter:**
+- Decouples components via publish/subscribe
+- Prevents prop drilling for deeply nested interactions
+- Type-safe event contracts
+
+**Event Types:**
+- `analysisComplete`: Analysis → IssuesPanel
+- `fixApplied`: FixButton → Editor
+- `activeIssueChanged`: IssuesPanel ↔ Editor
+- `documentRestored`: Undo/Redo → Editor
+
+## Technical Constraints and Trade-offs
+
+**Maximum Document Size:**
+- Upload: 10MB (Next.js route limit)
+- Processing: 50MB (server memory limit)
+- Editor: 5000 paragraphs (performance threshold)
+
+**Auto-Save Concurrency:**
+- AbortController prevents save conflicts
+- Latest edit wins (optimistic updates)
+- No server-side conflict resolution
+
+**Worker Pool Limitations:**
+- Disabled in serverless (Vercel, AWS Lambda)
+- Falls back to synchronous processing
+- Potential timeout on very large documents
+
+**IndexedDB Quotas:**
+- Browser-dependent (typically 10-50% of free disk)
+- Quota exceeded error triggers cleanup
+- User prompted to clear old drafts
+
+**Position Calculation Precision:**
+- ProseMirror positions shift with edits
+- Decorations automatically remapped
+- Stale positions from cached issues handled via fallback search
+
+## Security Considerations
+
+- Row-level security on all Supabase queries
+- User isolation enforced at database level
+- File uploads validated for DOCX MIME type
+- Storage paths include user ID to prevent unauthorized access
+- No user-provided HTML rendered without sanitization
+- API routes validate session before processing
+- CORS configured for same-origin only

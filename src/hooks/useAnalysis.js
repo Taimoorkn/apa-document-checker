@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
-import { PositionCalculator } from '@/utils/positionCalculator';
+import { TiptapAPAAnalyzer } from '@/utils/tiptapApaAnalyzer';
 
 /**
  * Analysis hook - Runs APA analysis in background
  * Updates issue list without touching editor content
- * NEW: Enriches issues with ProseMirror positions for accurate highlighting
+ * TIPTAP-FIRST ARCHITECTURE: Uses TiptapAPAAnalyzer which works directly with Tiptap structure
  */
 export const useAnalysis = (editor, documentModel, enabled = true, editorInitialized = true) => {
   const [issues, setIssues] = useState([]);
@@ -17,9 +16,9 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
   const lastContentRef = useRef(null);
   const hasRunInitialAnalysisRef = useRef(false);
 
-  // Initialize analyzer once
+  // Initialize Tiptap-native analyzer once
   useEffect(() => {
-    analyzerRef.current = new EnhancedAPAAnalyzer();
+    analyzerRef.current = new TiptapAPAAnalyzer();
   }, []);
 
   // Actual analysis function (extracted for reuse)
@@ -41,37 +40,20 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
       lastContentRef.current = contentString;
       setIsAnalyzing(true);
 
-      console.log('🧠 Running APA analysis...');
+      console.log('🧠 Running Tiptap-native APA analysis...');
 
-      // Extract text and formatting from Tiptap JSON
-      const documentData = {
-        text: editor.getText(),
-        html: editor.getHTML(),
-        formatting: documentModel.formatting,
-        structure: documentModel.structure,
-        styles: documentModel.styles
-      };
-
-      // Run analysis (synchronous for now, Web Worker in future)
-      const rawIssues = analyzerRef.current.analyzeDocument(documentData);
-
-      // NEW: Build position map from editor's current document structure
-      const positionMap = PositionCalculator.buildPositionMap(editor);
-
-      // NEW: Enrich issues with ProseMirror positions
-      const enrichedIssues = PositionCalculator.enrichIssuesWithPositions(
-        rawIssues,
-        positionMap,
-        editor
+      // TIPTAP-FIRST: Analyzer works directly with editor instance
+      // No need for text extraction - analyzeDocument() traverses Tiptap nodes directly
+      const issuesWithPositions = analyzerRef.current.analyzeDocument(
+        editor,
+        documentModel.formatting,
+        documentModel.structure
       );
 
-      if (process.env.NODE_ENV === 'development') {
-        const withPositions = enrichedIssues.filter(i => i.pmPosition).length;
-        console.log(`📍 Position enrichment: ${withPositions}/${enrichedIssues.length} issues have PM positions`);
-      }
+      // Issues already have pmPosition from analyzer - no post-processing needed!
 
       // Update issues state (triggers decoration update)
-      setIssues(enrichedIssues);
+      setIssues(issuesWithPositions);
 
       // IMPORTANT: Also update DocumentModel so IssuesPanel can see the new issues
       if (documentModel && documentModel.issues) {
@@ -80,12 +62,12 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
         documentModel.issues.paragraphIssues.clear();
 
         // Add new issues
-        enrichedIssues.forEach(issue => {
+        issuesWithPositions.forEach(issue => {
           documentModel.issues.addIssue(issue);
         });
       }
 
-      console.log(`✅ Analysis complete: ${enrichedIssues.length} issues found`);
+      console.log(`✅ Analysis complete: ${issuesWithPositions.length} issues found`);
       setIsAnalyzing(false);
     } catch (error) {
       console.error('❌ Analysis failed:', error);

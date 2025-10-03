@@ -23,20 +23,49 @@ import {
   FileDown
 } from 'lucide-react';
 
-export default function IssuesPanel() {
+export default function IssuesPanel({
+  issues: propsIssues,
+  activeIssueId: propsActiveIssueId,
+  onIssueClick: propsOnIssueClick
+} = {}) {
   const {
     getIssues,
-    uiState,
-    setActiveIssue,
     applyFix,
     processingState,
     getDocumentStats,
     getComplianceScore,
-    documentFormatting
+    documentFormatting,
+    events
   } = useUnifiedDocumentStore();
 
-  const issues = getIssues();
-  const activeIssueId = uiState?.activeIssueId;
+  // Use props if provided, otherwise get from store (for backward compatibility)
+  const issues = propsIssues || getIssues();
+  const [localActiveIssueId, setLocalActiveIssueId] = useState(propsActiveIssueId || null);
+
+  // Determine which activeIssueId to use
+  const activeIssueId = propsActiveIssueId !== undefined ? propsActiveIssueId : localActiveIssueId;
+
+  // Update local state when props change
+  useEffect(() => {
+    if (propsActiveIssueId !== undefined) {
+      setLocalActiveIssueId(propsActiveIssueId);
+    }
+  }, [propsActiveIssueId]);
+
+  // Handle issue click
+  const handleIssueClick = useCallback((issueId) => {
+    if (propsOnIssueClick) {
+      propsOnIssueClick(issueId);
+    } else {
+      setLocalActiveIssueId(issueId);
+      // Emit event for backward compatibility
+      events.emit('activeIssueChanged', {
+        previousId: activeIssueId,
+        currentId: issueId,
+        shouldScroll: true
+      });
+    }
+  }, [propsOnIssueClick, activeIssueId, events]);
   const documentStats = getDocumentStats();
   const analysisScore = getComplianceScore();
   
@@ -200,7 +229,7 @@ export default function IssuesPanel() {
                 {documentFormattingIssues.map((issue, index) => (
                   <button
                     key={issue.id || `doc-format-${index}`}
-                    onClick={() => setActiveIssue(issue.id)}
+                    onClick={() => handleIssueClick(issue.id)}
                     className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors duration-200 cursor-pointer"
                   >
                     {issue.title}
@@ -288,7 +317,7 @@ export default function IssuesPanel() {
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
-                        onSelect={() => setActiveIssue(issue.id)}
+                        onSelect={() => handleIssueClick(issue.id)}
                         onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />
@@ -310,7 +339,7 @@ export default function IssuesPanel() {
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
-                        onSelect={() => setActiveIssue(issue.id)}
+                        onSelect={() => handleIssueClick(issue.id)}
                         onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />
@@ -332,7 +361,7 @@ export default function IssuesPanel() {
                         ref={el => issueRefs.current[issue.id] = el}
                         issue={issue}
                         isActive={activeIssueId === issue.id}
-                        onSelect={() => setActiveIssue(issue.id)}
+                        onSelect={() => handleIssueClick(issue.id)}
                         onApplyFix={() => handleApplyFix(issue.id)}
                         isApplyingFix={processingState.isApplyingFix && processingState.currentFixId === issue.id}
                       />

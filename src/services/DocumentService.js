@@ -152,6 +152,7 @@ export class DocumentService {
 
   /**
    * Apply fix to document (JSON-First Architecture)
+   * Now returns transaction data for ProseMirror surgical updates
    */
   async applyFix(documentModel, issueId) {
     if (!documentModel || !issueId) {
@@ -177,12 +178,12 @@ export class DocumentService {
       if (this._isTextFix(issue.fixAction)) {
         // Text fixes: client-side JSON mutation (instant)
         console.log('🔧 Applying text fix (client-side):', issue.fixAction);
-        fixResult = this._applyTextFixToJSON(documentModel, issue);
+        fixResult = this._generateTextFixTransaction(documentModel, issue);
       }
       else if (this._isFormattingFix(issue.fixAction)) {
         // Formatting fixes: client-side JSON property update (instant)
         console.log('🎨 Applying formatting fix (client-side):', issue.fixAction);
-        fixResult = this._applyFormattingFixToJSON(documentModel, issue);
+        fixResult = this._generateFormattingFixTransaction(documentModel, issue);
       }
       else {
         // Fallback to server for unsupported fix types (legacy)
@@ -208,6 +209,7 @@ export class DocumentService {
           success: true,
           fixedIssueId: issueId,
           fixAction: issue.fixAction,
+          fixData: fixResult.transactionData, // NEW: for ProseMirror transactions
           updatedDocument: fixResult.updatedDocument || false,
           clientSide: fixResult.clientSide || false,
           snapshotId: snapshot.id
@@ -556,51 +558,47 @@ export class DocumentService {
   }
 
   /**
-   * Apply text-based fix by mutating paragraph text in DocumentModel
-   * This is instant (<100ms) and triggers auto-save in background
+   * Generate transaction data for text fixes
+   * Returns data for ProseMirror transaction, does NOT mutate
    */
-  _applyTextFixToJSON(documentModel, issue) {
+  _generateTextFixTransaction(documentModel, issue) {
     const { fixAction, fixValue, location } = issue;
 
     // Find target paragraph
     let paragraphId = null;
+    let paragraphIndex = -1;
+
     if (location?.paragraphIndex !== undefined) {
-      if (location.paragraphIndex < documentModel.paragraphOrder.length) {
-        paragraphId = documentModel.paragraphOrder[location.paragraphIndex];
+      paragraphIndex = location.paragraphIndex;
+      if (paragraphIndex < documentModel.paragraphOrder.length) {
+        paragraphId = documentModel.paragraphOrder[paragraphIndex];
       }
     }
 
-    // Fallback: Search for text if location missing or paragraph not found
+    // Fallback: Search for text
     if (!paragraphId) {
-      // Prefer fixValue.original (full text) or highlightText over issue.text (may be truncated)
       const searchText = fixValue?.original || issue.highlightText || issue.text;
-
-      if (searchText) {
-        // Search all paragraphs for matching text
-        for (const id of documentModel.paragraphOrder) {
-          const para = documentModel.paragraphs.get(id);
-          if (para && para.text.includes(searchText)) {
-            paragraphId = id;
-            break;
-          }
+      for (let i = 0; i < documentModel.paragraphOrder.length; i++) {
+        const id = documentModel.paragraphOrder[i];
+        const para = documentModel.paragraphs.get(id);
+        if (para && para.text.includes(searchText)) {
+          paragraphId = id;
+          paragraphIndex = i;
+          break;
         }
       }
+    }
 
-      if (!paragraphId) {
-        return { success: false, error: 'Paragraph not found' };
-      }
+    if (!paragraphId) {
+      return { success: false, error: 'Paragraph not found' };
     }
 
     const paragraph = documentModel.paragraphs.get(paragraphId);
-    if (!paragraph) {
-      return { success: false, error: 'Paragraph not found in model' };
-    }
-
     const oldText = paragraph.text;
 
-    // Apply text replacement based on fixValue
+    // Calculate replacement
     let newText = oldText;
-    if (fixValue && fixValue.original && fixValue.replacement) {
+    if (fixValue?.original && fixValue?.replacement) {
       newText = oldText.replace(fixValue.original, fixValue.replacement);
     } else {
       // Legacy: use predefined replacement logic
@@ -608,71 +606,50 @@ export class DocumentService {
     }
 
     if (oldText === newText) {
-      console.warn('⚠️ No changes applied - text unchanged');
       return { success: false, error: 'No changes detected' };
     }
 
-    console.log('✏️ Text change:', {
-      old: oldText.substring(0, 100),
-      new: newText.substring(0, 100)
-    });
-
-    // Update paragraph text
-    paragraph.update({ text: newText });
-
-    // Update runs to match new text
-    if (paragraph.runs && paragraph.runs.size > 0) {
-      const firstRun = Array.from(paragraph.runs.values())[0];
-      paragraph.runs.clear();
-      paragraph.runOrder = [];
-
-      const newRun = {
-        text: newText,
-        font: firstRun?.font || {},
-        color: firstRun?.color || null
-      };
-
-      const RunModel = require('@/models/ParagraphModel').RunModel;
-      const runModel = RunModel.fromData(newRun, 0);
-      paragraph.runs.set(runModel.id, runModel);
-      paragraph.runOrder.push(runModel.id);
+    // Calculate position in document
+    let position = 0;
+    for (let i = 0; i < paragraphIndex; i++) {
+      const prevId = documentModel.paragraphOrder[i];
+      const prevPara = documentModel.paragraphs.get(prevId);
+      position += prevPara.text.length + 1; // +1 for newline
     }
 
-    // Update document version
-    documentModel.version++;
-    documentModel.lastModified = Date.now();
-
-    // Trigger auto-save (non-blocking, 1 second debounce)
-    if (this._scheduleAutoSaveCallback) {
-      this._scheduleAutoSaveCallback(documentModel, 1000);
-    }
-
-    console.log('✅ Text fix applied successfully (client-side)');
+    // Find text position within paragraph
+    const textIndex = oldText.indexOf(fixValue?.original || issue.highlightText || issue.text);
+    const from = position + textIndex;
+    const to = from + (fixValue?.original || issue.highlightText || issue.text).length;
 
     return {
       success: true,
-      clientSide: true,
-      paragraphId,
-      oldText,
-      newText
+      transactionData: {
+        type: 'textReplacement',
+        textReplacement: {
+          from,
+          to,
+          text: fixValue?.replacement || newText
+        }
+      }
     };
   }
 
   /**
-   * Apply formatting fix by updating DocumentModel properties
-   * This is instant (<200ms) and triggers editor re-render + auto-save
+   * Generate transaction data for formatting fixes
+   * Returns data for content refresh (document-wide changes require full reload)
    */
-  _applyFormattingFixToJSON(documentModel, issue) {
+  _generateFormattingFixTransaction(documentModel, issue) {
     const { fixAction } = issue;
 
-    console.log('🎨 Formatting fix:', fixAction);
+    let property, value;
 
     switch (fixAction) {
       case 'fixFont':
-        // Update document-level default
+        property = 'fontFamily';
+        value = 'Times New Roman';
+        // Update document model
         documentModel.formatting.document.font.family = 'Times New Roman';
-
-        // Update all paragraph runs
         documentModel.paragraphOrder.forEach(id => {
           const para = documentModel.paragraphs.get(id);
           if (para && para.runs) {
@@ -684,8 +661,10 @@ export class DocumentService {
         break;
 
       case 'fixFontSize':
+        property = 'fontSize';
+        value = '12pt';
+        // Update document model
         documentModel.formatting.document.font.size = 12;
-
         documentModel.paragraphOrder.forEach(id => {
           const para = documentModel.paragraphs.get(id);
           if (para && para.runs) {
@@ -697,8 +676,10 @@ export class DocumentService {
         break;
 
       case 'fixLineSpacing':
+        property = 'lineHeight';
+        value = '2.0';
+        // Update document model
         documentModel.formatting.document.spacing.line = 2.0;
-
         documentModel.paragraphOrder.forEach(id => {
           const para = documentModel.paragraphs.get(id);
           if (para && para.formatting) {
@@ -709,16 +690,16 @@ export class DocumentService {
         break;
 
       case 'fixMargins':
-        documentModel.formatting.document.margins = {
-          top: 1.0,
-          bottom: 1.0,
-          left: 1.0,
-          right: 1.0
-        };
+        property = 'margins';
+        value = { top: 1.0, bottom: 1.0, left: 1.0, right: 1.0 };
+        // Update document model
+        documentModel.formatting.document.margins = value;
         break;
 
       case 'fixIndentation':
-        // Apply to all body paragraphs (exclude headings)
+        property = 'indentation';
+        value = 0.5;
+        // Update document model
         documentModel.paragraphOrder.forEach(id => {
           const para = documentModel.paragraphs.get(id);
           if (para && para.formatting) {
@@ -732,25 +713,23 @@ export class DocumentService {
         break;
 
       default:
-        return { success: false, error: `Unknown formatting fix: ${fixAction}` };
+        return { success: false, error: 'Unsupported formatting fix' };
     }
 
     // Update document version
     documentModel.version++;
     documentModel.lastModified = Date.now();
 
-    // Trigger auto-save (non-blocking)
-    if (this._scheduleAutoSaveCallback) {
-      this._scheduleAutoSaveCallback(documentModel, 1000);
-    }
-
-    console.log('✅ Formatting fix applied successfully (client-side)');
-
     return {
       success: true,
-      clientSide: true,
-      fixAction,
-      requiresEditorRefresh: true
+      transactionData: {
+        type: 'formatting',
+        formatting: {
+          paragraphIds: documentModel.paragraphOrder, // Apply to all
+          property,
+          value
+        }
+      }
     };
   }
 

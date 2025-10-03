@@ -845,6 +845,10 @@ export class EnhancedAPAAnalyzer {
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
           .join(' ');
 
+        // Calculate paragraph index from text position
+        const textBeforeMatch = text.substring(0, titleMatch.index);
+        const calculatedParagraphIndex = textBeforeMatch.split('\n').length - 1;
+
         issues.push({
           title: "ALL CAPS heading detected",
           description: "Headings should use title case or sentence case, not ALL CAPS",
@@ -853,7 +857,7 @@ export class EnhancedAPAAnalyzer {
           severity: "Minor",
           category: "formatting",
           location: {
-            paragraphIndex: paragraphIndex,
+            paragraphIndex: calculatedParagraphIndex,
             charOffset: titleMatch.index,
             length: heading.length,
             type: 'text'

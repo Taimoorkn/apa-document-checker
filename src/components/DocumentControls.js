@@ -13,17 +13,12 @@ import {
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
 
 const DocumentControls = memo(({
-  lastFixAppliedAt,
   documentText,
-  documentFormatting,
-  handleManualAnalysis,
-  isLoading,
-  processingState,
+  isAnalyzing,
   showIssueHighlighting,
   toggleIssueHighlighting,
   issues,
-  editor,
-  tiptapConverter
+  editor
 }) => {
   const { documentModel, exportDocument } = useUnifiedDocumentStore();
   const [isExporting, setIsExporting] = useState(false);
@@ -69,10 +64,10 @@ const DocumentControls = memo(({
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <h3 className="text-lg font-semibold text-slate-900">Document Editor</h3>
-            {lastFixAppliedAt && (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full mr-1.5"></div>
-                Recently Updated
+            {isAnalyzing && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mr-1.5 animate-pulse"></div>
+                Analyzing...
               </span>
             )}
           </div>
@@ -101,29 +96,13 @@ const DocumentControls = memo(({
               </>
             )}
 
-            {/* Run Check Button */}
-            <button
-              onClick={handleManualAnalysis}
-              disabled={isLoading || processingState.isAnalyzing}
-              title="Run APA analysis on current document (Ctrl+Shift+C)"
-              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                isLoading || processingState.isAnalyzing
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/25'
-              }`}
-            >
-              {processingState.isAnalyzing ? (
-                <>
-                  <div className="loading-spinner w-4 h-4"></div>
-                  <span>Checking...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Run Check</span>
-                </>
-              )}
-            </button>
+            {/* Analysis Status - Real-time analysis runs automatically */}
+            {isAnalyzing && (
+              <div className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <span>Analyzing...</span>
+              </div>
+            )}
 
             {/* Toggle Highlighting */}
             <button

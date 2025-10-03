@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { EditorContent } from '@tiptap/react';
 import { useUnifiedDocumentEditor } from '@/hooks/useUnifiedDocumentEditor';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
@@ -11,32 +11,25 @@ import FormattingToolbar from '@/components/FormattingToolbar';
 
 /**
  * New Document Editor Component
- * Uses the unified DocumentModel architecture with bidirectional sync
+ * Uses the new real-time editing architecture with Tiptap as source of truth
  */
 export const NewDocumentEditor = () => {
   const {
     documentModel,
-    processingState,
-    getIssues,
-    analyzeDocument,
-    uiState
+    processingState
   } = useUnifiedDocumentStore();
 
   const {
     editor,
     editorError,
-    editorInitialized
+    editorInitialized,
+    issues,
+    isAnalyzing,
+    showHighlighting,
+    toggleHighlighting
   } = useUnifiedDocumentEditor();
 
-  const isLoading = processingState.isUploading || processingState.isAnalyzing;
-  const issues = getIssues();
-
-  // Handle manual analysis
-  const handleManualAnalysis = useCallback(async () => {
-    if (!isLoading && documentModel) {
-      await analyzeDocument({ force: true });
-    }
-  }, [isLoading, documentModel, analyzeDocument]);
+  const isLoading = processingState.isUploading;
 
   // Loading state
   if (isLoading) {
@@ -76,20 +69,10 @@ export const NewDocumentEditor = () => {
   return (
     <div className="h-full flex flex-col">
       <DocumentControls
-        lastFixAppliedAt={null}
         documentText={documentModel.getPlainText()}
-        documentFormatting={documentModel.formatting}
-        handleManualAnalysis={handleManualAnalysis}
-        isLoading={isLoading}
-        processingState={processingState}
-        showIssueHighlighting={uiState.showIssueHighlighting}
-        toggleIssueHighlighting={() => {
-          // Toggle highlighting logic
-          const newState = !uiState.showIssueHighlighting;
-          useUnifiedDocumentStore.setState({
-            uiState: { ...uiState, showIssueHighlighting: newState }
-          });
-        }}
+        isAnalyzing={isAnalyzing}
+        showIssueHighlighting={showHighlighting}
+        toggleIssueHighlighting={toggleHighlighting}
         issues={issues}
         editor={editor}
       />

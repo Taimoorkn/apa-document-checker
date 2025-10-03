@@ -84,31 +84,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     isInitialized: false
   },
 
-  // Auto-save state
-  autoSaveState: {
-    isSaving: false,
-    lastSaveTimestamp: 0,
-    lastSaveError: null,
-    saveStatus: 'saved', // 'saved' | 'saving' | 'unsaved' | 'error'
-    autoSaveDebounceTimeout: null,
-    autoSaveAbortController: null // For cancelling in-flight saves
-  },
-
-  // Analysis state
-  analysisState: {
-    lastAnalysisTimestamp: 0,
-    pendingAnalysis: false,
-    analysisDebounceTimeout: null,
-    incrementalMode: true,
-    analysisAbortController: null // For cancelling in-flight analysis
-  },
-
-  // UI preferences
-  uiState: {
-    showIssueHighlighting: true,
-    activeIssueId: null,
-    selectedIssues: new Set()
-  },
+  // UI preferences moved to React state in useUnifiedDocumentEditor.js
+  // Auto-save and analysis now handled by dedicated hooks
 
   // Snapshots for undo/redo
   snapshots: [],
@@ -168,12 +145,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         },
         editorState: {
           ...state.editorState,
-          needsSync: true,
-          content: null // Will be set by editor sync
-        },
-        analysisState: {
-          ...state.analysisState,
-          lastAnalysisTimestamp: 0 // Reset for new document
+          content: null // Will be set by editor from getTiptapJson()
         }
       }));
 
@@ -240,12 +212,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         documentModel,
         editorState: {
           ...state.editorState,
-          needsSync: true,
           content: initialEditorContent // Use saved tiptap_content if available
-        },
-        analysisState: {
-          ...state.analysisState,
-          lastAnalysisTimestamp: Date.now() // Mark as analyzed
         }
       }));
 
@@ -275,11 +242,15 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   /**
    * Analyze document for APA compliance
    */
+  /**
+   * Perform APA analysis (Legacy method - kept for backward compatibility)
+   * In new architecture, analysis is handled by useAnalysis hook
+   */
   analyzeDocument: async (options = {}) => {
-    const { force = false, incrementalOnly = false } = options;
+    const { force = false } = options;
     const state = get();
 
-    console.log('🧠 Starting APA analysis...', { force, incrementalOnly, hasDocument: !!state.documentModel });
+    console.log('🧠 Starting APA analysis (legacy method)...', { force, hasDocument: !!state.documentModel });
 
     if (!state.documentModel) {
       throw new Error('No document loaded');
@@ -290,83 +261,30 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       return { success: false, message: 'Analysis already in progress' };
     }
 
-    // Create new AbortController for this analysis
-    const abortController = new AbortController();
-
     set(currentState => ({
       processingState: {
         ...currentState.processingState,
         isAnalyzing: true,
         lastError: null,
         stage: 'Analyzing document...'
-      },
-      analysisState: {
-        ...currentState.analysisState,
-        pendingAnalysis: false,
-        analysisAbortController: abortController
       }
     }));
 
     try {
-      // Check if aborted before starting
-      if (abortController.signal.aborted) {
-        throw new DOMException('Analysis aborted', 'AbortError');
-      }
-
-      // Determine analysis type
-      let changedParagraphs = null;
-      const lastAnalysis = state.analysisState.lastAnalysisTimestamp;
-
-      if (state.analysisState.incrementalMode && lastAnalysis > 0 && !force) {
-        changedParagraphs = state.documentModel.getChangedParagraphs(lastAnalysis);
-
-        // If no changes, skip analysis
-        if (changedParagraphs.length === 0 && !force) {
-          set(currentState => ({
-            processingState: {
-              ...currentState.processingState,
-              isAnalyzing: false,
-              stage: null
-            },
-            analysisState: {
-              ...currentState.analysisState,
-              analysisAbortController: null
-            }
-          }));
-
-          return {
-            success: true,
-            skipped: true,
-            message: 'No changes detected - analysis skipped'
-          };
-        }
-      }
-
+      // Always do full analysis (no incremental mode in legacy method)
       const analysisOptions = {
-        force,
-        changedParagraphs,
-        preserveUnchanged: state.analysisState.incrementalMode,
-        signal: abortController.signal // Pass abort signal
+        force: true,
+        changedParagraphs: null,
+        preserveUnchanged: false
       };
 
       const result = await state.documentService.analyzeDocument(state.documentModel, analysisOptions);
-
-      // Check if aborted after analysis
-      if (abortController.signal.aborted) {
-        console.log('🚫 Analysis was cancelled');
-        return { success: false, aborted: true };
-      }
 
       set(currentState => ({
         processingState: {
           ...currentState.processingState,
           isAnalyzing: false,
           stage: null
-        },
-        analysisState: {
-          ...currentState.analysisState,
-          lastAnalysisTimestamp: Date.now(),
-          analysisAbortController: null
         }
       }));
 
@@ -387,23 +305,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       };
 
     } catch (error) {
-      // Don't log or throw if aborted
-      if (error.name === 'AbortError') {
-        console.log('🚫 Analysis request was aborted');
-        set(currentState => ({
-          processingState: {
-            ...currentState.processingState,
-            isAnalyzing: false,
-            stage: null
-          },
-          analysisState: {
-            ...currentState.analysisState,
-            analysisAbortController: null
-          }
-        }));
-        return { success: false, aborted: true };
-      }
-
       console.error('Error analyzing document:', error);
       set(currentState => ({
         processingState: {
@@ -411,10 +312,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           isAnalyzing: false,
           lastError: error.message,
           stage: null
-        },
-        analysisState: {
-          ...currentState.analysisState,
-          analysisAbortController: null
         }
       }));
       throw error;
@@ -471,28 +368,16 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           isApplyingFix: false,
           currentFixId: null,
           stage: null
-        },
-        editorState: {
-          ...currentState.editorState,
-          needsSync: true, // Editor needs to update
-          content: null // Clear cached content to force regeneration from DocumentModel
         }
       }));
 
-      // Emit fix applied event
+      // Emit fix applied event with transaction data for editor
       storeEvents.emit('fixApplied', {
         issueId,
         fixAction: result.fixAction,
-        snapshotId: result.snapshotId
+        snapshotId: result.snapshotId,
+        fixData: result.fixData // NEW: transaction data for ProseMirror
       });
-
-      // Trigger incremental reanalysis if content changed
-      if (!result.updatedDocument) {
-        // Content fix - trigger incremental analysis
-        setTimeout(() => {
-          get().analyzeDocument({ incrementalOnly: true });
-        }, 100);
-      }
 
       return {
         success: true,
@@ -516,52 +401,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   // === EDITOR SYNCHRONIZATION ===
-
-  /**
-   * Sync editor content with document model
-   */
-  syncWithEditor: (tiptapDocument, changesMeta = {}) => {
-    const state = get();
-
-    if (!state.documentModel || !tiptapDocument) {
-      return { success: false, message: 'Missing document model or editor content' };
-    }
-
-    try {
-      const result = state.documentService.syncWithEditor(state.documentModel, tiptapDocument, changesMeta);
-
-      if (result.hasChanges) {
-        set(currentState => ({
-          editorState: {
-            ...currentState.editorState,
-            lastSyncTimestamp: Date.now(),
-            needsSync: false
-          },
-          analysisState: {
-            ...currentState.analysisState,
-            pendingAnalysis: result.needsReanalysis
-          }
-        }));
-
-        // Trigger debounced analysis if needed
-        if (result.needsReanalysis) {
-          get().scheduleIncrementalAnalysis();
-        }
-
-        // Emit sync event
-        storeEvents.emit('editorSynced', {
-          changedParagraphs: result.changedParagraphs.map(p => p.id),
-          documentVersion: result.documentVersion
-        });
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('Error syncing with editor:', error);
-      return { success: false, error: error.message };
-    }
-  },
+  // Sync methods removed - now handled by hooks (useAutoSave, useAnalysis)
 
   /**
    * Get current editor content from document model
@@ -582,185 +422,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     return state.documentModel.getTiptapJson();
   },
 
-  /**
-   * Schedule incremental analysis with smart debounce
-   * @param {number} debounceMs - Debounce delay (default: 1000ms, reduced from 3000ms)
-   */
-  scheduleIncrementalAnalysis: (debounceMs = 1000) => {
-    const state = get();
-
-    // Cancel any in-flight analysis request
-    if (state.analysisState.analysisAbortController) {
-      state.analysisState.analysisAbortController.abort();
-      console.log('🚫 Cancelled previous analysis request');
-    }
-
-    // Clear existing timeout
-    if (state.analysisState.analysisDebounceTimeout) {
-      clearTimeout(state.analysisState.analysisDebounceTimeout);
-    }
-
-    set(currentState => ({
-      analysisState: {
-        ...currentState.analysisState,
-        analysisDebounceTimeout: null,
-        analysisAbortController: null,
-        pendingAnalysis: true
-      }
-    }));
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        await get().analyzeDocument({ incrementalOnly: true });
-      } catch (error) {
-        // Don't log if aborted
-        if (error.name !== 'AbortError') {
-          console.error('Scheduled analysis failed:', error);
-        }
-      }
-    }, debounceMs);
-
-    set(currentState => ({
-      analysisState: {
-        ...currentState.analysisState,
-        analysisDebounceTimeout: timeoutId
-      }
-    }));
-  },
-
-  /**
-   * Schedule auto-save with smart debounce
-   * @param {boolean} immediate - If true, save immediately (for explicit actions)
-   * @param {number} debounceMs - Debounce delay in milliseconds (default: 2000ms)
-   */
-  scheduleAutoSave: (immediate = false, debounceMs = 2000) => {
-    const state = get();
-
-    // Cancel any in-flight auto-save request
-    if (state.autoSaveState.autoSaveAbortController) {
-      state.autoSaveState.autoSaveAbortController.abort();
-      console.log('🚫 Cancelled previous auto-save request');
-    }
-
-    // Mark as unsaved immediately
-    set(currentState => ({
-      autoSaveState: {
-        ...currentState.autoSaveState,
-        saveStatus: 'unsaved',
-        autoSaveAbortController: null
-      }
-    }));
-
-    // Clear existing timeout
-    if (state.autoSaveState.autoSaveDebounceTimeout) {
-      clearTimeout(state.autoSaveState.autoSaveDebounceTimeout);
-    }
-
-    // Immediate save for explicit actions
-    if (immediate) {
-      get().performAutoSave();
-      return;
-    }
-
-    // Debounced save for typing
-    const timeoutId = setTimeout(async () => {
-      try {
-        await get().performAutoSave();
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
-    }, debounceMs);
-
-    set(currentState => ({
-      autoSaveState: {
-        ...currentState.autoSaveState,
-        autoSaveDebounceTimeout: timeoutId
-      }
-    }));
-  },
-
-  /**
-   * Perform auto-save to backend and Supabase
-   */
-  performAutoSave: async () => {
-    const state = get();
-
-    if (!state.documentModel) {
-      return;
-    }
-
-    if (state.autoSaveState.isSaving) {
-      return;
-    }
-
-    // Create new AbortController for this save operation
-    const abortController = new AbortController();
-
-    set(currentState => ({
-      autoSaveState: {
-        ...currentState.autoSaveState,
-        isSaving: true,
-        saveStatus: 'saving',
-        lastSaveError: null,
-        autoSaveAbortController: abortController
-      }
-    }));
-
-    try {
-      const result = await state.documentService.autoSaveDocument(state.documentModel, abortController.signal);
-
-      // Check if request was aborted
-      if (abortController.signal.aborted) {
-        console.log('🚫 Auto-save was cancelled');
-        return;
-      }
-
-      if (result.success) {
-        set(currentState => ({
-          autoSaveState: {
-            ...currentState.autoSaveState,
-            isSaving: false,
-            lastSaveTimestamp: result.savedAt,
-            saveStatus: 'saved',
-            lastSaveError: null,
-            autoSaveAbortController: null
-          }
-        }));
-
-        // Emit save event
-        storeEvents.emit('documentSaved', {
-          timestamp: result.savedAt
-        });
-
-        console.log('✅ Auto-save completed successfully');
-
-        // Trigger fast analysis after save (100ms delay)
-        get().scheduleIncrementalAnalysis(100);
-
-      } else {
-        throw new Error(result.error || 'Auto-save failed');
-      }
-
-    } catch (error) {
-      // Don't log error if it was aborted
-      if (error.name === 'AbortError') {
-        console.log('🚫 Auto-save request was aborted');
-        return;
-      }
-
-      console.error('❌ Auto-save failed:', error);
-
-      set(currentState => ({
-        autoSaveState: {
-          ...currentState.autoSaveState,
-          isSaving: false,
-          saveStatus: 'error',
-          lastSaveError: error.message,
-          autoSaveAbortController: null
-        }
-      }));
-    }
-  },
+  // Schedule methods removed - now handled by hooks (useAutoSave, useAnalysis)
 
   // === DERIVED STATE GETTERS ===
 
@@ -829,39 +491,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   },
 
   // === UI STATE MANAGEMENT ===
-
-  /**
-   * Set active issue for highlighting
-   */
-  setActiveIssue: (issueId, options = {}) => {
-    const { shouldScroll = true } = options;
-    const previousId = get().uiState.activeIssueId;
-
-    set(state => ({
-      uiState: {
-        ...state.uiState,
-        activeIssueId: issueId
-      }
-    }));
-
-    storeEvents.emit('activeIssueChanged', {
-      previousId: previousId,
-      shouldScroll: shouldScroll,
-      currentId: issueId
-    });
-  },
-
-  /**
-   * Toggle issue highlighting
-   */
-  toggleIssueHighlighting: () => {
-    set(state => ({
-      uiState: {
-        ...state.uiState,
-        showIssueHighlighting: !state.uiState.showIssueHighlighting
-      }
-    }));
-  },
+  // UI state methods removed - now handled in React state (useUnifiedDocumentEditor)
 
   // === SNAPSHOT AND UNDO/REDO ===
 
@@ -912,12 +542,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       state.documentModel.restoreFromSnapshot(snapshot);
 
       set(currentState => ({
-        currentSnapshotIndex: currentState.currentSnapshotIndex - 1,
-        editorState: {
-          ...currentState.editorState,
-          needsSync: true,
-          content: null // Clear cached content to force regeneration from restored snapshot
-        }
+        currentSnapshotIndex: currentState.currentSnapshotIndex - 1
       }));
 
       storeEvents.emit('documentRestored', {
@@ -960,13 +585,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
    * Reset store state
    */
   reset: () => {
-    const state = get();
-
-    // Clear any pending timeouts
-    if (state.analysisState.analysisDebounceTimeout) {
-      clearTimeout(state.analysisState.analysisDebounceTimeout);
-    }
-
     // Clear event listeners
     storeEvents.clear();
 
@@ -983,20 +601,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       },
       editorState: {
         content: null,
-        needsSync: false,
         lastSyncTimestamp: 0,
         isInitialized: false
-      },
-      analysisState: {
-        lastAnalysisTimestamp: 0,
-        pendingAnalysis: false,
-        analysisDebounceTimeout: null,
-        incrementalMode: true
-      },
-      uiState: {
-        showIssueHighlighting: true,
-        activeIssueId: null,
-        selectedIssues: new Set()
       },
       snapshots: [],
       currentSnapshotIndex: -1
@@ -1032,7 +638,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       issueCount: state.documentModel?.issues.getAllIssues().length || 0,
       processingState: state.processingState,
       editorState: state.editorState,
-      analysisState: state.analysisState,
       snapshotCount: state.snapshots.length
     };
   }

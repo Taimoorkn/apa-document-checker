@@ -206,6 +206,60 @@ export const useUnifiedDocumentEditor = () => {
         });
       }
 
+      // FALLBACK: If paragraph search failed, try document-wide search
+      if (positions.length === 0 && issue.location?.paragraphIndex !== undefined) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('scrollToIssue: Paragraph search failed, trying document-wide search...');
+        }
+
+        // Try case-sensitive document-wide search
+        doc.descendants((node, pos) => {
+          if (node.isText) {
+            const text = node.text;
+            const index = text.indexOf(searchText);
+
+            if (index !== -1) {
+              const from = pos + index;
+              const to = from + (isTruncated
+                ? Math.min(searchText.length + 20, text.length - index)
+                : searchText.length);
+              positions.push({ from, to });
+            }
+          } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+            const text = node.textContent;
+            if (text.includes(searchText)) {
+              const index = text.indexOf(searchText);
+              if (index !== -1) {
+                const from = pos + 1 + index;
+                const to = from + (isTruncated
+                  ? Math.min(searchText.length + 20, text.length - index)
+                  : searchText.length);
+                positions.push({ from, to });
+              }
+            }
+          }
+        });
+
+        // If still not found, try case-insensitive
+        if (positions.length === 0) {
+          const searchLower = searchText.toLowerCase();
+          doc.descendants((node, pos) => {
+            if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+              const text = node.textContent;
+              const textLower = text.toLowerCase();
+              if (textLower.includes(searchLower)) {
+                const index = textLower.indexOf(searchLower);
+                if (index !== -1) {
+                  const from = pos + 1 + index;
+                  const to = from + searchText.length;
+                  positions.push({ from, to });
+                }
+              }
+            }
+          });
+        }
+      }
+
       // Scroll to the first found position
       if (positions.length > 0) {
         const { from, to } = positions[0];

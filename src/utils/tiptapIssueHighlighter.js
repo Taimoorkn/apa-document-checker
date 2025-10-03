@@ -29,6 +29,14 @@ function findTextInNode(text, searchText, basePos, positions, isTruncated, caseS
 function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncated, caseSensitive = true) {
   let currentPara = 0;
   let found = false;
+  let totalParas = 0;
+
+  // First count total paragraphs
+  doc.descendants((node) => {
+    if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+      totalParas++;
+    }
+  });
 
   doc.descendants((node, pos) => {
     if (found) return false;
@@ -38,30 +46,65 @@ function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncat
         const text = node.textContent;
         findTextInNode(text, searchText, pos + 1, positions, isTruncated, caseSensitive);
         found = true;
+
+        // Debug: log paragraph search results
+        if (positions.length === 0 && process.env.NODE_ENV === 'development' && debugLogCount < MAX_DEBUG_LOGS) {
+          console.log(`🔍 Paragraph search failed: para ${paragraphIndex}/${totalParas}, text: "${text.substring(0, 60)}", search: "${searchText.substring(0, 40)}"`);
+        }
+
         return false;
       }
       currentPara++;
     }
   });
+
+  // Debug: log if paragraph index out of range
+  if (!found && process.env.NODE_ENV === 'development' && debugLogCount < MAX_DEBUG_LOGS) {
+    console.log(`🔍 Paragraph ${paragraphIndex} NOT FOUND (document has ${totalParas} paragraphs)`);
+  }
 }
 
 function searchInDocument(doc, searchText, positions, isTruncated, caseSensitive = true) {
+  let checkedNodes = 0;
+  let checkedBlocks = 0;
+  const searchIn = caseSensitive ? searchText : searchText.toLowerCase();
+
   doc.descendants((node, pos) => {
     if (node.isText) {
+      checkedNodes++;
       const text = node.text;
       findTextInNode(text, searchText, pos, positions, isTruncated, caseSensitive);
     } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
-      // For block nodes, search their text content
+      checkedBlocks++;
+      // For block nodes, check if their text content matches
       const text = node.textContent;
-      const searchIn = caseSensitive ? text : text.toLowerCase();
-      const searchFor = caseSensitive ? searchText : searchText.toLowerCase();
+      const nodeTextSearch = caseSensitive ? text : text.toLowerCase();
 
-      if (searchIn.includes(searchFor)) {
-        findTextInNode(text, searchText, pos + 1, positions, isTruncated, caseSensitive);
+      // Only search within this node if it contains the search text
+      if (nodeTextSearch.includes(searchIn)) {
+        // For single-word headings or exact matches, find the position
+        if (text.trim() === searchText || nodeTextSearch.trim() === searchIn) {
+          // Exact match - highlight the entire node content
+          const from = pos + 1;
+          const to = from + text.length;
+          positions.push({ from, to });
+        } else {
+          // Partial match - find specific position within text
+          findTextInNode(text, searchText, pos + 1, positions, isTruncated, caseSensitive);
+        }
       }
     }
   });
+
+  // Debug: log search attempts for first few issues
+  if (process.env.NODE_ENV === 'development' && positions.length === 0 && debugLogCount < MAX_DEBUG_LOGS) {
+    console.log(`🔍 Document search failed: "${searchText.substring(0, 30)}", checked ${checkedBlocks} blocks, ${checkedNodes} text nodes`);
+  }
 }
+
+// Global counter for debug logging (only log first few failures)
+let debugLogCount = 0;
+const MAX_DEBUG_LOGS = 5;
 
 function findIssuePositions(doc, issue) {
   const positions = [];
@@ -113,6 +156,44 @@ function findIssuePositions(doc, issue) {
     }
   }
 
+  // FALLBACK: If paragraph search failed (wrong index or text not in that paragraph),
+  // try document-wide search as last resort
+  if (positions.length === 0 && issue.location?.paragraphIndex !== undefined) {
+    const textToSearch = hasNewlines && firstLineText.length >= 2 ? firstLineText : searchText;
+
+    // Try case-sensitive first
+    searchInDocument(doc, textToSearch, positions, isTruncated, true);
+
+    // Then case-insensitive
+    if (positions.length === 0) {
+      searchInDocument(doc, textToSearch, positions, isTruncated, false);
+    }
+  }
+
+  // Debug logging for first few failures
+  if (positions.length === 0 && process.env.NODE_ENV === 'development' && debugLogCount < MAX_DEBUG_LOGS && searchText.length > 2) {
+    debugLogCount++;
+
+    // Get sample of document content
+    let documentBlocks = [];
+    doc.descendants((node) => {
+      if ((node.type.name === 'paragraph' || node.type.name === 'heading') && documentBlocks.length < 10) {
+        documentBlocks.push({
+          type: node.type.name,
+          text: node.textContent.substring(0, 50)
+        });
+      }
+    });
+
+    console.log(`🔍 DEBUG: Failed to find text for issue "${issue.title}"`, {
+      searchText: searchText.substring(0, 60),
+      firstLineText: firstLineText.substring(0, 60),
+      hasNewlines,
+      paragraphIndex: issue.location?.paragraphIndex,
+      documentSampleBlocks: documentBlocks
+    });
+  }
+
   return positions;
 }
 
@@ -144,6 +225,9 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
     return DecorationSet.empty;
   }
 
+  // Reset debug counter for each decoration cycle
+  debugLogCount = 0;
+
   const decorations = [];
   let issuesWithPositions = 0;
   let issuesWithoutPositions = 0;
@@ -155,6 +239,20 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
       if (positions.length === 0) {
         issuesWithoutPositions++;
         if (process.env.NODE_ENV === 'development') {
+          // Sample document text to see what we're searching in
+          let documentSample = '';
+          if (issue.highlightText || issue.text) {
+            const searchText = (issue.highlightText || issue.text).substring(0, 30);
+            // Get first 200 chars of document for context
+            let fullText = '';
+            doc.descendants((node) => {
+              if (node.isText && fullText.length < 200) {
+                fullText += node.text + ' ';
+              }
+            });
+            documentSample = fullText.substring(0, 200);
+          }
+
           console.log(`⚠️ No position found for issue:`, {
             id: issue.id,
             title: issue.title,
@@ -162,7 +260,8 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
             highlightText: issue.highlightText?.substring(0, 50),
             text: issue.text?.substring(0, 50),
             locationType: issue.location?.type,
-            paragraphIndex: issue.location?.paragraphIndex
+            paragraphIndex: issue.location?.paragraphIndex,
+            documentSample: documentSample ? documentSample.substring(0, 100) : 'N/A'
           });
         }
       } else {

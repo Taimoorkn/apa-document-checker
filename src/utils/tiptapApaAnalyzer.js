@@ -44,11 +44,14 @@ export class TiptapAPAAnalyzer {
 
     doc.descendants((node, pos) => {
       if (node.type.name === 'paragraph' || node.type.name === 'heading') {
-        tiptapParagraphs.push(node.textContent);
+        // CRITICAL: Remove any newlines from paragraph text to prevent split() mismatch
+        const cleanText = node.textContent.replace(/\n/g, ' ');
+
+        tiptapParagraphs.push(cleanText);
         paragraphPositions.push({
           pos,
           nodeSize: node.nodeSize,
-          textContent: node.textContent,
+          textContent: cleanText, // Store cleaned text
           nodeType: node.type.name
         });
       }
@@ -57,6 +60,12 @@ export class TiptapAPAAnalyzer {
     console.log(`📊 [TiptapAPAAnalyzer] Built paragraph map:`);
     console.log(`   • Total Tiptap paragraphs: ${paragraphPositions.length}`);
     console.log(`   • Document size: ${doc.content.size} positions`);
+
+    // Log first 10 paragraphs for debugging
+    console.log(`   • First 10 paragraphs:`);
+    paragraphPositions.slice(0, 10).forEach((p, i) => {
+      console.log(`      ${i}: "${p.textContent.substring(0, 40)}${p.textContent.length > 40 ? '...' : ''}" (${p.nodeType})`);
+    });
 
     // Create document data structure that matches what analyzer expects
     const documentData = {
@@ -68,6 +77,13 @@ export class TiptapAPAAnalyzer {
     };
 
     console.log(`📝 [TiptapAPAAnalyzer] Created document data for base analyzer`);
+
+    // Verify the split will recreate the same array
+    const splitCheck = documentData.text.split('\n');
+    console.log(`   • Text paragraphs after split: ${splitCheck.length}`);
+    if (splitCheck.length !== tiptapParagraphs.length) {
+      console.warn(`   ⚠️ MISMATCH: Split creates ${splitCheck.length} paragraphs, but we have ${tiptapParagraphs.length} Tiptap paragraphs!`);
+    }
 
     // Run existing analyzer
     const rawIssues = this.baseAnalyzer.analyzeDocument(documentData);

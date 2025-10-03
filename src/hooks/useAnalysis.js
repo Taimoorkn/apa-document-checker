@@ -125,13 +125,13 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
         clearTimeout(analysisTimeoutRef.current);
       }
 
-      console.log('⏱️ [useAnalysis] Editor updated, debouncing analysis (8s)...');
+      console.log('⏱️ [useAnalysis] Editor updated, debouncing analysis (2s)...');
 
-      // Debounce analysis (8 seconds - after user stops typing)
+      // Debounce analysis (2 seconds - after user stops typing)
       analysisTimeoutRef.current = setTimeout(() => {
         console.log('⏰ [useAnalysis] Debounce complete, running analysis...');
         performAnalysis();
-      }, 8000); // 8 second debounce for updates only
+      }, 2000); // 2 second debounce - responsive while preventing analysis spam
     };
 
     // Listen to editor updates (for real-time editing)

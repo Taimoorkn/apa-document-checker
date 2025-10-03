@@ -9,8 +9,9 @@ import { createClient } from '@/lib/supabase/client';
  * Saves to IndexedDB and Supabase without mutating editor
  */
 export const useAutoSave = (editor, documentId, enabled = true) => {
-  const saveTimeoutRef = useRef(null);
   const lastSavedContentRef = useRef(null);
+  const activeSaveAbortRef = useRef(null); // Track active save operation
+  const debounceTimeoutRef = useRef(null); // Minimal debounce to batch rapid keystrokes
 
   useEffect(() => {
     if (!editor || !documentId || !enabled) {
@@ -18,13 +19,19 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
     }
 
     const handleUpdate = () => {
-      // Clear existing timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      // Clear debounce timer
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
 
-      // Debounce save (5 seconds)
-      saveTimeoutRef.current = setTimeout(async () => {
+      // Minimal debounce (300ms) - just enough to batch rapid keystrokes
+      debounceTimeoutRef.current = setTimeout(async () => {
+        // Abort any in-flight save operation
+        if (activeSaveAbortRef.current) {
+          activeSaveAbortRef.current.abort();
+          activeSaveAbortRef.current = null;
+        }
+
         try {
           const currentContent = editor.getJSON();
           const contentString = JSON.stringify(currentContent);
@@ -36,7 +43,11 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
 
           lastSavedContentRef.current = contentString;
 
-          // LAYER 1: IndexedDB (immediate, for reload safety)
+          // Create abort controller for this save operation
+          const abortController = new AbortController();
+          activeSaveAbortRef.current = abortController;
+
+          // LAYER 1: IndexedDB (local, instant)
           await indexedDBManager.saveToIndexedDB(
             documentId,
             currentContent,
@@ -45,28 +56,42 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
 
           console.log('💾 Auto-saved to IndexedDB');
 
-          // LAYER 2: Supabase (5s later, for cloud backup)
-          setTimeout(async () => {
-            try {
-              const supabase = createClient();
-              await supabase
-                .from('analysis_results')
-                .update({
-                  tiptap_content: currentContent,
-                  content_saved_at: new Date().toISOString()
-                })
-                .eq('document_id', documentId);
+          // Check if aborted before starting network request
+          if (abortController.signal.aborted) {
+            console.log('🔄 Save cancelled (newer edit detected)');
+            return;
+          }
 
-              console.log('✅ Auto-saved to Supabase');
-            } catch (error) {
+          // LAYER 2: Supabase (cloud backup, abortable)
+          try {
+            const supabase = createClient();
+            const { error } = await supabase
+              .from('analysis_results')
+              .update({
+                tiptap_content: currentContent,
+                content_saved_at: new Date().toISOString()
+              })
+              .eq('document_id', documentId)
+              .abortSignal(abortController.signal);
+
+            if (error) throw error;
+
+            console.log('✅ Auto-saved to Supabase');
+            activeSaveAbortRef.current = null;
+          } catch (error) {
+            if (error.name === 'AbortError') {
+              console.log('🔄 Supabase save cancelled (newer edit detected)');
+            } else {
               console.error('❌ Supabase save failed:', error);
             }
-          }, 5000);
+            activeSaveAbortRef.current = null;
+          }
 
         } catch (error) {
           console.error('❌ Auto-save failed:', error);
+          activeSaveAbortRef.current = null;
         }
-      }, 5000); // 5 second debounce
+      }, 300); // Minimal debounce to batch rapid keystrokes
     };
 
     // Listen to editor updates
@@ -74,8 +99,12 @@ export const useAutoSave = (editor, documentId, enabled = true) => {
 
     return () => {
       editor.off('update', handleUpdate);
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      // Cancel any active save operation on unmount
+      if (activeSaveAbortRef.current) {
+        activeSaveAbortRef.current.abort();
       }
     };
   }, [editor, documentId, enabled]);

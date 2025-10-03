@@ -166,7 +166,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
             stage: null
           }
         }));
-      }, 1000);
+      }, 100); // Quick delay to let state settle
 
       return {
         success: true,

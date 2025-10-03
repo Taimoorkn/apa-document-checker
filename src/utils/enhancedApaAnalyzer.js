@@ -828,7 +828,8 @@ export class EnhancedAPAAnalyzer {
     }
     
     // 7. Check for ALL CAPS headings (more precise detection)
-    const allCapsHeadingPattern = /\n\s*([A-Z][A-Z\s]{2,})\s*\n/g;
+    // NOTE: Use [ \t] instead of \s to prevent matching across multiple lines (newlines)
+    const allCapsHeadingPattern = /\n[ \t]*([A-Z][A-Z \t]{2,})[ \t]*\n/g;
     let titleMatch;
     while ((titleMatch = allCapsHeadingPattern.exec(text)) !== null) {
       const heading = titleMatch[1].trim();
@@ -837,7 +838,7 @@ export class EnhancedAPAAnalyzer {
       if (heading.length >= 3 && heading === heading.toUpperCase() &&
           !heading.includes('(') && !heading.includes(',') &&
           heading.split(' ').length <= 8 &&
-          /^[A-Z\s]+$/.test(heading)) {
+          /^[A-Z \t]+$/.test(heading)) {
         // Convert to Title Case (capitalize first letter of each word)
         const titleCase = heading
           .toLowerCase()

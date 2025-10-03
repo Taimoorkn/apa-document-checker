@@ -1,7 +1,4 @@
-script.debug.js:1 [Vercel Web Analytics] [pageview] http://localhost:3000/document/b9488543-0e73-46b1-b3bf-c25bb3af42cd {o: 'http://localhost:3000/document/b9488543-0e73-46b1-b3bf-c25bb3af42cd', sv: '0.1.3', sdkn: '@vercel/analytics/react', sdkv: '1.5.0', ts: 1759521541845, …}
-src\services\DocumentService.js:24 📊 DocumentService initialized with Incremental APA Analyzer
-src\utils\indexedDBManager.js:54 ✅ IndexedDB initialized
-src\utils\indexedDBManager.js:54 ✅ IndexedDB initialized
+script.debug.js:1 [Vercel Web Analytics] [pageview] http://localhost:3000/document/52376cda-df05-4950-b663-a08cea4085c1 {o: 'http://localhost:3000/document/52376cda-df05-4950-b663-a08cea4085c1', sv: '0.1.3', sdkn: '@vercel/analytics/react', sdkv: '1.5.0', ts: 1759522636215, …}
 src\app\document\[id]\DocumentViewerClient.js:88 ☁️ Loading from Supabase document_data (original version)
 src\store\unifiedDocumentStore.js:229 ✅ Existing document loaded: Running headd - Copy (1).docx
 src\app\document\[id]\DocumentViewerClient.js:118 ✅ Document loaded from Supabase
@@ -9,7 +6,7 @@ src\app\document\[id]\DocumentViewerClient.js:123 🧠 Running full APA analysis
 src\store\unifiedDocumentStore.js:253 🧠 Starting APA analysis (legacy method)... {force: true, hasDocument: true}
 src\services\DocumentService.js:404 🔍 Full analysis document data: {textLength: 7484, htmlLength: 12608, hasFormatting: true, hasStructure: true, hasStyles: true, …}
 src\utils\IncrementalAPAAnalyzer.js:41 🧠 Starting APA analysis (full)...
-src\utils\IncrementalAPAAnalyzer.js:68 ✅ Analysis complete: 64 issues found in 4ms
+src\utils\IncrementalAPAAnalyzer.js:68 ✅ Analysis complete: 64 issues found in 1ms
 src\services\DocumentService.js:421 📊 Analysis results: {totalIssues: 50, bySeverity: {…}}
 src\services\DocumentService.js:484 📝 Updating document issues: {totalIssues: 50, sampleIssue: {…}}
 src\services\DocumentService.js:509 ✅ Document issues updated: {storedIssues: 50}
@@ -29,202 +26,180 @@ src\services\DocumentService.js:484 📝 Updating document issues: {totalIssues:
 src\services\DocumentService.js:509 ✅ Document issues updated: {storedIssues: 50}
 src\hooks\useUnifiedDocumentEditor.js:71 ✅ Editor created successfully
 src\hooks\useAnalysis.js:128 ⏱️ [useAnalysis] Editor updated, debouncing analysis (8s)...
- 🚀 [useAnalysis] Running immediate initial analysis (editor initialized)
- 
+src\hooks\useAnalysis.js:118 🚀 [useAnalysis] Running immediate initial analysis (editor initialized)
+src\hooks\useAnalysis.js:48 
 ╔═══════════════════════════════════════════════════════╗
- ║      🧠 [useAnalysis] ANALYSIS TRIGGERED             ║
- ╚═══════════════════════════════════════════════════════╝
- 
+src\hooks\useAnalysis.js:49 ║      🧠 [useAnalysis] ANALYSIS TRIGGERED             ║
+src\hooks\useAnalysis.js:50 ╚═══════════════════════════════════════════════════════╝
+src\utils\tiptapApaAnalyzer.js:37 
 ═══════════════════════════════════════════════════════
- 🔬 [TiptapAPAAnalyzer] ANALYSIS START
- ═══════════════════════════════════════════════════════
- 📊 [TiptapAPAAnalyzer] Built paragraph map:
-    • Total Tiptap paragraphs: 48
-    • Document size: 7533 positions
-    • First 10 paragraphs:
-       0: "Running head: THE IMPACT OF SOCIAL MEDIA..." (paragraph)
-       1: "The Impact of Social Media on Academic P..." (paragraph)
-       2: "John Smith Department of Psychology Univ..." (paragraph)
-       3: "AuthorNote John  Smith, Department of Ps..." (paragraph)
-       4: " ABSTRACT" (paragraph)
-       5: "This study examines the relationship bet..." (paragraph)
-       6: "Keywords: social media, academic perform..." (paragraph)
-       7: "INTRODUCTION" (paragraph)
-       8: "Social media has become an integral part..." (paragraph)
-       9: "According to recent statistics, the aver..." (paragraph)
- 📝 [TiptapAPAAnalyzer] Created document data for base analyzer
-    • Text paragraphs after split: 48
- 📊 Analyzing document: 7484 chars text, 15945 chars HTML, formatting: true, structure: true
- 📚 Using basic citation analysis for better coverage...
- ✅ Analysis complete: 51 issues found
- 🔍 [TiptapAPAAnalyzer] Base analyzer results:
-    • Raw issues found: 51
- 
+src\utils\tiptapApaAnalyzer.js:38 🔬 [TiptapAPAAnalyzer] ANALYSIS START
+src\utils\tiptapApaAnalyzer.js:39 ═══════════════════════════════════════════════════════
+src\utils\tiptapApaAnalyzer.js:60 📊 [TiptapAPAAnalyzer] Built paragraph map:
+src\utils\tiptapApaAnalyzer.js:61    • Total Tiptap paragraphs: 48
+src\utils\tiptapApaAnalyzer.js:62    • Document size: 7533 positions
+src\utils\tiptapApaAnalyzer.js:65    • First 10 paragraphs:
+src\utils\tiptapApaAnalyzer.js:67       0: "Running head: THE IMPACT OF SOCIAL MEDIA..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       1: "The Impact of Social Media on Academic P..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       2: "John Smith Department of Psychology Univ..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       3: "AuthorNote John  Smith, Department of Ps..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       4: " ABSTRACT" (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       5: "This study examines the relationship bet..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       6: "Keywords: social media, academic perform..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       7: "INTRODUCTION" (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       8: "Social media has become an integral part..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:67       9: "According to recent statistics, the aver..." (paragraph)
+src\utils\tiptapApaAnalyzer.js:79 📝 [TiptapAPAAnalyzer] Created document data for base analyzer
+src\utils\tiptapApaAnalyzer.js:83    • Text paragraphs after split: 48
+src\utils\enhancedApaAnalyzer.js:124 📊 Analyzing document: 7484 chars text, 15945 chars HTML, formatting: true, structure: true
+src\utils\enhancedApaAnalyzer.js:156 📚 Using basic citation analysis for better coverage...
+src\utils\enhancedApaAnalyzer.js:289 ✅ Analysis complete: 51 issues found
+src\utils\tiptapApaAnalyzer.js:107 🔍 [TiptapAPAAnalyzer] Base analyzer results:
+src\utils\tiptapApaAnalyzer.js:108    • Raw issues found: 51
+src\utils\tiptapApaAnalyzer.js:110 
 🎯 [TiptapAPAAnalyzer] POSITION ENRICHMENT PHASE
- ───────────────────────────────────────────────────────
- ⚪ Issue 1: "Incorrect font family..." - Document-level (no position)
- ⚪ Issue 2: "Incorrect font size..." - Document-level (no position)
- ⚪ Issue 3: "Incomplete title page..." - Document-level (no position)
- ⚪ Issue 4: "Journal name not italicized..." - Document-level (no position)
- 
+src\utils\tiptapApaAnalyzer.js:111 ───────────────────────────────────────────────────────
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 1: "Incorrect font family..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 2: "Incorrect font size..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 3: "Incomplete title page..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 4: "Journal name not italicized..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 5: "Orphaned reference..."
-    Location: paragraphIndex=35, charOffset=0, length=100
-    Found paragraph: pos=5945, nodeSize=106, type=paragraph
-    Paragraph text: "Brown, L. (2021). Academic engagement in the digit..."
-    🔍 Searching within paragraph for: "Brown, L. (2021). Academic engagement in..."
-    ✅ Found via paragraph search: from=5946, to=6046
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=35, charOffset=0, length=100
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=5945, nodeSize=106, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Brown, L. (2021). Academic engagement in the digit..."
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "Brown, L. (2021). Academic engagement in..."
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=5946, to=6046
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 6: "Orphaned reference..."
-    Location: paragraphIndex=37, charOffset=0, length=100
-    Found paragraph: pos=6170, nodeSize=124, type=paragraph
-    Paragraph text: "Davis, K., & Brown, P. (2018). Social media effect..."
-    🔍 Searching within paragraph for: "Davis, K., & Brown, P. (2018). Social me..."
-    ✅ Found via paragraph search: from=6171, to=6271
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=37, charOffset=0, length=100
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=6170, nodeSize=124, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Davis, K., & Brown, P. (2018). Social media effect..."
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "Davis, K., & Brown, P. (2018). Social me..."
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=6171, to=6271
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 7: "Orphaned reference..."
-    Location: paragraphIndex=39, charOffset=0, length=100
-    Found paragraph: pos=6410, nodeSize=119, type=paragraph
-    Paragraph text: "Johnson, A. (2020). Measuring academic success in ..."
-    🔍 Searching within paragraph for: "Johnson, A. (2020). Measuring academic s..."
-    ✅ Found via paragraph search: from=6411, to=6511
- ⚪ Issue 8: "Missing running head (professional paper..." - Document-level (no position)
- ⚪ Issue 9: "Missing page numbers..." - Document-level (no position)
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=39, charOffset=0, length=100
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=6410, nodeSize=119, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Johnson, A. (2020). Measuring academic success in ..."
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "Johnson, A. (2020). Measuring academic s..."
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=6411, to=6511
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 8: "Missing running head (professional paper..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 9: "Missing page numbers..." - Document-level (no position)
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 10: "Number at sentence beginning..."
-    Location: paragraphIndex=8, charOffset=303, length=50
-    Found paragraph: pos=1188, nodeSize=366, type=paragraph
-    Paragraph text: "Social media has become an integral part of modern..."
-    🔍 Searching within paragraph for: ". 45). The current study aims to clarify..."
-    ✅ Found via paragraph search: from=1492, to=1542
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=8, charOffset=303, length=50
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1188, nodeSize=366, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Social media has become an integral part of modern..."
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: ". 45). The current study aims to clarify..."
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=1492, to=1542
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 11: "Number at sentence beginning..."
-    Location: paragraphIndex=13, charOffset=308, length=7
-    Found paragraph: pos=2276, nodeSize=317, type=paragraph
-    Paragraph text: "The proliferation of smartphones has made social m..."
-    🔍 Searching within paragraph for: ". 123)."
-    ✅ Found via paragraph search: from=2585, to=2592
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=13, charOffset=308, length=7
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=2276, nodeSize=317, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "The proliferation of smartphones has made social m..."
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: ". 123)."
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=2585, to=2592
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 12: "ALL CAPS heading detected..."
-    Location: paragraphIndex=3, charOffset=483, length=8
-    Found paragraph: pos=225, nodeSize=263, type=paragraph
-    Paragraph text: "AuthorNote John  Smith, Department of Psychology, ..."
-    🔍 Searching within paragraph for: "ABSTRACT"
-    ⚠️ Text not found in expected paragraph
-    🔍 Falling back to document-wide search...
-    ✅ Found via document search: from=490, to=498
- 
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=4, charOffset=483, length=8
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=488, nodeSize=11, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: " ABSTRACT"
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "ABSTRACT"
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=490, to=498
+src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 13: "ALL CAPS heading detected..."
-    Location: paragraphIndex=6, charOffset=1166, length=12
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1089, nodeSize=85, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Keywords: social media, academic performance, coll..."
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=7, charOffset=1166, length=12
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1174, nodeSize=14, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "INTRODUCTION"
 src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "INTRODUCTION"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=1175, to=1187
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=1175, to=1187
 src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 14: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=9, charOffset=1945, length=45
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1554, nodeSize=402, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "According to recent statistics, the average colleg..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "LITERATURE REVIEW
-SOCIAL MEDIA USAGE PAT..."
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:171    ❌ Document search failed
-src\utils\tiptapApaAnalyzer.js:175    ❌ No position found for this issue
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=10, charOffset=1945, length=17
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1956, nodeSize=19, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "LITERATURE REVIEW"
+src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "LITERATURE REVIEW"
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=1957, to=1974
 src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 15: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=13, charOffset=2578, length=31
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=2276, nodeSize=317, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "The proliferation of smartphones has made social m..."
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=14, charOffset=2578, length=31
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=2593, nodeSize=33, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "ACADEMIC PERFORMANCE INDICATORS"
 src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "ACADEMIC PERFORMANCE INDICATORS"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=2594, to=2625
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=2594, to=2625
 src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 16: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=16, charOffset=3130, length=11
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=2882, nodeSize=266, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "The concept of "academic engagement" has emerged a..."
+src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=17, charOffset=3130, length=11
+src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=3148, nodeSize=13, type=paragraph
+src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "METHODOLOGY"
 src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "METHODOLOGY"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=3149, to=3160
+src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=3149, to=3160
 src\utils\tiptapApaAnalyzer.js:129 
 🔹 Issue 17: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=21, charOffset=3672, length=7
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=3407, nodeSize=288, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Data collection occurred over a six-week period du..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "RESULTS"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=3696, to=3703
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=22, charOffset=3672, length=7
+    Found paragraph: pos=3695, nodeSize=9, type=paragraph
+    Paragraph text: "RESULTS"
+    🔍 Searching within paragraph for: "RESULTS"
+    ✅ Found via paragraph search: from=3696, to=3703
+ 
 🔹 Issue 18: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=24, charOffset=4271, length=10
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=4030, nodeSize=267, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Platform-specific analysis showed that Instagram a..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "DISCUSSION"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=4298, to=4308
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=25, charOffset=4271, length=10
+    Found paragraph: pos=4297, nodeSize=12, type=paragraph
+    Paragraph text: "DISCUSSION"
+    🔍 Searching within paragraph for: "DISCUSSION"
+    ✅ Found via paragraph search: from=4298, to=4308
+ 
 🔹 Issue 19: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=27, charOffset=4829, length=12
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=4576, nodeSize=282, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Several limitations should be noted. First, the st..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "IMPLICATIONS"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=4859, to=4871
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=28, charOffset=4829, length=12
+    Found paragraph: pos=4858, nodeSize=14, type=paragraph
+    Paragraph text: "IMPLICATIONS"
+    🔍 Searching within paragraph for: "IMPLICATIONS"
+    ✅ Found via paragraph search: from=4859, to=4871
+ 
 🔹 Issue 20: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=30, charOffset=5369, length=10
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=5168, nodeSize=233, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "The results also suggest that not all social media..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "CONCLUSION"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=5402, to=5412
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=31, charOffset=5369, length=10
+    Found paragraph: pos=5401, nodeSize=12, type=paragraph
+    Paragraph text: "CONCLUSION"
+    🔍 Searching within paragraph for: "CONCLUSION"
+    ✅ Found via paragraph search: from=5402, to=5412
+ 
 🔹 Issue 21: "ALL CAPS heading detected..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=32, charOffset=5785, length=10
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=5413, nodeSize=406, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "This study contributes to the growing body of lite..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "REFERENCES"
-src\utils\tiptapApaAnalyzer.js:152    ⚠️ Text not found in expected paragraph
-src\utils\tiptapApaAnalyzer.js:161    🔍 Falling back to document-wide search...
-src\utils\tiptapApaAnalyzer.js:164    ✅ Found via document search: from=5820, to=5830
-src\utils\tiptapApaAnalyzer.js:122 ⚪ Issue 22: "Citations on title page..." - Document-level (no position)
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=33, charOffset=5785, length=10
+    Found paragraph: pos=5819, nodeSize=12, type=paragraph
+    Paragraph text: "REFERENCES"
+    🔍 Searching within paragraph for: "REFERENCES"
+    ✅ Found via paragraph search: from=5820, to=5830
+ ⚪ Issue 22: "Citations on title page..." - Document-level (no position)
+ 
 🔹 Issue 23: "Incorrect connector in parenthetical cit..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=5, charOffset=350, length=28
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=499, nodeSize=590, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "This study examines the relationship between socia..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "(Johnson and Williams, 2019)"
-src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=850, to=878
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=5, charOffset=350, length=28
+    Found paragraph: pos=499, nodeSize=590, type=paragraph
+    Paragraph text: "This study examines the relationship between socia..."
+    🔍 Searching within paragraph for: "(Johnson and Williams, 2019)"
+    ✅ Found via paragraph search: from=850, to=878
+ 
 🔹 Issue 24: "Missing comma in citation..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=8, charOffset=181, length=12
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1188, nodeSize=366, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Social media has become an integral part of modern..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "(Smith 2020)"
-src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=1370, to=1382
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=8, charOffset=181, length=12
+    Found paragraph: pos=1188, nodeSize=366, type=paragraph
+    Paragraph text: "Social media has become an integral part of modern..."
+    🔍 Searching within paragraph for: "(Smith 2020)"
+    ✅ Found via paragraph search: from=1370, to=1382
+ 
 🔹 Issue 25: "Incorrect connector in parenthetical cit..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=8, charOffset=278, length=30
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=1188, nodeSize=366, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "Social media has become an integral part of modern..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "(Davis and Brown, 2018, p. 45)"
-src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=1467, to=1497
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=8, charOffset=278, length=30
+    Found paragraph: pos=1188, nodeSize=366, type=paragraph
+    Paragraph text: "Social media has become an integral part of modern..."
+    🔍 Searching within paragraph for: "(Davis and Brown, 2018, p. 45)"
+    ✅ Found via paragraph search: from=1467, to=1497
+ 
 🔹 Issue 26: "Incorrect connector in parenthetical cit..."
-src\utils\tiptapApaAnalyzer.js:130    Location: paragraphIndex=13, charOffset=282, length=32
-src\utils\tiptapApaAnalyzer.js:135    Found paragraph: pos=2276, nodeSize=317, type=paragraph
-src\utils\tiptapApaAnalyzer.js:136    Paragraph text: "The proliferation of smartphones has made social m..."
-src\utils\tiptapApaAnalyzer.js:142    🔍 Searching within paragraph for: "(Wilson and Davis, 2020, p. 123)"
-src\utils\tiptapApaAnalyzer.js:145    ✅ Found via paragraph search: from=2559, to=2591
-src\utils\tiptapApaAnalyzer.js:129 
+    Location: paragraphIndex=13, charOffset=282, length=32
+    Found paragraph: pos=2276, nodeSize=317, type=paragraph
+    Paragraph text: "The proliferation of smartphones has made social m..."
+    🔍 Searching within paragraph for: "(Wilson and Davis, 2020, p. 123)"
+    ✅ Found via paragraph search: from=2559, to=2591
+ 
 🔹 Issue 27: "Incorrect connector in parenthetical cit..."
     Location: paragraphIndex=16, charOffset=240, length=23
     Found paragraph: pos=2882, nodeSize=266, type=paragraph
@@ -291,9 +266,9 @@ src\utils\tiptapApaAnalyzer.js:129
  ═══════════════════════════════════════════════════════
  Total issues: 51
  ✅ Position calculated: 0
- 🔍 Paragraph search used: 15
- 🔍 Document search used: 9
- ❌ No position found: 1
+ 🔍 Paragraph search used: 25
+ 🔍 Document search used: 0
+ ❌ No position found: 0
  ═══════════════════════════════════════════════════════
 
  
@@ -342,42 +317,39 @@ src\utils\tiptapApaAnalyzer.js:129
 🎨 [TiptapIssueHighlighter] Finding position for: "Missing running head (professional paper..."
     ⚪ No pmPosition, using legacy search
  ⚠️ No position found for issue: {id: 'issue-63pch6-7', title: 'Missing running head (professional paper)', category: 'headers', highlightText: undefined, text: undefined, …}
- 
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "Missing page numbers..."
-    ⚪ No pmPosition, using legacy search
- ⚠️ No position found for issue: {id: 'issue-721j4m-8', title: 'Missing page numbers', category: 'headers', highlightText: undefined, text: undefined, …}
- 
+src\utils\tiptapIssueHighlighter.js:132    ⚪ No pmPosition, using legacy search
+src\utils\tiptapIssueHighlighter.js:288 ⚠️ No position found for issue: {id: 'issue-721j4m-8', title: 'Missing page numbers', category: 'headers', highlightText: undefined, text: undefined, …}
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "Number at sentence beginning..."
-    📍 Has pmPosition: from=1492, to=1542
-    ✅ pmPosition valid, text: ". 45). The current study aims ..."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=1492, to=1542
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: ". 45). The current study aims ..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "Number at sentence beginning..."
-    📍 Has pmPosition: from=2585, to=2592
-    ✅ pmPosition valid, text: ". 123)...."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=2585, to=2592
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: ". 123)...."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
-    📍 Has pmPosition: from=490, to=498
-    ✅ pmPosition valid, text: "ABSTRACT..."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=490, to=498
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "ABSTRACT..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
-    📍 Has pmPosition: from=1175, to=1187
-    ✅ pmPosition valid, text: "INTRODUCTION..."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=1175, to=1187
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "INTRODUCTION..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
-    ⚪ No pmPosition, using legacy search
- 🔍 Paragraph search failed: para 9/48, text: "According to recent statistics, the average college student ", search: "LITERATURE REVIEW
-SOCIAL MEDIA USAGE PAT"
- 🔍 Paragraph search failed: para 9/48, text: "According to recent statistics, the average college student ", search: "LITERATURE REVIEW"
- 🔍 Paragraph search failed: para 9/48, text: "According to recent statistics, the average college student ", search: "LITERATURE REVIEW"
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=1957, to=1974
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "LITERATURE REVIEW..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
-    📍 Has pmPosition: from=2594, to=2625
-    ✅ pmPosition valid, text: "ACADEMIC PERFORMANCE INDICATOR..."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=2594, to=2625
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "ACADEMIC PERFORMANCE INDICATOR..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
-    📍 Has pmPosition: from=3149, to=3160
-    ✅ pmPosition valid, text: "METHODOLOGY..."
- 
+src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=3149, to=3160
+src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "METHODOLOGY..."
+src\utils\tiptapIssueHighlighter.js:112 
 🎨 [TiptapIssueHighlighter] Finding position for: "ALL CAPS heading detected..."
 src\utils\tiptapIssueHighlighter.js:117    📍 Has pmPosition: from=3696, to=3703
 src\utils\tiptapIssueHighlighter.js:122    ✅ pmPosition valid, text: "RESULTS..."
@@ -508,10 +480,10 @@ src\utils\tiptapIssueHighlighter.js:328 ║  📊 [TiptapIssueHighlighter] DECOR
 src\utils\tiptapIssueHighlighter.js:329 ╚═══════════════════════════════════════════════════════╝
 src\utils\tiptapIssueHighlighter.js:330 ✅ Issues with positions: 44
 src\utils\tiptapIssueHighlighter.js:331 ❌ Issues without positions: 7
-src\utils\tiptapIssueHighlighter.js:332 🎨 Total decorations created: 64
+src\utils\tiptapIssueHighlighter.js:332 🎨 Total decorations created: 63
 src\utils\tiptapIssueHighlighter.js:333 ═══════════════════════════════════════════════════════
 
 src\hooks\useIssueDecorations.js:29 🎨 Updated decorations for 51 issues
-src\utils\indexedDBManager.js:98 💾 Saved to IndexedDB: b9488543-0e73-46b1-b3bf-c25bb3af42cd {size: 65428, timestamp: '2025-10-03T19:59:08.931Z'}
+src\utils\indexedDBManager.js:98 💾 Saved to IndexedDB: 52376cda-df05-4950-b663-a08cea4085c1 {size: 65428, timestamp: '2025-10-03T20:17:22.895Z'}
 src\hooks\useAutoSave.js:46 💾 Auto-saved to IndexedDB
 src\hooks\useAutoSave.js:60 ✅ Auto-saved to Supabase

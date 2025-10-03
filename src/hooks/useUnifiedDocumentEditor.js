@@ -398,6 +398,37 @@ export const useUnifiedDocumentEditor = () => {
             view.dispatch(tr);
 
             console.log('   ✅ Text replacement applied via transaction');
+
+            // CRITICAL: Update all OTHER issue positions using the transaction mapping
+            // This ensures subsequent fixes use correct positions after document changes
+            // Note: The current issue being fixed will be removed by DocumentService, so skip it
+            const currentIssues = documentModel?.issues;
+            if (currentIssues && currentIssues.length > 0 && fixData.issueId) {
+              let updatedCount = 0;
+              const updatedIssues = currentIssues.map(issue => {
+                // Skip the issue being fixed (it will be removed)
+                if (issue.id === fixData.issueId) {
+                  return issue;
+                }
+
+                if (issue.pmPosition) {
+                  const newFrom = tr.mapping.map(issue.pmPosition.from);
+                  const newTo = tr.mapping.map(issue.pmPosition.to);
+                  updatedCount++;
+                  return {
+                    ...issue,
+                    pmPosition: { from: newFrom, to: newTo }
+                  };
+                }
+                return issue;
+              });
+              // Update issues in DocumentModel
+              if (documentModel) {
+                documentModel.issues = updatedIssues;
+              }
+              console.log(`   📍 Updated ${updatedCount} issue positions after edit`);
+            }
+
             console.log('╚═══════════════════════════════════════════════════════╝\n');
           } else {
             console.warn('   ❌ Could not find text to replace');

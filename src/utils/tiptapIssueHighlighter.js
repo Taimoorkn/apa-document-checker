@@ -109,6 +109,22 @@ const MAX_DEBUG_LOGS = 5;
 function findIssuePositions(doc, issue) {
   const positions = [];
 
+  // NEW: Use ProseMirror position if available (from position enrichment)
+  if (issue.pmPosition) {
+    const { from, to } = issue.pmPosition;
+
+    // Validate position is within document bounds
+    if (from >= 0 && to <= doc.content.size && from < to) {
+      positions.push({ from, to });
+      return positions;
+    } else if (process.env.NODE_ENV === 'development') {
+      console.warn(`⚠️ Invalid pmPosition for issue "${issue.title}": {from: ${from}, to: ${to}, docSize: ${doc.content.size}}`);
+      // Fall through to legacy search
+    }
+  }
+
+  // LEGACY FALLBACK: Search-based positioning (for old issues or when pmPosition failed)
+
   // Skip document-level issues without specific text
   if (issue.location?.type === 'document' && !issue.highlightText && !issue.text) {
     return positions;

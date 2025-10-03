@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { EnhancedAPAAnalyzer } from '@/utils/enhancedApaAnalyzer';
+import { PositionCalculator } from '@/utils/positionCalculator';
 
 /**
  * Analysis hook - Runs APA analysis in background
  * Updates issue list without touching editor content
+ * NEW: Enriches issues with ProseMirror positions for accurate highlighting
  */
 export const useAnalysis = (editor, documentModel, enabled = true, editorInitialized = true) => {
   const [issues, setIssues] = useState([]);
@@ -51,10 +53,25 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
       };
 
       // Run analysis (synchronous for now, Web Worker in future)
-      const newIssues = analyzerRef.current.analyzeDocument(documentData);
+      const rawIssues = analyzerRef.current.analyzeDocument(documentData);
+
+      // NEW: Build position map from editor's current document structure
+      const positionMap = PositionCalculator.buildPositionMap(editor);
+
+      // NEW: Enrich issues with ProseMirror positions
+      const enrichedIssues = PositionCalculator.enrichIssuesWithPositions(
+        rawIssues,
+        positionMap,
+        editor
+      );
+
+      if (process.env.NODE_ENV === 'development') {
+        const withPositions = enrichedIssues.filter(i => i.pmPosition).length;
+        console.log(`📍 Position enrichment: ${withPositions}/${enrichedIssues.length} issues have PM positions`);
+      }
 
       // Update issues state (triggers decoration update)
-      setIssues(newIssues);
+      setIssues(enrichedIssues);
 
       // IMPORTANT: Also update DocumentModel so IssuesPanel can see the new issues
       if (documentModel && documentModel.issues) {
@@ -63,12 +80,12 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
         documentModel.issues.paragraphIssues.clear();
 
         // Add new issues
-        newIssues.forEach(issue => {
+        enrichedIssues.forEach(issue => {
           documentModel.issues.addIssue(issue);
         });
       }
 
-      console.log(`✅ Analysis complete: ${newIssues.length} issues found`);
+      console.log(`✅ Analysis complete: ${enrichedIssues.length} issues found`);
       setIsAnalyzing(false);
     } catch (error) {
       console.error('❌ Analysis failed:', error);

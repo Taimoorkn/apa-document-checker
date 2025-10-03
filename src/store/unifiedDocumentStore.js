@@ -342,6 +342,9 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     }));
 
     try {
+      // Get the issue to access pmPosition
+      const issue = state.documentModel.issues.issues.get(issueId);
+
       const result = await state.documentService.applyFix(state.documentModel, issueId);
 
       if (process.env.NODE_ENV === 'development') {
@@ -351,7 +354,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           hasFixData: !!result.fixData,
           fixDataType: result.fixData?.type,
           fixAction: result.fixAction,
-          fixedIssueId: result.fixedIssueId
+          fixedIssueId: result.fixedIssueId,
+          hasPmPosition: !!issue?.pmPosition
         });
       }
 
@@ -387,7 +391,8 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         issueId,
         fixAction: result.fixAction,
         snapshotId: result.snapshotId,
-        fixData: result.fixData // NEW: transaction data for ProseMirror
+        fixData: result.fixData, // Transaction data for ProseMirror
+        pmPosition: issue?.pmPosition // NEW: Direct ProseMirror position from issue
       });
 
       return {

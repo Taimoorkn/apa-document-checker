@@ -294,7 +294,7 @@ export const useUnifiedDocumentEditor = () => {
         return;
       }
 
-      const { fixData } = data;
+      const { fixData, pmPosition } = data;
 
       if (!fixData) {
         console.warn('No fixData provided for fix application');
@@ -305,59 +305,80 @@ export const useUnifiedDocumentEditor = () => {
       try {
         if (fixData.type === 'textReplacement' && fixData.textReplacement) {
           const { text: replacementText, original: originalText } = fixData.textReplacement;
-          let { from, to } = fixData.textReplacement;
+          const { state, view } = editor;
+          const { doc } = state;
+          let foundPosition = null;
 
           if (!originalText) {
             console.warn('⚠️ No original text provided for replacement');
             return;
           }
 
-          // IMPORTANT: The from/to positions from DocumentModel may be wrong
-          // because paragraph indices don't match between DocumentModel and Tiptap.
-          // We need to search for the original text in the editor first.
+          // NEW: Use pmPosition if available (accurate, no search needed)
+          if (pmPosition) {
+            const { from, to } = pmPosition;
 
-          const { state, view } = editor;
-          const { doc } = state;
+            // Validate position is still correct (content might have changed)
+            if (from >= 0 && to <= doc.content.size && from < to) {
+              const textAtPosition = doc.textBetween(from, to, ' ');
 
-          // Try to find this text at the given position
-          let foundPosition = null;
+              if (textAtPosition === originalText || textAtPosition.includes(originalText)) {
+                foundPosition = { from, to };
 
-          // First, check if the position is valid and contains the expected text
-          if (from < doc.content.size && to <= doc.content.size) {
-            const textAtPosition = doc.textBetween(from, to, ' ');
-            if (textAtPosition === originalText || textAtPosition.includes(originalText)) {
-              foundPosition = { from, to };
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('✨ Using pmPosition for fix application:', { from, to });
+                }
+              } else if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ pmPosition text mismatch, falling back to search', {
+                  expected: originalText.substring(0, 30),
+                  actual: textAtPosition.substring(0, 30)
+                });
+              }
             }
           }
 
-          // If not found at expected position, search the entire document
+          // FALLBACK: Search-based positioning (if pmPosition not available or stale)
           if (!foundPosition) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('🔍 Searching for text to replace:', originalText.substring(0, 50));
+            const legacyFrom = fixData.textReplacement.from;
+            const legacyTo = fixData.textReplacement.to;
+
+            // Try legacy position first
+            if (legacyFrom < doc.content.size && legacyTo <= doc.content.size) {
+              const textAtPosition = doc.textBetween(legacyFrom, legacyTo, ' ');
+              if (textAtPosition === originalText || textAtPosition.includes(originalText)) {
+                foundPosition = { from: legacyFrom, to: legacyTo };
+              }
             }
 
-            doc.descendants((node, pos) => {
-              if (foundPosition) return false; // Already found
+            // If still not found, search the entire document
+            if (!foundPosition) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🔍 Searching for text to replace:', originalText.substring(0, 50));
+              }
 
-              if (node.isText && node.text.includes(originalText)) {
-                const index = node.text.indexOf(originalText);
-                foundPosition = {
-                  from: pos + index,
-                  to: pos + index + originalText.length
-                };
-                return false;
-              } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
-                const text = node.textContent;
-                if (text.includes(originalText)) {
-                  const index = text.indexOf(originalText);
+              doc.descendants((node, pos) => {
+                if (foundPosition) return false;
+
+                if (node.isText && node.text.includes(originalText)) {
+                  const index = node.text.indexOf(originalText);
                   foundPosition = {
-                    from: pos + 1 + index,
-                    to: pos + 1 + index + originalText.length
+                    from: pos + index,
+                    to: pos + index + originalText.length
                   };
                   return false;
+                } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+                  const text = node.textContent;
+                  if (text.includes(originalText)) {
+                    const index = text.indexOf(originalText);
+                    foundPosition = {
+                      from: pos + 1 + index,
+                      to: pos + 1 + index + originalText.length
+                    };
+                    return false;
+                  }
                 }
-              }
-            });
+              });
+            }
           }
 
           if (foundPosition) {
@@ -369,7 +390,8 @@ export const useUnifiedDocumentEditor = () => {
               console.log('🔧 Text fix applied via transaction', {
                 original: originalText.substring(0, 30),
                 replacement: replacementText.substring(0, 30),
-                position: foundPosition
+                position: foundPosition,
+                usedPmPosition: !!pmPosition
               });
             }
           } else {
@@ -377,14 +399,58 @@ export const useUnifiedDocumentEditor = () => {
           }
         }
         else if (fixData.type === 'formatting' && fixData.formatting) {
-          // For formatting fixes, we need to refresh from model
-          // This is unavoidable for document-wide formatting changes
-          const updatedContent = getEditorContent();
-          if (updatedContent) {
-            editor.commands.setContent(updatedContent, false, {
-              preserveWhitespace: true
-            });
-            console.log('🎨 Formatting fix applied via content refresh');
+          // NEW: Apply formatting fix via transaction (preserves cursor position)
+          const { property, value } = fixData.formatting;
+          const { state, view } = editor;
+          const tr = state.tr;
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🎨 Applying formatting fix via transaction:', { property, value });
+          }
+
+          // Apply formatting to all nodes in the document
+          state.doc.descendants((node, pos) => {
+            if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+              // Update paragraph-level attributes
+              if (property === 'lineHeight') {
+                tr.setNodeMarkup(pos, null, { ...node.attrs, lineHeight: value });
+              } else if (property === 'indentation') {
+                tr.setNodeMarkup(pos, null, { ...node.attrs, firstLineIndent: `${value}in` });
+              }
+            } else if (node.isText && (property === 'fontFamily' || property === 'fontSize')) {
+              // Update text marks for font properties
+              const from = pos;
+              const to = pos + node.nodeSize;
+
+              // Get existing marks
+              const marks = node.marks;
+
+              // Find or create fontFormatting mark
+              let fontMark = marks.find(m => m.type.name === 'fontFormatting');
+
+              if (fontMark) {
+                // Update existing mark
+                const newAttrs = { ...fontMark.attrs };
+                if (property === 'fontFamily') newAttrs.fontFamily = value;
+                if (property === 'fontSize') newAttrs.fontSize = value;
+
+                tr.removeMark(from, to, fontMark);
+                tr.addMark(from, to, state.schema.marks.fontFormatting.create(newAttrs));
+              } else {
+                // Create new mark
+                const attrs = {};
+                if (property === 'fontFamily') attrs.fontFamily = value;
+                if (property === 'fontSize') attrs.fontSize = value;
+
+                tr.addMark(from, to, state.schema.marks.fontFormatting.create(attrs));
+              }
+            }
+          });
+
+          view.dispatch(tr);
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Formatting fix applied via transaction (cursor preserved)');
           }
         }
       } catch (error) {

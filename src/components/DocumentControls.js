@@ -18,7 +18,8 @@ const DocumentControls = memo(({
   showIssueHighlighting,
   toggleIssueHighlighting,
   issues,
-  editor
+  editor,
+  onRunAnalysis
 }) => {
   const { documentModel, exportDocument } = useUnifiedDocumentStore();
   const [isExporting, setIsExporting] = useState(false);
@@ -96,13 +97,29 @@ const DocumentControls = memo(({
               </>
             )}
 
-            {/* Analysis Status - Real-time analysis runs automatically */}
-            {isAnalyzing && (
-              <div className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                <span>Analyzing...</span>
-              </div>
-            )}
+            {/* Run Check Button */}
+            <button
+              onClick={onRunAnalysis}
+              disabled={isAnalyzing}
+              title="Run APA analysis on current document (Ctrl+Shift+C)"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                isAnalyzing
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg shadow-emerald-600/25'
+              }`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin"></div>
+                  <span>Checking...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Run Check</span>
+                </>
+              )}
+            </button>
 
             {/* Toggle Highlighting */}
             <button

@@ -89,8 +89,8 @@ export const useUnifiedDocumentEditor = () => {
   const documentId = documentModel?.supabase?.documentId || documentModel?.id;
   useAutoSave(editor, documentId, !!documentModel);
 
-  // Analysis hook (passive observer)
-  const { issues, isAnalyzing } = useAnalysis(editor, documentModel, !!documentModel);
+  // Analysis hook (passive observer) - wait for editor to be initialized with content
+  const { issues, isAnalyzing, triggerAnalysis } = useAnalysis(editor, documentModel, !!documentModel, editorInitialized);
 
   // Issue decorations (visual only)
   useIssueDecorations(editor, issues, activeIssueId, showHighlighting);
@@ -308,6 +308,7 @@ export const useUnifiedDocumentEditor = () => {
     setEditorInitialized,
     issues,
     isAnalyzing,
+    triggerAnalysis,
     activeIssueId,
     setActiveIssueId,
     showHighlighting,

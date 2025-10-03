@@ -6,23 +6,27 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 const highlighterKey = new PluginKey('issueHighlighter');
 
 // Helper functions defined outside the extension
-function findTextInNode(text, searchText, basePos, positions, isTruncated) {
-  let index = text.indexOf(searchText);
-  
+function findTextInNode(text, searchText, basePos, positions, isTruncated, caseSensitive = true) {
+  // Normalize text for search
+  const searchIn = caseSensitive ? text : text.toLowerCase();
+  const searchFor = caseSensitive ? searchText : searchText.toLowerCase();
+
+  let index = searchIn.indexOf(searchFor);
+
   while (index !== -1) {
     const from = basePos + index;
-    const to = from + (isTruncated 
+    const to = from + (isTruncated
       ? Math.min(searchText.length + 20, text.length - index)
       : searchText.length);
-    
+
     positions.push({ from, to });
-    
+
     // Look for next occurrence
-    index = text.indexOf(searchText, index + 1);
+    index = searchIn.indexOf(searchFor, index + 1);
   }
 }
 
-function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncated) {
+function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncated, caseSensitive = true) {
   let currentPara = 0;
   let found = false;
 
@@ -32,7 +36,7 @@ function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncat
     if (node.type.name === 'paragraph' || node.type.name === 'heading') {
       if (currentPara === paragraphIndex) {
         const text = node.textContent;
-        findTextInNode(text, searchText, pos + 1, positions, isTruncated);
+        findTextInNode(text, searchText, pos + 1, positions, isTruncated, caseSensitive);
         found = true;
         return false;
       }
@@ -41,16 +45,19 @@ function searchInParagraph(doc, searchText, paragraphIndex, positions, isTruncat
   });
 }
 
-function searchInDocument(doc, searchText, positions, isTruncated) {
+function searchInDocument(doc, searchText, positions, isTruncated, caseSensitive = true) {
   doc.descendants((node, pos) => {
     if (node.isText) {
       const text = node.text;
-      findTextInNode(text, searchText, pos, positions, isTruncated);
+      findTextInNode(text, searchText, pos, positions, isTruncated, caseSensitive);
     } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
       // For block nodes, search their text content
       const text = node.textContent;
-      if (text.includes(searchText)) {
-        findTextInNode(text, searchText, pos + 1, positions, isTruncated);
+      const searchIn = caseSensitive ? text : text.toLowerCase();
+      const searchFor = caseSensitive ? searchText : searchText.toLowerCase();
+
+      if (searchIn.includes(searchFor)) {
+        findTextInNode(text, searchText, pos + 1, positions, isTruncated, caseSensitive);
       }
     }
   });
@@ -58,33 +65,54 @@ function searchInDocument(doc, searchText, positions, isTruncated) {
 
 function findIssuePositions(doc, issue) {
   const positions = [];
-  
+
   // Skip document-level issues without specific text
   if (issue.location?.type === 'document' && !issue.highlightText && !issue.text) {
     return positions;
   }
-  
+
   // Determine search text
   let searchText = issue.highlightText || issue.text || '';
   if (!searchText || searchText.length < 2) {
     return positions;
   }
-  
+
   // Handle truncated text
   const isTruncated = searchText.endsWith('...');
   if (isTruncated) {
     searchText = searchText.slice(0, -3).trim();
   }
-  
-  // Search strategy based on location
+
+  // For multi-line search text, try first line only (common for headings with extra context)
+  const hasNewlines = searchText.includes('\n');
+  const firstLineText = hasNewlines ? searchText.split('\n')[0].trim() : searchText;
+
+  // Try case-sensitive search first
   if (issue.location?.paragraphIndex !== undefined) {
-    // Search in specific paragraph
-    searchInParagraph(doc, searchText, issue.location.paragraphIndex, positions, isTruncated);
+    searchInParagraph(doc, searchText, issue.location.paragraphIndex, positions, isTruncated, true);
   } else {
-    // Search entire document
-    searchInDocument(doc, searchText, positions, isTruncated);
+    searchInDocument(doc, searchText, positions, isTruncated, true);
   }
-  
+
+  // If no results and text has newlines, try first line only
+  if (positions.length === 0 && hasNewlines && firstLineText.length >= 2) {
+    if (issue.location?.paragraphIndex !== undefined) {
+      searchInParagraph(doc, firstLineText, issue.location.paragraphIndex, positions, false, true);
+    } else {
+      searchInDocument(doc, firstLineText, positions, false, true);
+    }
+  }
+
+  // If still no results, try case-insensitive search
+  if (positions.length === 0) {
+    const textToSearch = hasNewlines && firstLineText.length >= 2 ? firstLineText : searchText;
+    if (issue.location?.paragraphIndex !== undefined) {
+      searchInParagraph(doc, textToSearch, issue.location.paragraphIndex, positions, isTruncated, false);
+    } else {
+      searchInDocument(doc, textToSearch, positions, isTruncated, false);
+    }
+  }
+
   return positions;
 }
 
@@ -117,15 +145,34 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
   }
 
   const decorations = [];
-  
+  let issuesWithPositions = 0;
+  let issuesWithoutPositions = 0;
+
   issues.forEach(issue => {
     try {
       const positions = findIssuePositions(doc, issue);
-      
+
+      if (positions.length === 0) {
+        issuesWithoutPositions++;
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`⚠️ No position found for issue:`, {
+            id: issue.id,
+            title: issue.title,
+            category: issue.category,
+            highlightText: issue.highlightText?.substring(0, 50),
+            text: issue.text?.substring(0, 50),
+            locationType: issue.location?.type,
+            paragraphIndex: issue.location?.paragraphIndex
+          });
+        }
+      } else {
+        issuesWithPositions++;
+      }
+
       positions.forEach(({ from, to }) => {
         const isActive = issue.id === activeIssueId;
         const className = getHighlightClass(issue.severity, isActive);
-        
+
         const decoration = Decoration.inline(from, to, {
           class: className,
           nodeName: 'span',
@@ -138,17 +185,21 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
           inclusiveStart: false,
           inclusiveEnd: false
         });
-        
+
         decorations.push(decoration);
       });
     } catch (error) {
       console.warn(`Failed to highlight issue ${issue.id}:`, error);
     }
   });
-  
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🎨 Decoration stats: ${issuesWithPositions} issues highlighted, ${issuesWithoutPositions} issues without positions`);
+  }
+
   // Sort decorations by position to avoid conflicts
   decorations.sort((a, b) => a.from - b.from);
-  
+
   return DecorationSet.create(doc, decorations);
 }
 

@@ -25,6 +25,7 @@ export const NewDocumentEditor = () => {
     editorInitialized,
     issues,
     isAnalyzing,
+    triggerAnalysis,
     showHighlighting,
     toggleHighlighting
   } = useUnifiedDocumentEditor();
@@ -71,6 +72,7 @@ export const NewDocumentEditor = () => {
       <DocumentControls
         documentText={documentModel.getPlainText()}
         isAnalyzing={isAnalyzing}
+        onRunAnalysis={triggerAnalysis}
         showIssueHighlighting={showHighlighting}
         toggleIssueHighlighting={toggleHighlighting}
         issues={issues}

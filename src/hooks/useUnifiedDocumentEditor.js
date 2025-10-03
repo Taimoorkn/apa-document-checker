@@ -289,7 +289,10 @@ export const useUnifiedDocumentEditor = () => {
   // Listen for fix application (use transaction, not setContent)
   useEffect(() => {
     const cleanup = events.on('fixApplied', (data) => {
-      if (!editor) return;
+      if (!editor) {
+        console.warn('⚠️ Editor not available for fix application');
+        return;
+      }
 
       const { fixData } = data;
 
@@ -300,14 +303,78 @@ export const useUnifiedDocumentEditor = () => {
 
       // Apply fix via ProseMirror transaction (surgical update)
       try {
-        const { state, view } = editor;
-        const tr = state.tr;
-
         if (fixData.type === 'textReplacement' && fixData.textReplacement) {
-          const { from, to, text } = fixData.textReplacement;
-          tr.insertText(text, from, to);
-          view.dispatch(tr);
-          console.log('🔧 Text fix applied via transaction');
+          const { text: replacementText, original: originalText } = fixData.textReplacement;
+          let { from, to } = fixData.textReplacement;
+
+          if (!originalText) {
+            console.warn('⚠️ No original text provided for replacement');
+            return;
+          }
+
+          // IMPORTANT: The from/to positions from DocumentModel may be wrong
+          // because paragraph indices don't match between DocumentModel and Tiptap.
+          // We need to search for the original text in the editor first.
+
+          const { state, view } = editor;
+          const { doc } = state;
+
+          // Try to find this text at the given position
+          let foundPosition = null;
+
+          // First, check if the position is valid and contains the expected text
+          if (from < doc.content.size && to <= doc.content.size) {
+            const textAtPosition = doc.textBetween(from, to, ' ');
+            if (textAtPosition === originalText || textAtPosition.includes(originalText)) {
+              foundPosition = { from, to };
+            }
+          }
+
+          // If not found at expected position, search the entire document
+          if (!foundPosition) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔍 Searching for text to replace:', originalText.substring(0, 50));
+            }
+
+            doc.descendants((node, pos) => {
+              if (foundPosition) return false; // Already found
+
+              if (node.isText && node.text.includes(originalText)) {
+                const index = node.text.indexOf(originalText);
+                foundPosition = {
+                  from: pos + index,
+                  to: pos + index + originalText.length
+                };
+                return false;
+              } else if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+                const text = node.textContent;
+                if (text.includes(originalText)) {
+                  const index = text.indexOf(originalText);
+                  foundPosition = {
+                    from: pos + 1 + index,
+                    to: pos + 1 + index + originalText.length
+                  };
+                  return false;
+                }
+              }
+            });
+          }
+
+          if (foundPosition) {
+            const tr = state.tr;
+            tr.insertText(replacementText, foundPosition.from, foundPosition.to);
+            view.dispatch(tr);
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🔧 Text fix applied via transaction', {
+                original: originalText.substring(0, 30),
+                replacement: replacementText.substring(0, 30),
+                position: foundPosition
+              });
+            }
+          } else {
+            console.warn('⚠️ Could not find text to replace:', originalText.substring(0, 50));
+          }
         }
         else if (fixData.type === 'formatting' && fixData.formatting) {
           // For formatting fixes, we need to refresh from model

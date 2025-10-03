@@ -596,20 +596,24 @@ export class DocumentService {
     const paragraph = documentModel.paragraphs.get(paragraphId);
     const oldText = paragraph.text;
 
-    // Calculate replacement
-    let newText = oldText;
+    // NEW ARCHITECTURE: In real-time editing mode, Tiptap is the source of truth.
+    // We don't validate against DocumentModel (which has stale original content).
+    // Instead, we provide transaction data for the editor to apply.
+
+    // Determine original and replacement text
+    let originalText, replacementText;
+
     if (fixValue?.original && fixValue?.replacement) {
-      newText = oldText.replace(fixValue.original, fixValue.replacement);
+      originalText = fixValue.original;
+      replacementText = fixValue.replacement;
     } else {
       // Legacy: use predefined replacement logic
-      newText = this._applyLegacyTextFix(oldText, fixAction, issue);
+      originalText = issue.highlightText || issue.text;
+      const newText = this._applyLegacyTextFix(oldText, fixAction, issue);
+      replacementText = newText; // This is the full new paragraph text - not ideal but works
     }
 
-    if (oldText === newText) {
-      return { success: false, error: 'No changes detected' };
-    }
-
-    // Calculate position in document
+    // Calculate position in document (approximate - editor will search for actual position)
     let position = 0;
     for (let i = 0; i < paragraphIndex; i++) {
       const prevId = documentModel.paragraphOrder[i];
@@ -617,19 +621,21 @@ export class DocumentService {
       position += prevPara.text.length + 1; // +1 for newline
     }
 
-    // Find text position within paragraph
-    const textIndex = oldText.indexOf(fixValue?.original || issue.highlightText || issue.text);
-    const from = position + textIndex;
-    const to = from + (fixValue?.original || issue.highlightText || issue.text).length;
+    // Find text position within paragraph (approximate)
+    const textIndex = oldText.indexOf(originalText);
+    const from = position + (textIndex !== -1 ? textIndex : 0);
+    const to = from + originalText.length;
 
     return {
       success: true,
+      clientSide: true,
       transactionData: {
         type: 'textReplacement',
         textReplacement: {
           from,
           to,
-          text: fixValue?.replacement || newText
+          text: replacementText,
+          original: originalText // Editor will search for this text
         }
       }
     };

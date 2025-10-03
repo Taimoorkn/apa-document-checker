@@ -344,6 +344,17 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     try {
       const result = await state.documentService.applyFix(state.documentModel, issueId);
 
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Fix result from DocumentService:', {
+          success: result.success,
+          error: result.error,
+          hasFixData: !!result.fixData,
+          fixDataType: result.fixData?.type,
+          fixAction: result.fixAction,
+          fixedIssueId: result.fixedIssueId
+        });
+      }
+
       // Check if fix was successful
       if (!result.success) {
         set(currentState => ({

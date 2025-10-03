@@ -109,24 +109,34 @@ const MAX_DEBUG_LOGS = 5;
 function findIssuePositions(doc, issue) {
   const positions = [];
 
+  console.log(`\n🎨 [TiptapIssueHighlighter] Finding position for: "${issue.title.substring(0, 40)}..."`);
+
   // NEW: Use ProseMirror position if available (from position enrichment)
   if (issue.pmPosition) {
     const { from, to } = issue.pmPosition;
+    console.log(`   📍 Has pmPosition: from=${from}, to=${to}`);
 
     // Validate position is within document bounds
     if (from >= 0 && to <= doc.content.size && from < to) {
+      const textAtPosition = doc.textBetween(from, to, ' ');
+      console.log(`   ✅ pmPosition valid, text: "${textAtPosition.substring(0, 30)}..."`);
       positions.push({ from, to });
       return positions;
-    } else if (process.env.NODE_ENV === 'development') {
-      console.warn(`⚠️ Invalid pmPosition for issue "${issue.title}": {from: ${from}, to: ${to}, docSize: ${doc.content.size}}`);
+    } else {
+      console.warn(`   ⚠️ [TiptapIssueHighlighter] Invalid pmPosition:`);
+      console.warn(`      from=${from}, to=${to}, docSize=${doc.content.size}`);
+      console.warn(`      Falling back to legacy search...`);
       // Fall through to legacy search
     }
+  } else {
+    console.log(`   ⚪ No pmPosition, using legacy search`);
   }
 
   // LEGACY FALLBACK: Search-based positioning (for old issues or when pmPosition failed)
 
   // Skip document-level issues without specific text
   if (issue.location?.type === 'document' && !issue.highlightText && !issue.text) {
+    console.log(`   ⚪ Document-level issue, no text to highlight`);
     return positions;
   }
 
@@ -241,6 +251,12 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
     return DecorationSet.empty;
   }
 
+  console.log('\n╔═══════════════════════════════════════════════════════╗');
+  console.log('║   🎨 [TiptapIssueHighlighter] CREATING DECORATIONS   ║');
+  console.log('╚═══════════════════════════════════════════════════════╝');
+  console.log(`Total issues to highlight: ${issues.length}`);
+  console.log(`Active issue ID: ${activeIssueId || 'none'}`);
+
   // Reset debug counter for each decoration cycle
   debugLogCount = 0;
 
@@ -304,13 +320,17 @@ function createDecorations(doc, issues, activeIssueId, showHighlighting) {
         decorations.push(decoration);
       });
     } catch (error) {
-      console.warn(`Failed to highlight issue ${issue.id}:`, error);
+      console.warn(`   ❌ [TiptapIssueHighlighter] Failed to highlight issue ${issue.id}:`, error);
     }
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🎨 Decoration stats: ${issuesWithPositions} issues highlighted, ${issuesWithoutPositions} issues without positions`);
-  }
+  console.log('\n╔═══════════════════════════════════════════════════════╗');
+  console.log('║  📊 [TiptapIssueHighlighter] DECORATION SUMMARY      ║');
+  console.log('╚═══════════════════════════════════════════════════════╝');
+  console.log(`✅ Issues with positions: ${issuesWithPositions}`);
+  console.log(`❌ Issues without positions: ${issuesWithoutPositions}`);
+  console.log(`🎨 Total decorations created: ${decorations.length}`);
+  console.log('═══════════════════════════════════════════════════════\n');
 
   // Sort decorations by position to avoid conflicts
   decorations.sort((a, b) => a.from - b.from);

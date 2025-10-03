@@ -24,6 +24,11 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
   // Actual analysis function (extracted for reuse)
   const performAnalysis = useCallback(async () => {
     if (!editor || !documentModel || !analyzerRef.current) {
+      console.warn('⚠️ [useAnalysis] Missing dependencies:', {
+        hasEditor: !!editor,
+        hasDocumentModel: !!documentModel,
+        hasAnalyzer: !!analyzerRef.current
+      });
       return;
     }
 
@@ -33,14 +38,16 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
 
       // Skip if no changes
       if (lastContentRef.current === contentString) {
-        console.log('⏭️ Skipping analysis - no content changes');
+        console.log('⏭️ [useAnalysis] Skipping analysis - no content changes');
         return;
       }
 
       lastContentRef.current = contentString;
       setIsAnalyzing(true);
 
-      console.log('🧠 Running Tiptap-native APA analysis...');
+      console.log('\n╔═══════════════════════════════════════════════════════╗');
+      console.log('║      🧠 [useAnalysis] ANALYSIS TRIGGERED             ║');
+      console.log('╚═══════════════════════════════════════════════════════╝');
 
       // TIPTAP-FIRST: Analyzer works directly with editor instance
       // No need for text extraction - analyzeDocument() traverses Tiptap nodes directly
@@ -51,6 +58,8 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
       );
 
       // Issues already have pmPosition from analyzer - no post-processing needed!
+
+      console.log(`\n📦 [useAnalysis] Updating state with ${issuesWithPositions.length} issues...`);
 
       // Update issues state (triggers decoration update)
       setIssues(issuesWithPositions);
@@ -65,19 +74,26 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
         issuesWithPositions.forEach(issue => {
           documentModel.issues.addIssue(issue);
         });
+        console.log(`✅ [useAnalysis] DocumentModel updated with ${issuesWithPositions.length} issues`);
       }
 
-      console.log(`✅ Analysis complete: ${issuesWithPositions.length} issues found`);
+      console.log('╔═══════════════════════════════════════════════════════╗');
+      console.log(`║      ✅ [useAnalysis] ANALYSIS COMPLETE              ║`);
+      console.log('╚═══════════════════════════════════════════════════════╝\n');
+
       setIsAnalyzing(false);
     } catch (error) {
-      console.error('❌ Analysis failed:', error);
+      console.error('╔═══════════════════════════════════════════════════════╗');
+      console.error('║      ❌ [useAnalysis] ANALYSIS FAILED                ║');
+      console.error('╚═══════════════════════════════════════════════════════╝');
+      console.error('Error details:', error);
       setIsAnalyzing(false);
     }
   }, [editor, documentModel]);
 
   // Manual trigger function for Run Check button
   const triggerAnalysis = useCallback(() => {
-    console.log('🔄 Manual analysis triggered');
+    console.log('🔄 [useAnalysis] Manual analysis triggered');
     // Clear any pending debounced analysis
     if (analysisTimeoutRef.current) {
       clearTimeout(analysisTimeoutRef.current);
@@ -88,13 +104,18 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
 
   useEffect(() => {
     if (!editor || !documentModel || !enabled) {
+      console.log('⏸️ [useAnalysis] Analysis disabled:', {
+        hasEditor: !!editor,
+        hasDocumentModel: !!documentModel,
+        enabled
+      });
       return;
     }
 
     // IMMEDIATE initial analysis on first load - ONLY after editor content is loaded
     if (!hasRunInitialAnalysisRef.current && editorInitialized) {
       hasRunInitialAnalysisRef.current = true;
-      console.log('🚀 Running immediate initial analysis (editor initialized)');
+      console.log('🚀 [useAnalysis] Running immediate initial analysis (editor initialized)');
       performAnalysis();
     }
 
@@ -104,8 +125,11 @@ export const useAnalysis = (editor, documentModel, enabled = true, editorInitial
         clearTimeout(analysisTimeoutRef.current);
       }
 
+      console.log('⏱️ [useAnalysis] Editor updated, debouncing analysis (8s)...');
+
       // Debounce analysis (8 seconds - after user stops typing)
       analysisTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ [useAnalysis] Debounce complete, running analysis...');
         performAnalysis();
       }, 8000); // 8 second debounce for updates only
     };

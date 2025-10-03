@@ -290,15 +290,26 @@ export const useUnifiedDocumentEditor = () => {
   useEffect(() => {
     const cleanup = events.on('fixApplied', (data) => {
       if (!editor) {
-        console.warn('⚠️ Editor not available for fix application');
+        console.warn('⚠️ [useUnifiedDocumentEditor] Editor not available for fix application');
         return;
       }
+
+      console.log('\n╔═══════════════════════════════════════════════════════╗');
+      console.log('║    🔧 [useUnifiedDocumentEditor] APPLYING FIX        ║');
+      console.log('╚═══════════════════════════════════════════════════════╝');
 
       const { fixData, pmPosition } = data;
 
       if (!fixData) {
-        console.warn('No fixData provided for fix application');
+        console.warn('   ⚠️ No fixData provided');
         return;
+      }
+
+      console.log(`   Fix type: ${fixData.type}`);
+      if (pmPosition) {
+        console.log(`   Has pmPosition: from=${pmPosition.from}, to=${pmPosition.to}`);
+      } else {
+        console.log(`   No pmPosition, will use fallback`);
       }
 
       // Apply fix via ProseMirror transaction (surgical update)
@@ -309,8 +320,11 @@ export const useUnifiedDocumentEditor = () => {
           const { doc } = state;
           let foundPosition = null;
 
+          console.log(`   Replacing: "${originalText?.substring(0, 40)}${originalText?.length > 40 ? '...' : ''}"`);
+          console.log(`   With: "${replacementText?.substring(0, 40)}${replacementText?.length > 40 ? '...' : ''}"`);
+
           if (!originalText) {
-            console.warn('⚠️ No original text provided for replacement');
+            console.warn('   ❌ No original text provided for replacement');
             return;
           }
 
@@ -324,15 +338,12 @@ export const useUnifiedDocumentEditor = () => {
 
               if (textAtPosition === originalText || textAtPosition.includes(originalText)) {
                 foundPosition = { from, to };
-
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('✨ Using pmPosition for fix application:', { from, to });
-                }
-              } else if (process.env.NODE_ENV === 'development') {
-                console.warn('⚠️ pmPosition text mismatch, falling back to search', {
-                  expected: originalText.substring(0, 30),
-                  actual: textAtPosition.substring(0, 30)
-                });
+                console.log(`   ✅ Using pmPosition: from=${from}, to=${to}`);
+              } else {
+                console.warn(`   ⚠️ pmPosition text mismatch:`);
+                console.warn(`      Expected: "${originalText.substring(0, 30)}..."`);
+                console.warn(`      Actual: "${textAtPosition.substring(0, 30)}..."`);
+                console.warn(`      Falling back to search...`);
               }
             }
           }
@@ -386,27 +397,21 @@ export const useUnifiedDocumentEditor = () => {
             tr.insertText(replacementText, foundPosition.from, foundPosition.to);
             view.dispatch(tr);
 
-            if (process.env.NODE_ENV === 'development') {
-              console.log('🔧 Text fix applied via transaction', {
-                original: originalText.substring(0, 30),
-                replacement: replacementText.substring(0, 30),
-                position: foundPosition,
-                usedPmPosition: !!pmPosition
-              });
-            }
+            console.log('   ✅ Text replacement applied via transaction');
+            console.log('╚═══════════════════════════════════════════════════════╝\n');
           } else {
-            console.warn('⚠️ Could not find text to replace:', originalText.substring(0, 50));
+            console.warn('   ❌ Could not find text to replace');
+            console.warn('╚═══════════════════════════════════════════════════════╝\n');
           }
         }
         else if (fixData.type === 'formatting' && fixData.formatting) {
           // NEW: Apply formatting fix via transaction (preserves cursor position)
-          const { property, value } = fixData.formatting;
+          const { property, value} = fixData.formatting;
           const { state, view } = editor;
           const tr = state.tr;
 
-          if (process.env.NODE_ENV === 'development') {
-            console.log('🎨 Applying formatting fix via transaction:', { property, value });
-          }
+          console.log(`   🎨 Applying formatting fix: ${property}=${value}`);
+          console.log('   Traversing document nodes...');
 
           // Apply formatting to all nodes in the document
           state.doc.descendants((node, pos) => {
@@ -449,12 +454,12 @@ export const useUnifiedDocumentEditor = () => {
 
           view.dispatch(tr);
 
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Formatting fix applied via transaction (cursor preserved)');
-          }
+          console.log('   ✅ Formatting fix applied via transaction (cursor preserved)');
+          console.log('╚═══════════════════════════════════════════════════════╝\n');
         }
       } catch (error) {
-        console.error('Error applying fix via transaction:', error);
+        console.error('   ❌ [useUnifiedDocumentEditor] Error applying fix:', error);
+        console.error('╚═══════════════════════════════════════════════════════╝\n');
       }
     });
 

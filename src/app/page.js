@@ -74,15 +74,14 @@ export default function LandingPage() {
               </div>
 
               <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-6 leading-tight">
-                Flawless APA Formatting,
+                Catch Every APA Violation,
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700 mt-2">
                   Instantly.
                 </span>
               </h1>
 
               <p className="text-lg md:text-xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-                Upload your DOCX file and let our custom engine identify and
-                help you fix APA 7th edition formatting rules.
+                Upload your DOCX file and instantly detect APA 7th edition formatting violations—from fonts to citations to references.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -140,7 +139,7 @@ export default function LandingPage() {
                           In-text Citations
                         </h4>
                         <p className="text-slate-500">
-                          All 47 citations verified against reference list.
+                          47 citations checked—no formatting violations found.
                         </p>
                       </div>
                     </div>
@@ -153,7 +152,7 @@ export default function LandingPage() {
                           Reference List
                         </h4>
                         <p className="text-slate-500">
-                          3 formatting suggestions available.
+                          3 formatting violations detected.
                         </p>
                       </div>
                     </div>
@@ -169,38 +168,34 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4">
-                The Ultimate APA Toolkit
+                Comprehensive APA Rule Checking
               </h2>
               <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-                Go beyond basic spell-checking. Lilo understands the nuances
-                of academic writing and APA guidelines.
+                Automatically detect formatting violations across your entire document. No guesswork—just precise rule checking.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               <FeatureCard
                 icon={<Zap className="h-6 w-6" />}
-                title="Comprehensive Analysis"
+                title="Full Document Scanning"
                 delay={0.1}
               >
-                From title page to references, we check every detail: citations,
-                formatting, structure, and bias-free language.
+                Scans every paragraph for APA violations: incorrect fonts, spacing errors, citation formatting, reference list issues, and heading structure.
               </FeatureCard>
               <FeatureCard
                 icon={<Sparkles className="h-6 w-6" />}
-                title="Smart Corrections"
+                title="Instant Violation Detection"
                 delay={0.2}
               >
-                Get one-click fixes for common APA errors and receive
-                context-aware suggestions for more complex issues.
+                Get immediate feedback on what's wrong and where. See exact locations of formatting violations with precise highlighting.
               </FeatureCard>
               <FeatureCard
                 icon={<BookOpen className="h-6 w-6" />}
-                title="Educational Insights"
+                title="Rule-Based Accuracy"
                 delay={0.3}
               >
-                Learn as you go. Each suggestion is linked to detailed
-                explanations and official APA guidelines.
+                Every violation is tied to specific APA 7th edition rules. Know exactly which guideline was violated and why.
               </FeatureCard>
             </div>
           </div>
@@ -211,10 +206,10 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-20">
               <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4">
-                Get Feedback in Three Simple Steps
+                Find Violations in Three Simple Steps
               </h2>
               <p className="text-lg text-slate-600">
-                Our streamlined process makes APA compliance effortless.
+                Our rule-checking engine identifies APA formatting violations in seconds.
               </p>
             </div>
 
@@ -237,13 +232,11 @@ export default function LandingPage() {
                 Securely drag and drop or select your DOCX file. Your work is
                 always private and protected.
               </Step>
-              <Step number="2" title="Instant Analysis" delay={0.3}>
-                Lilo scans your document in seconds, cross-referencing every
-                line with APA 7th edition rules.
+              <Step number="2" title="Rule Checking" delay={0.3}>
+                Our engine scans every paragraph, checking against APA 7th edition formatting rules in seconds.
               </Step>
-              <Step number="3" title="Review & Correct" delay={0.5}>
-                Explore the interactive report, understand the issues, and apply
-                one-click fixes.
+              <Step number="3" title="Review Violations" delay={0.5}>
+                See a detailed report of every violation with exact locations, severity levels, and rule references.
               </Step>
             </div>
           </div>
@@ -253,11 +246,10 @@ export default function LandingPage() {
         <section className="bg-gradient-to-br from-blue-600 to-indigo-700">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
             <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
-              Ready to Elevate Your Writing?
+              Ready to Check Your Document?
             </h2>
             <p className="text-xl text-blue-100 mb-10">
-              Stop worrying about formatting and focus on your ideas. Get
-              started for free today.
+              Stop second-guessing APA formatting. Upload your document and find every violation in seconds.
             </p>
             <Link
               href="/signup"

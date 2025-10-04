@@ -66,10 +66,10 @@ export function RecentDocuments({ documents, onDelete }) {
                   <div className="text-sm text-slate-500 text-center">{formatFileSize(doc.file_size)}</div>
 
                   <div className="flex justify-center">
-                    <Badge className={`flex items-center gap-2 ${statusInfo.bg} ${statusInfo.text} font-semibold py-1 px-3 rounded-full`}>
+                    <div className={`flex items-center gap-2 ${statusInfo.bg} ${statusInfo.text} text-xs py-1 px-3 rounded-full bottom-0`}>
                       {statusInfo.icon}
                       <span>{doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}</span>
-                    </Badge>
+                    </div>
                   </div>
 
                   <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>

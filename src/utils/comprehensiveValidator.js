@@ -24,6 +24,7 @@ export class ComprehensiveValidator {
     let hasBullets = false;
     
     bulletPatterns.forEach(pattern => {
+      pattern.lastIndex = 0;
       if (pattern.test(text)) {
         hasBullets = true;
       }
@@ -32,7 +33,10 @@ export class ComprehensiveValidator {
     if (hasBullets) {
       // Check for parallel structure in lists
       const bulletLines = text.split('\n').filter(line => 
-        bulletPatterns.some(p => p.test(line))
+        bulletPatterns.some(p => {
+          p.lastIndex = 0;
+          return p.test(line);
+        })
       );
       
       
@@ -55,13 +59,16 @@ export class ComprehensiveValidator {
     }
     
     // Check numbered lists
-    const numberedPattern = /^\d+[.)]\s+/gm;
-    const numberedLines = text.split('\n').filter(line => numberedPattern.test(line));
-    
+    const numberedPattern = /^\s*\d+[.)]\s+/gm;
+    const numberedLines = text.split('\n').filter(line => {
+      numberedPattern.lastIndex = 0;
+      return numberedPattern.test(line);
+    });
+
     if (numberedLines.length > 1) {
       // Check sequence
       const numbers = numberedLines.map(line => 
-        parseInt(line.match(/^(\d+)/)[1])
+        parseInt(line.trim().match(/^(\d+)/)[1])
       );
       
       for (let i = 1; i < numbers.length; i++) {

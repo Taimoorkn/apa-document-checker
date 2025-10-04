@@ -1,206 +1,229 @@
-APA Issue Export
-
-Generated: 2025-10-05T00:59:00.000Z
-
-Total Issues: 25
-
-
-
-1. [Major] Block quote missing citation (quotations)
-
-   Description: Block quote should be followed immediately by citation
-
-   Explanation: Place the citation after the final punctuation of the block quote: ... end of quote. (Author, Year, p. #)
-
-
-
-2. [Major] Block quote with quotation marks (quotations)
-
-   Description: Block quotes should not include quotation marks
-
-   Explanation: Block quotes rely on indentation rather than quotation marks.
-
-
-
-3. [Major] Conference paper missing location (references)
-
-   Description: Conference presentations need location information
-
-   Explanation: Include conference location: City, State/Country
-
-
-
-4. [Major] Invalid DOI format (references)
-
-   Description: DOI appears malformed
-
-   Explanation: DOIs should start with '10.' followed by a registrant code
-
-
-
-5. [Major] Long quote formatted inline (quotations)
-
-   Description: Quote with 50 words should use block quote formatting
-
-   Explanation: Quotes of 40+ words should start on a new line, be indented 0.5" in from the left margin, remain double spaced, and omit quotation marks.
-
-
-
-6. [Major] References not in alphabetical order (references)
-
-   Description: Reference entries must be alphabetized by first author's surname
-
-   Explanation: References must be arranged in alphabetical order by the surname of the first author.
-
-
-
-7. [Major] Title page missing assignment due date (structure)
-
-   Description: Add the assignment due date to comply with APA 7 student title page requirements
-
-   Explanation: Add the assignment due date in Month Day, Year format.
-
-
-
-8. [Major] Title page missing course number and name (structure)
-
-   Description: Add the course number and name to comply with APA 7 student title page requirements
-
-   Explanation: Include the course identifier such as PSY 101: Introduction to Psychology.
-
-
-
-9. [Major] Title page missing instructor name (structure)
-
-   Description: Add the instructor name to comply with APA 7 student title page requirements
-
-   Explanation: State the instructor's name (e.g., Dr. Smith).
-
-
-
-10. [Minor] Extensive footnote usage (formatting)
-
-   Description: Document uses 4 footnotes; APA recommends keeping footnotes brief and infrequent
-
-   Explanation: Reserve footnotes for material that cannot be integrated smoothly into the main text.
-
-
-
-11. [Minor] Inconsistent list punctuation (lists)
-
-   Description: List items have mixed punctuation
-
-   Explanation: Use periods for all items (complete sentences) or none (fragments)
-
-
-
-12. [Minor] Incorrect comma before et al. (citations)
-
-   Description: APA 7th edition does not use comma before 'et al.' in citations
-
-   Explanation: APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021).
-
-
-
-13. [Minor] Incorrect connector in parenthetical citation (citations)
-
-   Description: Use '&' instead of 'and' in parenthetical citations
-
-   Explanation: In parenthetical citations, use & to connect author names.
-
-
-
-14. [Minor] Legal case name formatting (references)
-
-   Description: Legal case names should be italicized
-
-   Explanation: Italicize case names: *Brown v. Board of Education*
-
-
-
-15. [Minor] Legal citation format (references)
-
-   Description: Verify legal citation follows Bluebook format
-
-   Explanation: Legal citations should follow standard legal citation format
-
-
-
-16. [Minor] Long inline quote (quotations)
-
-   Description: Quote with 31 words is long for inline format
-
-   Explanation: Consider paraphrasing or using block quote format for lengthy quotations.
-
-
-
-17. [Minor] Missing comma in citation (citations)
-
-   Description: Citations must have a comma between author and year
-
-   Explanation: APA format requires a comma between author name(s) and year: (Author, YEAR).
-
-
-
-18. [Minor] Non-superscript footnote marker (formatting)
-
-   Description: Footnote markers should appear as superscript numerals
-
-   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
-
-
-
-19. [Minor] Numbered list sequence error (lists)
-
-   Description: Numbered list has non-consecutive numbers
-
-   Explanation: Number lists consecutively: 1, 2, 3...
-
-
-
-20. [Minor] Outdated 'Retrieved from' phrase (references)
-
-   Description: APA 7th edition no longer uses 'Retrieved from' before URLs
-
-   Explanation: APA 7th edition omits 'Retrieved from' before URLs unless a retrieval date is needed.
-
-
-
-21. [Minor] Running head label not required (headers)
-
-   Description: Student papers should not include the 'Running head:' label in the header
-
-   Explanation: APA 7 student papers use only a page number in the header unless an instructor requests a running head.
-
-
-
-22. [Minor] Social media citation format (references)
-
-   Description: Include full citation information for social media
-
-   Explanation: Format: Author, A. [@username]. (Year, Month Day). Content [Tweet]. Twitter. URL
-
-
-
-23. [Minor] Supplemental material naming (formatting)
-
-   Description: Use consistent naming for supplemental materials
-
-   Explanation: Label as 'Supplemental Table S1', 'Supplemental Figure S1', etc.
-
-
-
-24. [Minor] Supplemental material reference unclear (content)
-
-   Description: Clearly indicate how to access supplemental materials
-
-   Explanation: Specify where supplemental materials can be found (e.g., 'see Supplemental Material online')
-
-
-
-25. [Minor] Unnumbered display equation (formatting)
-
-   Description: Display equations should be numbered
-
-   Explanation: Number display equations consecutively: (1), (2), etc.
-
+APA Issue Export
+Generated: 2025-10-04T20:28:54.333Z
+Total Issues: 58
+
+1. [Critical] Citation without reference (references)
+   Description: Citation "(Smith 2020)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+2. [Critical] Citation without reference (references)
+   Description: Citation "(Jones and White, 2021)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+3. [Critical] Citation without reference (references)
+   Description: Citation "(Johnson, et al., 2019)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+4. [Major] Block quote missing citation (quotations)
+   Description: Block quote should be followed immediately by citation
+   Explanation: Place the citation after the final punctuation of the block quote: ... end of quote. (Author, Year, p. #)
+5. [Major] Block quote with quotation marks (quotations)
+   Description: Block quotes should not include quotation marks
+   Explanation: Block quotes rely on indentation rather than quotation marks.
+   Fix: removeBlockQuoteMarks
+6. [Major] Invalid DOI format (references)
+   Description: DOI appears malformed
+   Explanation: DOIs should start with '10.' followed by a registrant code
+7. [Major] Journal name not italicized (references)
+   Description: Journal names must be italicized in references
+   Explanation: Journal titles should be in italics: Journal of Psychology, not Journal of Psychology
+8. [Major] Long quote formatted inline (quotations)
+   Description: Quote with 50 words should use block quote formatting
+   Explanation: Quotes of 40+ words should start on a new line, be indented 0.5" in from the left margin, remain double spaced, and omit quotation marks.
+   Fix: convertToBlockQuote
+9. [Major] Missing page numbers (headers)
+   Description: Document appears to have multiple pages but no page numbers detected
+   Explanation: All pages should be numbered consecutively, starting with the title page as page 1.
+10. [Major] Number at sentence beginning (statistical)
+   Description: Spell out numbers that begin sentences
+   Explanation: Write "Twenty-three participants..." not "483 participants..."
+   Location: type=text, paragraphIndex=10, charOffset=140
+   Snippet: ". 483 (1954) as a reminder of how precedent matter"
+11. [Major] Number at sentence beginning (statistical)
+   Description: Spell out numbers that begin sentences
+   Explanation: Write "Twenty-three participants..." not "1 participants..."
+   Location: type=text, paragraphIndex=33, charOffset=0
+   Snippet: "1. Gather responses."
+12. [Major] Number at sentence beginning (statistical)
+   Description: Spell out numbers that begin sentences
+   Explanation: Write "Twenty-three participants..." not "3 participants..."
+   Location: type=text, paragraphIndex=34, charOffset=0
+   Snippet: "3. Analyze themes."
+13. [Major] Number at sentence beginning (statistical)
+   Description: Spell out numbers that begin sentences
+   Explanation: Write "Twenty-three participants..." not "2 participants..."
+   Location: type=text, paragraphIndex=35, charOffset=0
+   Snippet: "2. Write conclusions."
+14. [Major] Orphaned reference (references)
+   Description: Reference for Garcia (2022) not cited in text
+   Explanation: Only include references that are cited in the document text.
+   Location: type=text, paragraphIndex=38, charOffset=0
+   Snippet: "Garcia, T. (2022). Example article title. Journal of Widgets. Retrieved from http://example.com"
+15. [Major] Orphaned reference (references)
+   Description: Reference for Adams (2019) not cited in text
+   Explanation: Only include references that are cited in the document text.
+   Location: type=text, paragraphIndex=40, charOffset=0
+   Snippet: "Adams, R., & Lee, P. (2019). Another study title. Journal of Things, 14(2), 100-110. doi: 12/invalid"
+16. [Major] References not in alphabetical order (references)
+   Description: "Adams" should come before "Garcia"
+   Explanation: References must be listed in alphabetical order by the first author's surname.
+   Fix: sortReferences
+17. [Major] Title page missing assignment due date (structure)
+   Description: Add the assignment due date to comply with APA 7 student title page requirements
+   Explanation: Add the assignment due date in Month Day, Year format.
+18. [Major] Title page missing course number and name (structure)
+   Description: Add the course number and name to comply with APA 7 student title page requirements
+   Explanation: Include the course identifier such as PSY 101: Introduction to Psychology.
+19. [Major] Title page missing instructor name (structure)
+   Description: Add the instructor name to comply with APA 7 student title page requirements
+   Explanation: State the instructor's name (e.g., Dr. Smith).
+20. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=4, charOffset=99
+   Snippet: "ABSTRACT"
+21. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=7, charOffset=175
+   Snippet: "INTRODUCTION"
+22. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=12, charOffset=1136
+   Snippet: "METHOD"
+23. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=21, charOffset=2342
+   Snippet: "RESULTS"
+24. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=24, charOffset=2449
+   Snippet: "DISCUSSION"
+25. [Minor] Conference paper missing location (references)
+   Description: Conference presentations need location information
+   Explanation: Include conference location: City, State/Country
+26. [Minor] Consider person-first disability language (bias-free)
+   Description: "invalid" could use person-first language
+   Explanation: Consider person-first: "person with a disability" (though respect individual/community preferences)
+   Fix: usePersonFirst
+27. [Minor] DOI format issue (references)
+   Description: DOI should be formatted as hyperlink or plain DOI
+   Explanation: Format DOIs as: https://doi.org/10.xxxx/xxxxx (preferred) or doi:10.xxxx/xxxxx (acceptable)
+   Fix: formatDOI
+28. [Minor] Extensive footnote usage (formatting)
+   Description: Document uses 4 footnotes; APA recommends keeping footnotes brief and infrequent
+   Explanation: Reserve footnotes for material that cannot be integrated smoothly into the main text.
+29. [Minor] Hyphen instead of en dash in page range (references)
+   Description: Use en dash (–) not hyphen (-) for page ranges
+   Explanation: Page ranges use en dash: 123–456, not 123-456
+   Fix: fixPageRangeDash
+30. [Minor] Inconsistent list punctuation (lists)
+   Description: List items have mixed punctuation
+   Explanation: Use periods for all items (complete sentences) or none (fragments)
+31. [Minor] Incorrect comma before et al. (citations)
+   Description: APA 7th edition does not use comma before 'et al.' in citations
+   Explanation: APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021).
+   Fix: fixEtAlFormatting
+   Location: type=text, paragraphIndex=8, charOffset=555
+   Snippet: "(Johnson, et al., 2019)"
+32. [Minor] Incorrect connector in parenthetical citation (citations)
+   Description: Use '&' instead of 'and' in parenthetical citations
+   Explanation: In parenthetical citations, use & to connect author names.
+   Fix: fixParentheticalConnector
+   Location: type=text, paragraphIndex=8, charOffset=498
+   Snippet: "(Jones and White, 2021)"
+33. [Minor] Legal case name formatting (references)
+   Description: Legal case names should be italicized
+   Explanation: Italicize case names: *Brown v. Board of Education*
+34. [Minor] Legal citation format (references)
+   Description: Verify legal citation follows Bluebook format
+   Explanation: Legal citations should follow standard legal citation format
+35. [Minor] Level 5 heading not indented (headings)
+   Description: Level 5 headings should be indented
+   Explanation: Level 5 headings must be indented (0.5 inch) like paragraph indent
+   Fix: indentLevel5Heading
+36. [Minor] Level 5 heading not indented (headings)
+   Description: Level 5 headings should be indented
+   Explanation: Level 5 headings must be indented (0.5 inch) like paragraph indent
+   Fix: indentLevel5Heading
+37. [Minor] Long inline quote (quotations)
+   Description: Quote with 31 words is long for inline format
+   Explanation: Consider paraphrasing or using block quote format for lengthy quotations.
+38. [Minor] Long inline quote (quotations)
+   Description: Quote with 33 words is long for inline format
+   Explanation: Consider paraphrasing or using block quote format for lengthy quotations.
+39. [Minor] Missing comma in citation (citations)
+   Description: Citations must have a comma between author and year
+   Explanation: APA format requires a comma between author name(s) and year: (Author, YEAR).
+   Fix: addCitationComma
+   Location: type=text, paragraphIndex=8, charOffset=446
+   Snippet: "(Smith 2020)"
+40. [Minor] Missing period at end of reference (references)
+   Description: References should end with a period
+   Explanation: Each reference entry must end with a period.
+   Fix: addReferencePeriod
+41. [Minor] Non-superscript footnote marker (formatting)
+   Description: Footnote markers should appear as superscript numerals
+   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
+42. [Minor] Non-superscript footnote marker (formatting)
+   Description: Footnote markers should appear as superscript numerals
+   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
+43. [Minor] Non-superscript footnote marker (formatting)
+   Description: Footnote markers should appear as superscript numerals
+   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
+44. [Minor] Non-superscript footnote marker (formatting)
+   Description: Footnote markers should appear as superscript numerals
+   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
+45. [Minor] Numbered list sequence error (lists)
+   Description: Numbered list has non-consecutive numbers
+   Explanation: Number lists consecutively: 1, 2, 3...
+   Fix: fixListNumbering
+46. [Minor] Outdated 'Retrieved from' phrase (references)
+   Description: APA 7th edition no longer uses 'Retrieved from' before URLs
+   Explanation: APA 7th edition omits 'Retrieved from' before URLs unless a retrieval date is needed.
+   Fix: removeRetrievedFrom
+47. [Minor] Potential Level 5 heading case error (headings)
+   Description: Level 5 headings should use title case
+   Explanation: Level 5 headings: Indented, Bold, Italic, Title Case, Ending with Period. Text continues on same line.
+   Fix: fixLevel5HeadingCase
+48. [Minor] Potential Level 5 heading case error (headings)
+   Description: Level 5 headings should use title case
+   Explanation: Level 5 headings: Indented, Bold, Italic, Title Case, Ending with Period. Text continues on same line.
+   Fix: fixLevel5HeadingCase
+49. [Minor] Running head label not required (headers)
+   Description: Student papers should not include the 'Running head:' label in the header
+   Explanation: APA 7 student papers use only a page number in the header unless an instructor requests a running head.
+   Fix: removeRunningHeadLabel
+50. [Minor] Single digit not spelled out (statistical)
+   Description: Number 2 should be spelled out (under 10)
+   Explanation: Spell out numbers below 10: one, two, three... nine
+   Fix: spellOutNumber
+51. [Minor] Social media citation format (references)
+   Description: Include full citation information for social media
+   Explanation: Format: Author, A. [@username]. (Year, Month Day). Content [Tweet]. Twitter. URL
+52. [Minor] Supplemental material naming (formatting)
+   Description: Use consistent naming for supplemental materials
+   Explanation: Label as 'Supplemental Table S1', 'Supplemental Figure S1', etc.
+53. [Minor] Supplemental material naming (formatting)
+   Description: Use consistent naming for supplemental materials
+   Explanation: Label as 'Supplemental Table S1', 'Supplemental Figure S1', etc.
+54. [Minor] Supplemental material naming (formatting)
+   Description: Use consistent naming for supplemental materials
+   Explanation: Label as 'Supplemental Table S1', 'Supplemental Figure S1', etc.
+55. [Minor] Supplemental material reference unclear (content)
+   Description: Clearly indicate how to access supplemental materials
+   Explanation: Specify where supplemental materials can be found (e.g., 'see Supplemental Material online')
+56. [Minor] Supplemental material reference unclear (content)
+   Description: Clearly indicate how to access supplemental materials
+   Explanation: Specify where supplemental materials can be found (e.g., 'see Supplemental Material online')
+57. [Minor] Unnumbered display equation (formatting)
+   Description: Display equations should be numbered
+   Explanation: Number display equations consecutively: (1), (2), etc.
+58. [Minor] Volume number not italicized (references)
+   Description: Journal volume numbers should be italicized
+   Explanation: Volume numbers should be italicized: Psychology Today, 45(3), not Psychology Today, 45(3)

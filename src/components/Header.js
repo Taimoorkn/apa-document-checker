@@ -13,7 +13,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-20 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" prefetch={true} className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
               <Image
                 src="/LiloLogo.svg"

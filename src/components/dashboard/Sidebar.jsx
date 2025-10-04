@@ -37,7 +37,7 @@ export default function Sidebar({ user, profile, onNavigate }) {
     <div className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col shadow-sm hidden md:flex">
       {/* Logo */}
       <div className="p-6 border-b border-slate-200">
-        <Link href="/" className="flex items-center space-x-3 group">
+        <Link href="/" prefetch={true} className="flex items-center space-x-3 group">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
             <Image
               src="/LiloLogo.svg"

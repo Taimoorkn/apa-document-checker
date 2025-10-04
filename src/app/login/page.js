@@ -51,7 +51,7 @@ export default function LoginPage() {
         className="max-w-md w-full space-y-8"
       >
         <div className="text-center">
-          <Link href="/" className="inline-block mb-6">
+          <Link href="/" prefetch={true} className="inline-block mb-6">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
               <Image
                 src="/LiloLogo.svg"

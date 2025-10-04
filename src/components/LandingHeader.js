@@ -77,7 +77,7 @@ export default function LandingHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-[72px] flex items-center justify-between">
           {/* Logo with Badge */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" prefetch={true} className="flex items-center gap-3 group">
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

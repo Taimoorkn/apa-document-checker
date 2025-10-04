@@ -10,7 +10,7 @@ export default function EditorHeader() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3 group">
+          <Link href="/" prefetch={true} className="flex items-center space-x-3 group">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <Image
                 src="/LiloLogo.svg"

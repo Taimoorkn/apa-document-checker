@@ -549,9 +549,21 @@ export const useUnifiedDocumentStore = create((set, get) => ({
     snapshot.description = description;
 
     set(currentState => {
-      const newSnapshots = [...currentState.snapshots, snapshot];
+      // If user has done undo and is now making a new edit,
+      // we need to discard all redo history (everything after currentSnapshotIndex)
+      let newSnapshots;
+      if (currentState.currentSnapshotIndex < currentState.snapshots.length - 1) {
+        // Clear redo history and add new snapshot
+        newSnapshots = [
+          ...currentState.snapshots.slice(0, currentState.currentSnapshotIndex + 1),
+          snapshot
+        ];
+      } else {
+        // Normal case: just append
+        newSnapshots = [...currentState.snapshots, snapshot];
+      }
 
-      // Trim to max snapshots
+      // Trim to max snapshots from the beginning
       if (newSnapshots.length > currentState.maxSnapshots) {
         newSnapshots.shift();
       }

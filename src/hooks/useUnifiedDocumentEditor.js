@@ -38,6 +38,10 @@ export const useUnifiedDocumentEditor = () => {
         paragraph: false, // Use custom FormattedParagraph
         heading: {
           levels: [1, 2, 3, 4, 5, 6]
+        },
+        history: {
+          depth: 100, // Store up to 100 undo steps
+          newGroupDelay: 500 // Group changes within 500ms as single undo step
         }
       }),
       FormattedParagraph,
@@ -112,6 +116,36 @@ export const useUnifiedDocumentEditor = () => {
 
   // Issue decorations (visual only)
   useIssueDecorations(editor, issues, activeIssueId, showHighlighting);
+
+  // Keyboard shortcuts for undo/redo (Tiptap native)
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleKeyDown = (event) => {
+      // Ctrl+Z or Cmd+Z for undo
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        editor.chain().focus().undo().run();
+        return;
+      }
+
+      // Ctrl+Y or Cmd+Shift+Z for redo
+      if (
+        ((event.ctrlKey || event.metaKey) && event.key === 'y') ||
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'z')
+      ) {
+        event.preventDefault();
+        editor.chain().focus().redo().run();
+        return;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [editor]);
 
   /**
    * Scroll to specific issue in editor

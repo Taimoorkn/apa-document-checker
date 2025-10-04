@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
-import { FileCheck, Menu, X, ArrowRight, LayoutDashboard, LogOut, User, Settings, Sparkles } from "lucide-react";
+import { Menu, X, ArrowRight, LayoutDashboard, LogOut, User, Settings, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -77,21 +78,23 @@ export default function LandingHeader() {
           {/* Logo with Badge */}
           <Link href="/" className="flex items-center gap-3 group">
             <motion.div
-              whileHover={{ scale: 1.05, rotate: 3 }}
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="relative"
             >
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/25 group-hover:shadow-2xl group-hover:shadow-blue-500/40 transition-all duration-300 ring-2 ring-white/20">
-                <FileCheck className="h-6 w-6 text-white" strokeWidth={2.5} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <Image
+                  src="/LiloLogo.svg"
+                  alt="Lilo"
+                  width={48}
+                  height={48}
+                  className="w-full h-full"
+                />
               </div>
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white shadow-sm"></div>
             </motion.div>
             <div className="flex flex-col">
               <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent">
-                APA Pro
-              </span>
-              <span className="text-[10px] font-medium text-slate-500 -mt-1 tracking-wider uppercase">
-                7th Edition
+                Lilo
               </span>
             </div>
           </Link>

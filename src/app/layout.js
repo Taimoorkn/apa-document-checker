@@ -21,8 +21,8 @@ const outfit = Outfit({
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://apa-document-checker.vercel.app'),
   title: {
-    default: 'APA Document Checker - Free APA 7th Edition Format Validator & Citation Checker',
-    template: '%s | APA Document Checker'
+    default: 'Lilo - Free APA 7th Edition Format Validator & Citation Checker',
+    template: '%s | Lilo'
   },
   description: 'Free online APA format checker for academic papers. Instantly validate your DOCX documents against APA 7th edition guidelines. Check citations, references, formatting, headings, and more with AI-powered analysis.',
   keywords: [
@@ -42,9 +42,9 @@ export const metadata = {
     'online APA tool',
     'academic document validator'
   ],
-  authors: [{ name: 'APA Document Checker Team' }],
-  creator: 'APA Document Checker',
-  publisher: 'APA Document Checker',
+  authors: [{ name: 'Lilo Team' }],
+  creator: 'Lilo',
+  publisher: 'Lilo',
   robots: {
     index: true,
     follow: true,
@@ -60,24 +60,24 @@ export const metadata = {
     type: 'website',
     locale: 'en_US',
     url: '/',
-    title: 'APA Document Checker - Free APA 7th Edition Format Validator',
+    title: 'Lilo - Free APA 7th Edition Format Validator',
     description: 'Free online tool to validate your academic documents against APA 7th edition guidelines. Check citations, references, formatting, and get instant feedback.',
-    siteName: 'APA Document Checker',
+    siteName: 'Lilo',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'APA Document Checker - Validate APA Format',
+        alt: 'Lilo - Validate APA Format',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'APA Document Checker - Free APA Format Validator',
+    title: 'Lilo - Free APA Format Validator',
     description: 'Instantly validate your academic documents against APA 7th edition guidelines. Free online tool with AI-powered analysis.',
     images: ['/twitter-image.png'],
-    creator: '@apadocchecker',
+    creator: '@lilo',
   },
   verification: {
     google: 'your-google-verification-code',
@@ -92,7 +92,7 @@ export default function RootLayout({ children }) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
-    name: 'APA Document Checker',
+    name: 'Lilo',
     description: 'Free online APA format checker for academic papers. Validate DOCX documents against APA 7th edition guidelines.',
     url: process.env.NEXT_PUBLIC_SITE_URL || 'https://apa-document-checker.vercel.app',
     applicationCategory: 'EducationalApplication',
@@ -113,13 +113,14 @@ export default function RootLayout({ children }) {
     screenshot: '/og-image.png',
     author: {
       '@type': 'Organization',
-      name: 'APA Document Checker Team'
+      name: 'Lilo Team'
     }
   };
 
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <head>
+        <link rel="icon" href="/LiloLogo.svg" type="image/svg+xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

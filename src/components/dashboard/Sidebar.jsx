@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutGrid,
   LogOut,
-  FileCheck2,
   User,
   Settings
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import Image from "next/image";
 
 const navItems = [
   { icon: LayoutGrid, label: "Dashboard", href: "/dashboard" },
@@ -39,11 +39,17 @@ export default function Sidebar({ user, profile, onNavigate }) {
       {/* Logo */}
       <div className="p-6 border-b border-slate-200">
         <Link href="/" className="flex items-center space-x-3 group">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
-            <FileCheck2 className="h-5 w-5 text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+            <Image
+              src="/LiloLogo.svg"
+              alt="Lilo"
+              width={40}
+              height={40}
+              className="w-full h-full"
+            />
           </div>
           <span className="text-2xl font-bold text-slate-800">
-            APA Pro
+            Lilo
           </span>
         </Link>
       </div>

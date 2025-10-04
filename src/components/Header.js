@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
-import { FileCheck, Menu, X, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Header() {
@@ -13,11 +14,16 @@ export default function Header() {
         <div className="h-20 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-              <FileCheck className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
+              <Image
+                src="/LiloLogo.svg"
+                alt="Lilo"
+                width={40}
+                height={40}
+              />
             </div>
             <span className="text-2xl font-bold text-slate-800">
-              APA Pro
+              Lilo
             </span>
           </Link>
 

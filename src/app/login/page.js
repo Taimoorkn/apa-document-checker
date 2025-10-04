@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { FileCheck, ArrowRight, LogIn, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, LogIn, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
@@ -51,15 +52,20 @@ export default function LoginPage() {
       >
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
-              <FileCheck className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+              <Image
+                src="/LiloLogo.svg"
+                alt="Lilo"
+                width={64}
+                height={64}
+              />
             </div>
           </Link>
           <h2 className="text-4xl font-extrabold text-slate-900">
             Welcome Back
           </h2>
           <p className="mt-2 text-slate-600">
-            Sign in to continue to APA Pro.
+            Sign in to continue to Lilo.
           </p>
         </div>
 

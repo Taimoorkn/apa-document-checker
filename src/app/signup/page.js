@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
-import { FileCheck, ArrowRight, UserPlus, MailCheck, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight, UserPlus, MailCheck, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Feature flag: Set to true when email verification is enabled in Supabase
@@ -116,15 +117,20 @@ export default function SignupPage() {
       >
         <div className="text-center">
           <Link href="/" className="inline-block mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
-              <FileCheck className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg mx-auto">
+              <Image
+                src="/LiloLogo.svg"
+                alt="Lilo"
+                width={64}
+                height={64}
+              />
             </div>
           </Link>
           <h2 className="text-4xl font-extrabold text-slate-900">
             Create Your Account
           </h2>
           <p className="mt-2 text-slate-600">
-            Get started with the most powerful APA tool.
+            Get started with Lilo.
           </p>
         </div>
 

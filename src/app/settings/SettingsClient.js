@@ -54,7 +54,7 @@ export default function SettingsClient({ user }) {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-              <p className="text-slate-500">Customize your APA Pro experience</p>
+              <p className="text-slate-500">Customize your Lilo experience</p>
             </div>
           </div>
 

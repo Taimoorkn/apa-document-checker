@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 
-const DISCLAIMER_STORAGE_KEY = "apa-pro-disclaimer-shown";
+const DISCLAIMER_STORAGE_KEY = "lilo-disclaimer-shown";
 
 export default function DisclaimerModal() {
   const [isOpen, setIsOpen] = useState(false);

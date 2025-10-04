@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { FileCheck, Home } from "lucide-react";
+import Image from "next/image";
+import { Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function EditorHeader() {
@@ -10,11 +11,16 @@ export default function EditorHeader() {
         <div className="h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <FileCheck className="h-4 w-4 text-white" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+              <Image
+                src="/LiloLogo.svg"
+                alt="Lilo"
+                width={36}
+                height={36}
+              />
             </div>
             <span className="text-xl font-bold text-slate-800">
-              APA Pro
+              Lilo
             </span>
           </Link>
 

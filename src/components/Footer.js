@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileCheck, Github, Twitter, Linkedin, Mail } from "lucide-react";
+import Image from "next/image";
+import { Github, Twitter, Linkedin, Mail } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -9,10 +10,15 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="md:col-span-2">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <FileCheck className="h-5 w-5 text-white" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg">
+                <Image
+                  src="/LiloLogo.svg"
+                  alt="Lilo"
+                  width={40}
+                  height={40}
+                />
               </div>
-              <span className="text-2xl font-bold">APA Pro</span>
+              <span className="text-2xl font-bold">Lilo</span>
             </div>
             <p className="text-slate-400 leading-relaxed max-w-md mb-6">
               Professional APA 7th edition document analysis and compliance checking.
@@ -91,7 +97,7 @@ export default function Footer() {
         <div className="pt-8 border-t border-slate-700/50">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 text-sm">
-              &copy; {new Date().getFullYear()} APA Pro. All rights reserved.
+              &copy; {new Date().getFullYear()} Lilo. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-xs text-slate-500">
               <span>Built with precision for academic excellence</span>

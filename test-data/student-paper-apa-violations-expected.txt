@@ -1,0 +1,206 @@
+APA Issue Export
+
+Generated: 2025-10-05T00:59:00.000Z
+
+Total Issues: 25
+
+
+
+1. [Major] Block quote missing citation (quotations)
+
+   Description: Block quote should be followed immediately by citation
+
+   Explanation: Place the citation after the final punctuation of the block quote: ... end of quote. (Author, Year, p. #)
+
+
+
+2. [Major] Block quote with quotation marks (quotations)
+
+   Description: Block quotes should not include quotation marks
+
+   Explanation: Block quotes rely on indentation rather than quotation marks.
+
+
+
+3. [Major] Conference paper missing location (references)
+
+   Description: Conference presentations need location information
+
+   Explanation: Include conference location: City, State/Country
+
+
+
+4. [Major] Invalid DOI format (references)
+
+   Description: DOI appears malformed
+
+   Explanation: DOIs should start with '10.' followed by a registrant code
+
+
+
+5. [Major] Long quote formatted inline (quotations)
+
+   Description: Quote with 50 words should use block quote formatting
+
+   Explanation: Quotes of 40+ words should start on a new line, be indented 0.5" in from the left margin, remain double spaced, and omit quotation marks.
+
+
+
+6. [Major] References not in alphabetical order (references)
+
+   Description: Reference entries must be alphabetized by first author's surname
+
+   Explanation: References must be arranged in alphabetical order by the surname of the first author.
+
+
+
+7. [Major] Title page missing assignment due date (structure)
+
+   Description: Add the assignment due date to comply with APA 7 student title page requirements
+
+   Explanation: Add the assignment due date in Month Day, Year format.
+
+
+
+8. [Major] Title page missing course number and name (structure)
+
+   Description: Add the course number and name to comply with APA 7 student title page requirements
+
+   Explanation: Include the course identifier such as PSY 101: Introduction to Psychology.
+
+
+
+9. [Major] Title page missing instructor name (structure)
+
+   Description: Add the instructor name to comply with APA 7 student title page requirements
+
+   Explanation: State the instructor's name (e.g., Dr. Smith).
+
+
+
+10. [Minor] Extensive footnote usage (formatting)
+
+   Description: Document uses 4 footnotes; APA recommends keeping footnotes brief and infrequent
+
+   Explanation: Reserve footnotes for material that cannot be integrated smoothly into the main text.
+
+
+
+11. [Minor] Inconsistent list punctuation (lists)
+
+   Description: List items have mixed punctuation
+
+   Explanation: Use periods for all items (complete sentences) or none (fragments)
+
+
+
+12. [Minor] Incorrect comma before et al. (citations)
+
+   Description: APA 7th edition does not use comma before 'et al.' in citations
+
+   Explanation: APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021).
+
+
+
+13. [Minor] Incorrect connector in parenthetical citation (citations)
+
+   Description: Use '&' instead of 'and' in parenthetical citations
+
+   Explanation: In parenthetical citations, use & to connect author names.
+
+
+
+14. [Minor] Legal case name formatting (references)
+
+   Description: Legal case names should be italicized
+
+   Explanation: Italicize case names: *Brown v. Board of Education*
+
+
+
+15. [Minor] Legal citation format (references)
+
+   Description: Verify legal citation follows Bluebook format
+
+   Explanation: Legal citations should follow standard legal citation format
+
+
+
+16. [Minor] Long inline quote (quotations)
+
+   Description: Quote with 31 words is long for inline format
+
+   Explanation: Consider paraphrasing or using block quote format for lengthy quotations.
+
+
+
+17. [Minor] Missing comma in citation (citations)
+
+   Description: Citations must have a comma between author and year
+
+   Explanation: APA format requires a comma between author name(s) and year: (Author, YEAR).
+
+
+
+18. [Minor] Non-superscript footnote marker (formatting)
+
+   Description: Footnote markers should appear as superscript numerals
+
+   Explanation: Use superscript numbers (e.g., 1, 2, 3) instead of bracketed markers like [1].
+
+
+
+19. [Minor] Numbered list sequence error (lists)
+
+   Description: Numbered list has non-consecutive numbers
+
+   Explanation: Number lists consecutively: 1, 2, 3...
+
+
+
+20. [Minor] Outdated 'Retrieved from' phrase (references)
+
+   Description: APA 7th edition no longer uses 'Retrieved from' before URLs
+
+   Explanation: APA 7th edition omits 'Retrieved from' before URLs unless a retrieval date is needed.
+
+
+
+21. [Minor] Running head label not required (headers)
+
+   Description: Student papers should not include the 'Running head:' label in the header
+
+   Explanation: APA 7 student papers use only a page number in the header unless an instructor requests a running head.
+
+
+
+22. [Minor] Social media citation format (references)
+
+   Description: Include full citation information for social media
+
+   Explanation: Format: Author, A. [@username]. (Year, Month Day). Content [Tweet]. Twitter. URL
+
+
+
+23. [Minor] Supplemental material naming (formatting)
+
+   Description: Use consistent naming for supplemental materials
+
+   Explanation: Label as 'Supplemental Table S1', 'Supplemental Figure S1', etc.
+
+
+
+24. [Minor] Supplemental material reference unclear (content)
+
+   Description: Clearly indicate how to access supplemental materials
+
+   Explanation: Specify where supplemental materials can be found (e.g., 'see Supplemental Material online')
+
+
+
+25. [Minor] Unnumbered display equation (formatting)
+
+   Description: Display equations should be numbered
+
+   Explanation: Number display equations consecutively: (1), (2), etc.
+

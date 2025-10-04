@@ -1,0 +1,112 @@
+APA Issue Export
+Generated: 2025-10-04T20:16:09.862Z
+Total Issues: 24
+
+1. [Critical] Citation without reference (references)
+   Description: Citation "(Smith 2020)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+2. [Critical] Citation without reference (references)
+   Description: Citation "(Jones and White, 2021)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+3. [Critical] Citation without reference (references)
+   Description: Citation "(Johnson, et al., 2019)" not found in references
+   Explanation: Every in-text citation must have a corresponding entry in the References section.
+4. [Major] Invalid DOI format (references)
+   Description: DOI appears malformed
+   Explanation: DOIs should start with '10.' followed by a registrant code
+5. [Major] Journal name not italicized (references)
+   Description: Journal names must be italicized in references
+   Explanation: Journal titles should be in italics: Journal of Psychology, not Journal of Psychology
+6. [Major] Missing page numbers (headers)
+   Description: Document appears to have multiple pages but no page numbers detected
+   Explanation: All pages should be numbered consecutively, starting with the title page as page 1.
+7. [Major] Orphaned reference (references)
+   Description: Reference for Garcia (2022) not cited in text
+   Explanation: Only include references that are cited in the document text.
+   Location: type=text, paragraphIndex=26, charOffset=0
+   Snippet: "Garcia, T. (2022). Example article title. Journal of Widgets. Retrieved from http://example.com"
+8. [Major] Orphaned reference (references)
+   Description: Reference for Adams (2019) not cited in text
+   Explanation: Only include references that are cited in the document text.
+   Location: type=text, paragraphIndex=27, charOffset=0
+   Snippet: "Adams, R., & Lee, P. (2019). Another study title. Journal of Things, 14(2), 100-110. doi: 12/invalid"
+9. [Major] References not in alphabetical order (references)
+   Description: "Adams" should come before "Garcia"
+   Explanation: References must be listed in alphabetical order by the first author's surname.
+   Fix: sortReferences
+10. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=4, charOffset=0
+   Snippet: "ABSTRACT"
+11. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=7, charOffset=0
+   Snippet: "INTRODUCTION"
+12. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=12, charOffset=0
+   Snippet: "METHOD"
+13. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=21, charOffset=0
+   Snippet: "RESULTS"
+14. [Minor] ALL CAPS heading detected (formatting)
+   Description: Headings should use title case or sentence case, not ALL CAPS
+   Explanation: APA 7th edition headings should use title case (Level 1-3) or sentence case (Level 4-5), not ALL CAPS.
+   Fix: fixAllCapsHeading
+   Location: type=text, paragraphIndex=24, charOffset=0
+   Snippet: "DISCUSSION"
+15. [Minor] Consider defining abbreviation "AND" (style)
+   Description: Abbreviations should be defined on first use
+   Explanation: Define abbreviations on first use: Full Term (FT) and then use FT throughout.
+   Location: type=text, paragraphIndex=0, charOffset=25
+   Snippet: "AND"
+16. [Minor] Consider defining abbreviation "SOCIETY" (style)
+   Description: Abbreviations should be defined on first use
+   Explanation: Define abbreviations on first use: Full Term (FT) and then use FT throughout.
+   Location: type=text, paragraphIndex=0, charOffset=29
+   Snippet: "SOCIETY"
+17. [Minor] Consider defining abbreviation "TECHNOLOGY" (style)
+   Description: Abbreviations should be defined on first use
+   Explanation: Define abbreviations on first use: Full Term (FT) and then use FT throughout.
+   Location: type=text, paragraphIndex=0, charOffset=14
+   Snippet: "TECHNOLOGY"
+18. [Minor] DOI format issue (references)
+   Description: DOI should be formatted as hyperlink or plain DOI
+   Explanation: Format DOIs as: https://doi.org/10.xxxx/xxxxx (preferred) or doi:10.xxxx/xxxxx (acceptable)
+   Fix: formatDOI
+19. [Minor] Hyphen instead of en dash in page range (references)
+   Description: Use en dash (–) not hyphen (-) for page ranges
+   Explanation: Page ranges use en dash: 123–456, not 123-456
+   Fix: fixPageRangeDash
+20. [Minor] Missing period at end of reference (references)
+   Description: References should end with a period
+   Explanation: Each reference entry must end with a period.
+   Fix: addReferencePeriod
+21. [Minor] Outdated 'Retrieved from' phrase (references)
+   Description: APA 7th edition no longer uses 'Retrieved from' before URLs
+   Explanation: APA 7th edition omits 'Retrieved from' before URLs unless a retrieval date is needed.
+   Fix: removeRetrievedFrom
+22. [Minor] Remove comma before "et al." in citations (citations)
+   Description: APA 7th edition does not use comma before "et al."
+   Explanation: APA 7th edition format: (Smith et al., 2021), not (Smith, et al., 2021).
+   Fix: fixEtAlFormatting
+   Location: type=text, paragraphIndex=8, charOffset=555
+   Snippet: "(Johnson, et al., 2019)"
+23. [Minor] Use & instead of "and" in parenthetical citations (citations)
+   Description: Parenthetical citations should use & to connect author names
+   Explanation: In parenthetical citations, use & to connect author names, not "and".
+   Fix: fixParentheticalConnector
+   Location: type=text, paragraphIndex=8, charOffset=498
+   Snippet: "(Jones and White, 2021)"
+24. [Minor] Volume number not italicized (references)
+   Description: Journal volume numbers should be italicized
+   Explanation: Volume numbers should be italicized: Psychology Today, 45(3), not Psychology Today, 45(3)

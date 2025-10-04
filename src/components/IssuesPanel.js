@@ -95,10 +95,17 @@ export default function IssuesPanel({
   
   const [activeTab, setActiveTab] = useState('issues'); // 'issues' or 'stats'
   const [fixError, setFixError] = useState(null);
+  const [exportStatus, setExportStatus] = useState(null);
 
   // Refs for tracking issue elements
   const issueRefs = useRef({});
   const panelContentRef = useRef(null);
+
+  useEffect(() => {
+    if (!exportStatus) return;
+    const timeout = setTimeout(() => setExportStatus(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [exportStatus]);
 
   // Wrapper for applyFix to handle errors
   const handleApplyFix = async (issueId) => {
@@ -109,6 +116,92 @@ export default function IssuesPanel({
       setTimeout(() => setFixError(null), 5000); // Clear after 5 seconds
     }
   };
+
+  const handleExportIssues = useCallback(() => {
+    const collectedIssues = Array.isArray(issues) ? issues.filter(Boolean) : [];
+
+    if (collectedIssues.length === 0) {
+      setExportStatus({ type: 'info', message: 'No issues to export right now.' });
+      return;
+    }
+
+    const severityOrder = { Critical: 0, Major: 1, Minor: 2 };
+    const sortedIssues = [...collectedIssues].sort((a, b) => {
+      const severityDiff = (severityOrder[a?.severity] ?? 3) - (severityOrder[b?.severity] ?? 3);
+      if (severityDiff !== 0) return severityDiff;
+      return (a?.title || '').localeCompare(b?.title || '');
+    });
+
+    const formattedIssues = sortedIssues.map((issue, index) => {
+      const headerLine = `${index + 1}. [${issue.severity || 'Unknown'}] ${issue.title || 'Untitled issue'} (${issue.category || 'uncategorized'})`;
+      const lines = [headerLine];
+
+      if (issue.description) {
+        lines.push(`   Description: ${issue.description}`);
+      }
+      if (issue.explanation) {
+        lines.push(`   Explanation: ${issue.explanation}`);
+      }
+      if (issue.hasFix || issue.fixAction) {
+        const fixLabel = issue.fixAction ? issue.fixAction : 'See suggested fix in the application.';
+        lines.push(`   Fix: ${fixLabel}`);
+      }
+
+      const location = issue.location || issue.position;
+      if (location) {
+        const locationParts = [];
+        if (location.type) locationParts.push(`type=${location.type}`);
+        if (typeof location.paragraphIndex === 'number') locationParts.push(`paragraphIndex=${location.paragraphIndex}`);
+        if (typeof location.charOffset === 'number') locationParts.push(`charOffset=${location.charOffset}`);
+        if (typeof location.citationIndex === 'number') locationParts.push(`citationIndex=${location.citationIndex}`);
+        if (typeof location.referenceIndex === 'number') locationParts.push(`referenceIndex=${location.referenceIndex}`);
+        if (typeof location.tableIndex === 'number') locationParts.push(`tableIndex=${location.tableIndex}`);
+        if (typeof location.figureIndex === 'number') locationParts.push(`figureIndex=${location.figureIndex}`);
+        if (typeof location.page === 'number') locationParts.push(`page=${location.page}`);
+        if (location.section !== undefined) locationParts.push(`section=${location.section}`);
+        if (locationParts.length > 0) {
+          lines.push(`   Location: ${locationParts.join(', ')}`);
+        }
+      }
+
+      if (issue.highlightText) {
+        const sanitized = issue.highlightText.replace(/\s+/g, ' ').trim();
+        if (sanitized) {
+          const snippet = sanitized.length > 180 ? `${sanitized.substring(0, 180)}…` : sanitized;
+          lines.push(`   Snippet: "${snippet}"`);
+        }
+      }
+
+      return lines.join('\n');
+    });
+
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+    const header = [
+      'APA Issue Export',
+      `Generated: ${now.toISOString()}`,
+      `Total Issues: ${sortedIssues.length}`,
+      ''
+    ];
+    const exportText = header.concat(formattedIssues).join('\n');
+
+    try {
+      const blob = new Blob([exportText], { type: 'text/plain' });
+      const filename = `apa-issues-${timestamp}.txt`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setExportStatus({ type: 'success', message: `Exported ${sortedIssues.length} issue${sortedIssues.length === 1 ? '' : 's'}.` });
+    } catch (error) {
+      console.error('Failed to export issues', error);
+      setExportStatus({ type: 'error', message: 'Unable to export issues. Check console for details.' });
+    }
+  }, [issues]);
   
   // Group issues by severity and separate document formatting issues
   const { groupedIssues, documentFormattingIssues } = useMemo(() => {
@@ -139,6 +232,7 @@ export default function IssuesPanel({
   }), [groupedIssues]);
   
   const totalIssues = issueCounts.Critical + issueCounts.Major + issueCounts.Minor;
+  const hasExportableIssues = Array.isArray(issues) && issues.length > 0;
   
   // Toggle category expansion
   const toggleCategory = useCallback((category) => {
@@ -275,6 +369,21 @@ export default function IssuesPanel({
             )}
           </div>
         )}
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <span className={`text-xs ${exportStatus ? (exportStatus.type === 'error' ? 'text-red-600' : exportStatus.type === 'success' ? 'text-emerald-600' : 'text-slate-600') : 'text-slate-500'}`}>
+            {exportStatus ? exportStatus.message : 'Export a snapshot of all current issues for offline review.'}
+          </span>
+          <button
+            type="button"
+            onClick={handleExportIssues}
+            disabled={!hasExportableIssues}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors duration-200 ${hasExportableIssues ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}
+          >
+            <FileDown className="h-4 w-4" />
+            <span>Export Issues</span>
+          </button>
+        </div>
 
         {/* Error Message */}
         {fixError && (

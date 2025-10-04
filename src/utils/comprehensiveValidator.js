@@ -20,7 +20,7 @@ export class ComprehensiveValidator {
     const issues = [];
     
     // Check bulleted lists
-    const bulletPatterns = [/^[•·▪▫◦‣⁃]\s+/gm, /^\*\s+/gm, /^-\s+/gm];
+    const bulletPatterns = [/^\s*[\u2022\u2023\u25AA\u25AB\u25E6\u2043\u00B7]\s+/gm, /^\s*[-*]\s+/gm];
     let hasBullets = false;
     
     bulletPatterns.forEach(pattern => {

@@ -36,97 +36,18 @@ export class HeaderFooterValidator {
   validateRunningHead(headersFooters, text) {
     const issues = [];
 
-    // UPDATED: APA 7th distinguishes between student and professional papers
-    // Check if document appears to be a professional paper
-    const wordCount = text.split(/\s+/).filter(Boolean).length;
-    const hasRunningHeadText = text.toLowerCase().includes('running head');
-    const isProfessionalPaper = hasRunningHeadText || wordCount > 5000; // Professional papers are typically longer
+    const runningHeadText = headersFooters?.runningHead?.text || '';
 
-    // NEW: Detect if this is a student paper (common indicators)
-    const isStudentPaper = text.toLowerCase().includes('student') ||
-                          text.toLowerCase().includes('university') ||
-                          text.toLowerCase().includes('course') ||
-                          text.toLowerCase().includes('professor') ||
-                          (!hasRunningHeadText && wordCount < 3000);
-
-    if (isProfessionalPaper) {
-      const runningHead = headersFooters.runningHead;
-
-      // Check if running head exists for professional papers
-      if (!runningHead && !headersFooters.headers?.length) {
-        issues.push({
-          title: "Missing running head (professional paper)",
-          description: "Professional papers require a running head on every page",
-          severity: "Major",
-          category: "headers",
-          hasFix: false,
-          explanation: "Add a running head in the format: 'Running head: ABBREVIATED TITLE' on the title page, then 'ABBREVIATED TITLE' on subsequent pages."
-        });
-        return issues;
-      }
-
-      // Validate running head content for professional papers
-      if (runningHead) {
-        // Check length (max 50 characters)
-        if (runningHead.length > this.maxRunningHeadLength) {
-          issues.push({
-            title: "Running head too long",
-            description: `Running head is ${runningHead.length} characters (max 50)`,
-            text: runningHead.text,
-            severity: "Major",
-            category: "headers",
-            hasFix: false,
-            explanation: "Running head must be 50 characters or less including spaces and punctuation."
-          });
-        }
-        
-        // Check if all caps
-        if (runningHead.text && !runningHead.allCaps) {
-          const upperText = runningHead.text.replace(/^Running head:\s*/i, '');
-          if (upperText !== upperText.toUpperCase()) {
-            issues.push({
-              title: "Running head not in all caps",
-              description: "Running head should be in ALL CAPITAL LETTERS",
-              text: runningHead.text,
-              severity: "Minor",
-              category: "headers",
-              hasFix: true,
-              fixAction: "fixRunningHeadCaps",
-              explanation: "The running head text (after 'Running head:') should be in all capital letters."
-            });
-          }
-        }
-        
-        // Check first page format
-        const firstPageHasLabel = text.substring(0, 2000).includes('Running head:');
-        const hasRunningHeadText = runningHead.text && runningHead.text.length > 0;
-        
-        if (hasRunningHeadText && !firstPageHasLabel) {
-          issues.push({
-            title: "Missing 'Running head:' label on title page",
-            description: "Title page should include 'Running head:' before the abbreviated title",
-            severity: "Minor",
-            category: "headers",
-            hasFix: true,
-            fixAction: "addRunningHeadLabel",
-            explanation: "The title page header should read 'Running head: ABBREVIATED TITLE' while subsequent pages show only 'ABBREVIATED TITLE'."
-          });
-        }
-      }
-    } else if (isStudentPaper) {
-      // NEW: APA 7th Edition - Student papers only need running head on title page
-      const titlePageRunningHead = text.toLowerCase().includes('running head');
-
-      if (!titlePageRunningHead) {
-        issues.push({
-          title: "Consider adding running head to title page",
-          description: "APA 7th: Student papers only need running head on title page (optional for other pages)",
-          severity: "Minor", // Optional for students
-          category: "headers",
-          hasFix: false,
-          explanation: "Student papers: Add 'Running head: ABBREVIATED TITLE' only on title page. Other pages can just have the page header or nothing."
-        });
-      }
+    if (runningHeadText && /running head:/i.test(runningHeadText)) {
+      issues.push({
+        title: "Running head label not required",
+        description: "APA 7 student papers only require a page number in the header",
+        severity: "Minor",
+        category: "headers",
+        hasFix: true,
+        fixAction: "removeRunningHeadLabel",
+        explanation: "Remove the 'Running head:' label unless an instructor specifically requests a professional running head."
+      });
     }
 
     return issues;
@@ -193,47 +114,9 @@ export class HeaderFooterValidator {
    */
   validateFirstPageHeader(headersFooters, text) {
     const issues = [];
-    
-    // Check if there's a different first page header setting
-    if (headersFooters.firstPageHeader || headersFooters.firstPageFooter) {
-      // This is often correct for APA (different first page for running head)
-      // But check if it's properly configured
-      
-      const hasRunningHead = headersFooters.runningHead;
-      const firstPageText = text.substring(0, 2000);
-      
-      if (hasRunningHead && !firstPageText.includes('Running head:')) {
-        issues.push({
-          title: "First page header configuration issue",
-          description: "Different first page header detected but may not be properly configured",
-          severity: "Minor",
-          category: "headers",
-          hasFix: false,
-          explanation: "The title page should have 'Running head: TITLE' while other pages have just 'TITLE'."
-        });
-      }
-    }
-    
-    // Check for title page elements
-    const titlePageElements = this.checkTitlePageElements(text);
-    if (!titlePageElements.hasAll) {
-      const missing = [];
-      if (!titlePageElements.hasTitle) missing.push('paper title');
-      if (!titlePageElements.hasAuthor) missing.push('author name(s)');
-      if (!titlePageElements.hasAffiliation) missing.push('institutional affiliation');
-      
-      if (missing.length > 0) {
-        issues.push({
-          title: "Incomplete title page",
-          description: `Title page missing: ${missing.join(', ')}`,
-          severity: "Major",
-          category: "structure",
-          hasFix: false,
-          explanation: "APA title page must include: paper title, author name(s), institutional affiliation, and author note (if applicable)."
-        });
-      }
-    }
-    
+
+    // Student-format APA papers generally use the same header on every page.
+    // No additional validation needed beyond running head and page number checks.
     return issues;
   }
 
@@ -241,40 +124,54 @@ export class HeaderFooterValidator {
    * Check title page elements
    */
   checkTitlePageElements(text) {
-    const firstPage = text.substring(0, 1500);
-    const lines = firstPage.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    
-    // Simple heuristics for title page elements
-    const hasTitle = lines.some(line => 
-      line.length > 10 && 
-      line.length < 100 && 
-      !line.includes('Running head') &&
-      line[0] === line[0].toUpperCase()
+    const firstPage = (text || '').substring(0, 1500);
+    const lines = firstPage
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    const hasTitle = lines.some(line =>
+      line.length > 10 &&
+      line.length < 100 &&
+      !/running head/i.test(line) &&
+      /^[A-Z]/.test(line)
     );
-    
-    // Check for author names (typically after title)
-    const hasAuthor = lines.some((line, i) => 
-      i > 0 && // Not first line
-      line.length > 3 && 
-      line.length < 50 &&
-      /^[A-Z][a-z]+/.test(line) && // Starts with capital letter
-      !line.includes('University') &&
-      !line.includes('College')
+
+    const authorPattern = /^[A-Z][a-zA-Z.'-]+(?:\s+[A-Z][a-zA-Z.'-]+)+$/;
+    const hasAuthor = lines.some((line, index) =>
+      index > 0 &&
+      line.length > 3 &&
+      line.length < 80 &&
+      authorPattern.test(line)
     );
-    
-    // Check for affiliation (university/institution name)
-    const hasAffiliation = lines.some(line => 
-      line.includes('University') || 
-      line.includes('College') || 
-      line.includes('Institute') ||
-      line.includes('Department')
+
+    const hasAffiliation = lines.some(line =>
+      /(University|College|Institute|School|Department)/i.test(line)
     );
-    
+
+    const coursePattern = /(course|class)\s*(number|name|code)?:?/i;
+    const catalogPattern = /\b[A-Z]{2,4}\s*\d{3,4}\b/;
+    const hasCourse = lines.some(line => coursePattern.test(line) || catalogPattern.test(line));
+
+    const instructorPattern = /(Professor|Prof\.|Dr\.|Instructor|Ms\.|Mr\.|Mrs\.)/i;
+    const hasInstructor = lines.some(line => instructorPattern.test(line));
+
+    const monthPattern = /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}/;
+    const dayFirstPattern = /\b\d{1,2}\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/;
+    const numericDatePattern = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/;
+    const hasDueDate = lines.some(line => monthPattern.test(line) || dayFirstPattern.test(line) || numericDatePattern.test(line));
+
+    const runningHeadLabel = /running head:/i.test(firstPage);
+
     return {
       hasTitle,
       hasAuthor,
       hasAffiliation,
-      hasAll: hasTitle && hasAuthor && hasAffiliation
+      hasCourse,
+      hasInstructor,
+      hasDueDate,
+      runningHeadLabel,
+      hasAll: hasTitle && hasAuthor && hasAffiliation && hasCourse && hasInstructor && hasDueDate
     };
   }
 

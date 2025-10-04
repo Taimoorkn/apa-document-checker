@@ -509,22 +509,30 @@ export class EnhancedAPAAnalyzer {
     const citations = structure.citations || [];
     
     // 1. Check for required sections
-    const hasAbstract = sections.some(s => s.type === 'abstract') || text.toLowerCase().includes('abstract');
     const hasReferences = sections.some(s => s.type === 'references') || text.toLowerCase().includes('references');
-    const wordCount = text.split(/\s+/).length;
-    
-    if (wordCount > 1000 && !hasAbstract) {
-      issues.push({
-        title: "Missing abstract",
-        description: "Long papers typically require an abstract",
-        severity: "Major",
-        category: "structure",
-        hasFix: true,
-        fixAction: "addAbstract",
-        explanation: "Papers longer than 1000 words typically require an abstract (150-250 words) summarizing the main points."
-      });
+
+    const abstractSection = sections.find(section => {
+      const heading = section?.title || section?.text || section?.heading || '';
+      return section?.type === 'abstract' || /\babstract\b/i.test(heading);
+    });
+
+    if (abstractSection) {
+      const abstractContent = [abstractSection?.content, abstractSection?.text, abstractSection?.body]
+        .find(value => typeof value === 'string' && value.trim().length > 0) || '';
+      const abstractWordCount = abstractContent.split(/\s+/).filter(Boolean).length;
+
+      if (abstractWordCount > 0 && abstractWordCount < 40) {
+        issues.push({
+          title: 'Abstract appears incomplete',
+          description: 'Abstracts should summarize the paper in approximately 40-150 words',
+          severity: 'Minor',
+          category: 'structure',
+          hasFix: false,
+          explanation: "When an abstract is included, provide a concise overview of the paper's purpose, method, results, and conclusions."
+        });
+      }
     }
-    
+
     if (!hasReferences && citations.length > 0) {
       issues.push({
         title: "Missing references section",
@@ -810,23 +818,6 @@ export class EnhancedAPAAnalyzer {
     }
     
     // 6. Check for URLs in text that should be properly formatted
-    const urlInTextPattern = /https?:\/\/[^\s)]+/g;
-    let urlMatch;
-    while ((urlMatch = urlInTextPattern.exec(text)) !== null) {
-      if (!text.includes('Retrieved from') || !text.includes('doi:')) {
-        issues.push({
-          title: "URL formatting in text",
-          description: "URLs should be properly formatted in references, not embedded in text",
-          text: urlMatch[0],
-          highlightText: urlMatch[0],
-          severity: "Minor",
-          category: "formatting",
-          hasFix: false,
-          explanation: "URLs should appear in the reference list, not embedded in the main text."
-        });
-      }
-    }
-    
     // 7. Check for ALL CAPS headings (more precise detection)
     // NOTE: Use [ \t] instead of \s to prevent matching across multiple lines (newlines)
     const allCapsHeadingPattern = /\n[ \t]*([A-Z][A-Z \t]{2,})[ \t]*\n/g;
@@ -922,69 +913,53 @@ export class EnhancedAPAAnalyzer {
    */
   analyzeTitlePage(text) {
     const issues = [];
-    
-    if (!text) return issues;
-    
-    
-    const firstPage = text.substring(0, 1500); // First ~1500 chars for title page
-    
-    // Check for required elements in order
-    const lines = firstPage.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    
-    if (lines.length < 3) {
-      issues.push({
-        title: "Incomplete title page",
-        description: "Title page appears to be missing required elements",
-        severity: "Major",
-        category: "structure",
-        hasFix: false,
-        explanation: "APA title page requires: paper title, author name(s), institutional affiliation, and author note."
-      });
+
+    if (!text || !this.headerFooterValidator?.checkTitlePageElements) {
       return issues;
     }
-    
-    // Check if title is centered (simple heuristic - no excessive leading spaces)
-    const possibleTitle = lines[0];
-    if (possibleTitle.length > 5 && possibleTitle.startsWith('  ')) {
-      // This might indicate improper formatting, but it's hard to detect without rich formatting
+
+    const titleElements = this.headerFooterValidator.checkTitlePageElements(text);
+    if (!titleElements) {
+      return issues;
     }
-    
-    // Check for common title page issues
-    const titlePageText = firstPage.toLowerCase();
-    
-    // Check for missing running head
-    if (!titlePageText.includes('running head') && !titlePageText.includes('page')) {
-      issues.push({
-        title: "Missing running head",
-        description: "Title page should include a running head (for professional papers)",
-        severity: "Minor", 
-        category: "structure",
-        hasFix: false,
-        explanation: "Professional papers require a running head on the title page and throughout the document."
-      });
-    }
-    
-    // Check for in-text citations on title page (but be more selective)
-    const citationPattern = /\([A-Za-z]+,?\s+\d{4}\)/g;
-    const citationsOnTitlePage = firstPage.match(citationPattern);
-    if (citationsOnTitlePage && citationsOnTitlePage.length > 0) {
-      // Only flag if it's clearly in the main title page content, not in author notes
-      const titlePageWithoutAuthorNote = firstPage.split('Author Note')[0];
-      if (citationPattern.test(titlePageWithoutAuthorNote)) {
+
+    const requirements = [
+      { key: 'hasTitle', label: 'paper title', explanation: 'Center the paper title in bold title case on the first page.' },
+      { key: 'hasAuthor', label: 'author name(s)', explanation: 'List the student author name beneath the title.' },
+      { key: 'hasAffiliation', label: 'institutional affiliation', explanation: 'Provide the department and institution (e.g., Department of Psychology, Example University).' },
+      { key: 'hasCourse', label: 'course number and name', explanation: 'Include the course identifier such as PSY 101: Introduction to Psychology.' },
+      { key: 'hasInstructor', label: 'instructor name', explanation: "State the instructor's name (e.g., Dr. Smith)." },
+      { key: 'hasDueDate', label: 'assignment due date', explanation: 'Add the assignment due date in Month Day, Year format.' }
+    ];
+
+    requirements.forEach(item => {
+      if (!titleElements[item.key]) {
         issues.push({
-          title: "Citations on title page",
-          description: "Title page should not contain in-text citations",
-          severity: "Minor",
-          category: "structure", 
+          title: `Title page missing ${item.label}`,
+          description: `Add the ${item.label} to comply with APA 7 student title page requirements`,
+          severity: 'Major',
+          category: 'structure',
           hasFix: false,
-          explanation: "The title page should contain only title, author, affiliation information - no citations."
+          explanation: item.explanation
         });
       }
+    });
+
+    if (titleElements.runningHeadLabel) {
+      issues.push({
+        title: 'Running head label not required',
+        description: "Student papers should not include the 'Running head:' label in the header",
+        severity: 'Minor',
+        category: 'headers',
+        hasFix: true,
+        fixAction: 'removeRunningHeadLabel',
+        explanation: 'APA 7 student papers use only a page number in the header unless an instructor requests a running head.'
+      });
     }
-    
+
     return issues;
   }
-  
+
   /**
    * Validate table borders from XML data
    */

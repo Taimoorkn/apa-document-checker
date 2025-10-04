@@ -34,99 +34,136 @@ export class QuotationValidator {
    * Validate block quote formatting (40+ words)
    */
   validateBlockQuotes(text) {
+
     const issues = [];
-    
-    // Find all quoted text
-    const quotePattern = /[""]([^""]+)[""]/g;
+
+
+
+    const quotePattern = /["\u201C\u201D]([^"\u201C\u201D]+)["\u201C\u201D]/g;
+
     const quotes = [...text.matchAll(quotePattern)];
-    
+
+
+
     quotes.forEach(match => {
+
       const quoteText = match[1];
-      const wordCount = quoteText.split(/\s+/).filter(w => w.length > 0).length;
-      
-      // Check if quote is 40+ words
+
+      const wordCount = quoteText.split(/\s+/).filter(Boolean).length;
+
+
+
       if (wordCount >= this.blockQuoteMinWords) {
-        // Check if it's formatted as block quote (usually indented paragraph)
-        const quotePosition = match.index;
-        const beforeQuote = text.substring(Math.max(0, quotePosition - 50), quotePosition);
-        const afterQuote = text.substring(quotePosition + match[0].length, Math.min(text.length, quotePosition + match[0].length + 50));
 
-        // FIXED: Block quotes (40+ words) should NOT have quotation marks
-        // If we found a 40+ word quote WITH quotation marks, it's incorrectly formatted
-        if (match[0].includes('"') || match[0].includes('"') || match[0].includes('"') || match[0].includes('"')) {
-          issues.push({
-            title: "Long quote incorrectly formatted with quotation marks",
-            description: `Quote with ${wordCount} words should be a block quote without quotation marks`,
-            text: quoteText.substring(0, 50) + '...',
-            severity: "Major",
-            category: "quotations",
-            hasFix: true,
-            fixAction: "convertToBlockQuote",
-            explanation: "Quotes of 40+ words should be in block format: indented 0.5\", no quotation marks"
-          });
-        }
-        
-        // Check for citation after block quote
-        if (!afterQuote.match(/^\s*\([^)]+\)/)) {
-          issues.push({
-            title: "Block quote missing citation",
-            description: "Block quote should be followed immediately by citation",
-            text: quoteText.substring(0, 30) + '...',
-            severity: "Major",
-            category: "quotations",
-            hasFix: false,
-            explanation: "Place citation after final punctuation of block quote: ...end of quote. (Author, Year, p. #)"
-          });
-        }
-      } else if (wordCount > 30 && wordCount < this.blockQuoteMinWords) {
-        // Warning for quotes approaching block quote length
+        const afterQuote = text.slice(match.index + match[0].length);
+
+        const citationMatch = afterQuote.match(/^\s*\([^)]+\)/);
+
+
+
         issues.push({
-          title: "Long inline quote",
-          description: `Quote with ${wordCount} words is long for inline format`,
-          text: quoteText.substring(0, 50) + '...',
-          severity: "Minor",
+
+          title: "Long quote formatted inline",
+
+          description: `Quote with ${wordCount} words should use block quote formatting`,
+
+          text: quoteText.substring(0, 50) + "...",
+
+          severity: "Major",
+
           category: "quotations",
-          hasFix: false,
-          explanation: "Consider paraphrasing or using block quote format for lengthy quotes"
+
+          hasFix: true,
+
+          fixAction: "convertToBlockQuote",
+
+          explanation: 'Quotes of 40+ words should start on a new line, be indented 0.5" in from the left margin, remain double spaced, and omit quotation marks.'
+
         });
+
+
+
+        if (!citationMatch) {
+
+          issues.push({
+
+            title: "Block quote missing citation",
+
+            description: "Block quote should be followed immediately by citation",
+
+            text: quoteText.substring(0, 30) + "...",
+
+            severity: "Major",
+
+            category: "quotations",
+
+            hasFix: false,
+
+            explanation: "Place the citation after the final punctuation of the block quote: ... end of quote. (Author, Year, p. #)"
+
+          });
+
+        }
+
+      } else if (wordCount >= 30) {
+
+        issues.push({
+
+          title: "Long inline quote",
+
+          description: `Quote with ${wordCount} words is long for inline format`,
+
+          text: quoteText.substring(0, 50) + "...",
+
+          severity: "Minor",
+
+          category: "quotations",
+
+          hasFix: false,
+
+          explanation: "Consider paraphrasing or using block quote format for lengthy quotations."
+
+        });
+
       }
+
     });
-    
-    // Check for improperly formatted block quotes (indented but with quotes)
-    const indentedQuotes = text.match(/\n\s{4,}[""].*[""]/g) || [];
+
+
+
+    const indentedQuotes = text.match(/\n\s{4,}["\u201C\u201D].*["\u201C\u201D]/g) || [];
+
     indentedQuotes.forEach(quote => {
+
       issues.push({
+
         title: "Block quote with quotation marks",
-        description: "Block quotes should not have quotation marks",
+
+        description: "Block quotes should not include quotation marks",
+
         text: quote.trim().substring(0, 50),
+
         severity: "Major",
+
         category: "quotations",
+
         hasFix: true,
+
         fixAction: "removeBlockQuoteMarks",
-        explanation: "Block quotes use indentation only, no quotation marks"
+
+        explanation: "Block quotes rely on indentation rather than quotation marks."
+
       });
+
     });
 
-    // Also check for potential block quotes that are properly indented (40+ words without quotes)
-    // This is to catch block quotes that might be correctly formatted
-    const blockQuotePattern = /\n\s{4,}([^\n]{160,})/g; // 160+ chars ≈ 40+ words
-    const potentialBlockQuotes = [...text.matchAll(blockQuotePattern)];
 
-    potentialBlockQuotes.forEach(match => {
-      const content = match[1];
-      const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
 
-      // If it's 40+ words and properly indented without quotes, this is likely correct
-      if (wordCount >= this.blockQuoteMinWords &&
-          !content.includes('"') && !content.includes('"') &&
-          !content.includes('"') && !content.includes('"')) {
-        // This is a properly formatted block quote - no issue needed
-        // Could add positive feedback here if desired
-      }
-    });
-    
     return issues;
+
   }
+
+
 
   /**
    * Validate ellipsis usage in quotes
@@ -135,7 +172,7 @@ export class QuotationValidator {
     const issues = [];
     
     // Find ellipses in quotes
-    const quotesWithEllipsis = text.match(/[""][^""]*\.\.\.+[^""]*[""]/g) || [];
+    const quotesWithEllipsis = text.match(/["\u201C\u201D][^"\u201C\u201D]*\.\.\.+[^"\u201C\u201D]*["\u201C\u201D]/g) || [];
     
     quotesWithEllipsis.forEach(quote => {
       // Check for correct ellipsis format (three dots with spaces)
@@ -157,7 +194,7 @@ export class QuotationValidator {
       });
       
       // Check for ellipsis at beginning (usually not needed)
-      if (quote.match(/[""]\.\.\./) || quote.match(/[""]\s*\.\.\./)) {
+      if (quote.match(/["\u201C\u201D]\.\.\./) || quote.match(/["\u201C\u201D]\s*\.\.\./)) {
         issues.push({
           title: "Ellipsis at quote beginning",
           description: "Ellipsis at start of quote usually unnecessary",
@@ -194,7 +231,7 @@ export class QuotationValidator {
     const issues = [];
     
     // Find square brackets in quotes
-    const quotesWithBrackets = text.match(/[""][^""]*\[[^\]]*\][^""]*[""]/g) || [];
+    const quotesWithBrackets = text.match(/["\u201C\u201D][^"\u201C\u201D]*\[[^\]]*\][^"\u201C\u201D]*["\u201C\u201D]/g) || [];
     
     quotesWithBrackets.forEach(quote => {
       const brackets = quote.match(/\[([^\]]*)\]/g) || [];
@@ -283,7 +320,7 @@ export class QuotationValidator {
     const issues = [];
     
     // Check for quotes with emphasis added
-    const emphasisPattern = /[""][^""]*(?:\*[^*]+\*|_[^_]+_)[^""]*[""]/g;
+    const emphasisPattern = /["\u201C\u201D][^"\u201C\u201D]*(?:\*[^*]+\*|_[^_]+_)[^"\u201C\u201D]*["\u201C\u201D]/g;
     const emphasisQuotes = text.match(emphasisPattern) || [];
     
     emphasisQuotes.forEach(quote => {

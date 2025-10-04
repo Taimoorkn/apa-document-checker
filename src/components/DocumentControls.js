@@ -8,7 +8,9 @@ import {
   AlertCircle,
   Download,
   FileText,
-  File
+  File,
+  Undo2,
+  Redo2
 } from 'lucide-react';
 import { useUnifiedDocumentStore } from '@/store/unifiedDocumentStore';
 
@@ -21,7 +23,7 @@ const DocumentControls = memo(({
   editor,
   onRunAnalysis
 }) => {
-  const { documentModel, exportDocument } = useUnifiedDocumentStore();
+  const { documentModel, exportDocument, undo, redo, canUndo, canRedo } = useUnifiedDocumentStore();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async (format) => {
@@ -73,6 +75,29 @@ const DocumentControls = memo(({
             )}
           </div>
           <div className="flex items-center space-x-3">
+
+            {/* Undo/Redo Buttons */}
+            {documentModel && (
+              <>
+                <button
+                  onClick={undo}
+                  disabled={!canUndo()}
+                  title="Undo (Ctrl+Z)"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 shadow-sm disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </button>
+
+                <button
+                  onClick={redo}
+                  disabled={!canRedo()}
+                  title="Redo (Ctrl+Y)"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-slate-100 text-slate-700 hover:bg-slate-200 shadow-sm disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
 
             {/* Export Buttons */}
             {documentModel && (

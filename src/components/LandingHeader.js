@@ -146,7 +146,7 @@ export default function LandingHeader() {
                       <span className="font-semibold text-slate-800 text-sm">{user.email?.split('@')[0]}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 p-2">
+                  <DropdownMenuContent align="end" className="w-64 p-2 bg-white">
                     <DropdownMenuLabel className="p-3">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-10 h-10 ring-2 ring-slate-200">

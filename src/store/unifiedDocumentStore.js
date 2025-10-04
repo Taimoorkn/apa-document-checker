@@ -112,11 +112,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   // UI preferences moved to React state in useUnifiedDocumentEditor.js
   // Auto-save and analysis now handled by dedicated hooks
 
-  // Snapshots for undo/redo
-  snapshots: [],
-  maxSnapshots: 10,
-  currentSnapshotIndex: -1,
-
   // Event emitter
   events: storeEvents,
 
@@ -173,9 +168,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           content: null // Will be set by editor from getTiptapJson()
         }
       }));
-
-      // Create initial snapshot
-      get().createSnapshot('Document uploaded');
 
       // Automatically trigger analysis for the uploaded document
       setTimeout(async () => {
@@ -247,9 +239,6 @@ export const useUnifiedDocumentStore = create((set, get) => ({
           documentModel.issues.addIssue(issue);
         });
       }
-
-      // Create initial snapshot
-      get().createSnapshot('Document loaded from database');
 
       console.log(`✅ Existing document loaded: ${documentModel.metadata.name}`);
 
@@ -533,140 +522,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
 
   // === UI STATE MANAGEMENT ===
   // UI state methods removed - now handled in React state (useUnifiedDocumentEditor)
-
-  // === SNAPSHOT AND UNDO/REDO ===
-
-  /**
-   * Create document snapshot
-   */
-  createSnapshot: (description = 'User action') => {
-    const state = get();
-    if (!state.documentModel) {
-      return null;
-    }
-
-    const snapshot = state.documentModel.createSnapshot();
-    snapshot.description = description;
-
-    set(currentState => {
-      // If user has done undo and is now making a new edit,
-      // we need to discard all redo history (everything after currentSnapshotIndex)
-      let newSnapshots;
-      if (currentState.currentSnapshotIndex < currentState.snapshots.length - 1) {
-        // Clear redo history and add new snapshot
-        newSnapshots = [
-          ...currentState.snapshots.slice(0, currentState.currentSnapshotIndex + 1),
-          snapshot
-        ];
-      } else {
-        // Normal case: just append
-        newSnapshots = [...currentState.snapshots, snapshot];
-      }
-
-      // Trim to max snapshots from the beginning
-      if (newSnapshots.length > currentState.maxSnapshots) {
-        newSnapshots.shift();
-      }
-
-      return {
-        snapshots: newSnapshots,
-        currentSnapshotIndex: newSnapshots.length - 1
-      };
-    });
-
-    return snapshot.id;
-  },
-
-  /**
-   * Undo to previous snapshot
-   */
-  undo: () => {
-    const state = get();
-    if (!state.documentModel || state.currentSnapshotIndex < 0) {
-      return false;
-    }
-
-    const snapshot = state.snapshots[state.currentSnapshotIndex];
-    if (!snapshot) {
-      return false;
-    }
-
-    try {
-      state.documentModel.restoreFromSnapshot(snapshot);
-
-      set(currentState => ({
-        currentSnapshotIndex: currentState.currentSnapshotIndex - 1
-      }));
-
-      storeEvents.emit('documentRestored', {
-        snapshotId: snapshot.id,
-        description: snapshot.description,
-        type: 'undo'
-      });
-
-      return true;
-
-    } catch (error) {
-      console.error('Error during undo:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Check if undo is available
-   */
-  canUndo: () => {
-    const state = get();
-    return state.currentSnapshotIndex >= 0 && state.snapshots.length > 0;
-  },
-
-  /**
-   * Redo to next snapshot
-   */
-  redo: () => {
-    const state = get();
-    if (!state.documentModel) {
-      return false;
-    }
-
-    const nextIndex = state.currentSnapshotIndex + 1;
-    if (nextIndex >= state.snapshots.length) {
-      return false; // No redo available
-    }
-
-    const snapshot = state.snapshots[nextIndex];
-    if (!snapshot) {
-      return false;
-    }
-
-    try {
-      state.documentModel.restoreFromSnapshot(snapshot);
-
-      set(currentState => ({
-        currentSnapshotIndex: nextIndex
-      }));
-
-      storeEvents.emit('documentRestored', {
-        snapshotId: snapshot.id,
-        description: snapshot.description,
-        type: 'redo'
-      });
-
-      return true;
-
-    } catch (error) {
-      console.error('Error during redo:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Check if redo is available
-   */
-  canRedo: () => {
-    const state = get();
-    return state.currentSnapshotIndex < state.snapshots.length - 1;
-  },
+  // Undo/redo now handled by Tiptap's native History extension
 
   // === EXPORT AND UTILITIES ===
 
@@ -704,9 +560,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
         content: null,
         lastSyncTimestamp: 0,
         isInitialized: false
-      },
-      snapshots: [],
-      currentSnapshotIndex: -1
+      }
     });
   },
 
@@ -738,8 +592,7 @@ export const useUnifiedDocumentStore = create((set, get) => ({
       paragraphCount: state.documentModel?.paragraphOrder.length || 0,
       issueCount: state.documentModel?.issues.getAllIssues().length || 0,
       processingState: state.processingState,
-      editorState: state.editorState,
-      snapshotCount: state.snapshots.length
+      editorState: state.editorState
     };
   }
 }));

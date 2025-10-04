@@ -2,7 +2,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X, ArrowRight, LayoutDashboard, LogOut, User, Settings, Sparkles } from "lucide-react";
+import { Menu, X, ArrowRight, LogOut, User, Settings, Sparkles } from "lucide-react";
+import { House } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -127,7 +128,7 @@ export default function LandingHeader() {
                     size="sm"
                     className="gap-2 font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
                   >
-                    <LayoutDashboard className="h-4 w-4" />
+                    <House className="h-4 w-4" weight="regular" />
                     Dashboard
                   </Button>
                 </Link>
@@ -188,7 +189,7 @@ export default function LandingHeader() {
               </>
             ) : (
               <>
-                <Link href="/login">
+                <Link href="/login" prefetch={true}>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -197,7 +198,7 @@ export default function LandingHeader() {
                     Sign In
                   </Button>
                 </Link>
-                <Link href="/signup">
+                <Link href="/signup" prefetch={true}>
                   <Button
                     size="sm"
                     className="gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all font-semibold rounded-xl px-5 group"
@@ -298,7 +299,7 @@ export default function LandingHeader() {
                       className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:from-blue-100 hover:to-indigo-100 font-semibold transition-all shadow-sm"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <LayoutDashboard className="h-5 w-5" />
+                      <House className="h-5 w-5" weight="regular" />
                       Dashboard
                     </Link>
                   </motion.div>
@@ -344,6 +345,7 @@ export default function LandingHeader() {
                     >
                       <Link
                         href="/login"
+                        prefetch={true}
                         className="block px-4 py-3.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-center transition-all shadow-sm"
                         onClick={() => setIsMenuOpen(false)}
                       >
@@ -357,6 +359,7 @@ export default function LandingHeader() {
                     >
                       <Link
                         href="/signup"
+                        prefetch={true}
                         className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold text-center shadow-lg hover:shadow-xl transition-all"
                         onClick={() => setIsMenuOpen(false)}
                       >

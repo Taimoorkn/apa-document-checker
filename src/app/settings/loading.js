@@ -1,5 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import Image from 'next/image';
 
 export default function SettingsLoading() {
   return (
@@ -8,8 +9,10 @@ export default function SettingsLoading() {
       <div className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col shadow-sm hidden md:flex">
         <div className="p-6 border-b border-slate-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl"></div>
-            <span className="text-2xl font-bold text-slate-800">APA Pro</span>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+              <Image src="/LiloLogo.svg" alt="Lilo" width={40} height={40} />
+            </div>
+            <span className="text-2xl font-bold text-slate-800">Lilo</span>
           </div>
         </div>
       </div>

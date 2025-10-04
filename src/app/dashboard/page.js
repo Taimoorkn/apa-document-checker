@@ -3,9 +3,8 @@ import { redirect } from 'next/navigation';
 import { getUserWithProfile } from '@/lib/profiles';
 import DashboardClient from './DashboardClient';
 
-// Disable caching to ensure fresh data after document updates
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Cache for 30 seconds - fresh enough but much faster navigation
+export const revalidate = 30;
 
 /**
  * Dashboard page (Server Component)

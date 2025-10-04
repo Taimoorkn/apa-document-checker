@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import { getUserWithProfile } from '@/lib/profiles';
 import ProfileClient from './ProfileClient';
 
-export const dynamic = 'force-dynamic';
+// Cache for 60 seconds - profile data changes infrequently
+export const revalidate = 60;
 
 export default async function ProfilePage() {
   const supabase = await createClient();

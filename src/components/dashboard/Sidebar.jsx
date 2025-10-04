@@ -2,20 +2,20 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  LayoutGrid,
-  LogOut,
-  User,
-  Settings
-} from "lucide-react";
+  House,
+  UserCircle,
+  Gear,
+  SignOut
+} from "@phosphor-icons/react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Image from "next/image";
 
 const navItems = [
-  { icon: LayoutGrid, label: "Dashboard", href: "/dashboard" },
-  { icon: User, label: "Profile", href: "/profile" },
-  { icon: Settings, label: "Settings", href: "/settings" },
+  { icon: House, label: "Dashboard", href: "/dashboard" },
+  { icon: UserCircle, label: "Profile", href: "/profile" },
+  { icon: Gear, label: "Settings", href: "/settings" },
 ];
 
 export default function Sidebar({ user, profile, onNavigate }) {
@@ -29,8 +29,7 @@ export default function Sidebar({ user, profile, onNavigate }) {
     router.refresh();
   };
 
-  const handleNavigation = (href) => {
-    router.push(href);
+  const handleNavigation = () => {
     if (onNavigate) onNavigate();
   };
 
@@ -56,19 +55,22 @@ export default function Sidebar({ user, profile, onNavigate }) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4">
-        <div className="space-y-2">
+        <div className="space-y-1">
           {navItems.map((item, index) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const Icon = item.icon;
             return (
-              <Button
-                key={index}
-                variant={isActive ? "secondary" : "ghost"}
-                className={`w-full justify-start gap-3 h-12 text-md font-semibold ${isActive ? 'text-blue-600 bg-blue-100' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'}`}
-                onClick={() => handleNavigation(item.href)}
-              >
-                <item.icon className="w-6 h-6" />
-                {item.label}
-              </Button>
+              <Link key={index} href={item.href} onClick={handleNavigation} className="block">
+                <div
+                  className={`w-full flex items-center justify-start gap-3 h-12  px-3 rounded-lg transition-all duration-200 ${isActive
+                      ? 'text-blue-700 bg-blue-50 shadow-sm'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                  <Icon className="w-5 h-5" weight={isActive ? "fill" : "regular"} />
+                  {item.label}
+                </div>
+              </Link>
             );
           })}
         </div>
@@ -78,10 +80,10 @@ export default function Sidebar({ user, profile, onNavigate }) {
       <div className="p-4 border-t border-slate-200">
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 h-12 text-md font-semibold text-red-600 hover:text-red-700 hover:bg-red-50"
+          className="w-full justify-start gap-3 h-11 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50"
           onClick={handleSignOut}
         >
-          <LogOut className="w-5 h-5" />
+          <SignOut className="w-5 h-5" weight="regular" />
           Sign Out
         </Button>
       </div>

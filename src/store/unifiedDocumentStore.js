@@ -14,6 +14,7 @@ import { DocumentModel } from '@/models/DocumentModel';
 class StoreEventEmitter {
   constructor() {
     this.listeners = new Map();
+    this.MAX_LISTENERS_WARNING = 10; // Warn if more than 10 listeners on same event
   }
 
   on(event, callback) {
@@ -21,6 +22,16 @@ class StoreEventEmitter {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event).add(callback);
+
+    // Memory leak detection: warn if too many listeners
+    const listenerCount = this.listeners.get(event).size;
+    if (listenerCount > this.MAX_LISTENERS_WARNING) {
+      console.warn(
+        `⚠️ [StoreEventEmitter] Potential memory leak detected: ${listenerCount} listeners registered for event "${event}". ` +
+        `This may indicate missing cleanup in useEffect. Check that all event listeners return cleanup functions.`
+      );
+    }
+
     return () => this.off(event, callback);
   }
 
@@ -47,6 +58,20 @@ class StoreEventEmitter {
 
   clear() {
     this.listeners.clear();
+  }
+
+  // Debug helper: get listener count for an event
+  getListenerCount(event) {
+    return this.listeners.has(event) ? this.listeners.get(event).size : 0;
+  }
+
+  // Debug helper: get all listener counts
+  getAllListenerCounts() {
+    const counts = {};
+    this.listeners.forEach((listeners, event) => {
+      counts[event] = listeners.size;
+    });
+    return counts;
   }
 }
 
@@ -581,6 +606,54 @@ export const useUnifiedDocumentStore = create((set, get) => ({
   canUndo: () => {
     const state = get();
     return state.currentSnapshotIndex >= 0 && state.snapshots.length > 0;
+  },
+
+  /**
+   * Redo to next snapshot
+   */
+  redo: () => {
+    const state = get();
+    if (!state.documentModel) {
+      return false;
+    }
+
+    const nextIndex = state.currentSnapshotIndex + 1;
+    if (nextIndex >= state.snapshots.length) {
+      return false; // No redo available
+    }
+
+    const snapshot = state.snapshots[nextIndex];
+    if (!snapshot) {
+      return false;
+    }
+
+    try {
+      state.documentModel.restoreFromSnapshot(snapshot);
+
+      set(currentState => ({
+        currentSnapshotIndex: nextIndex
+      }));
+
+      storeEvents.emit('documentRestored', {
+        snapshotId: snapshot.id,
+        description: snapshot.description,
+        type: 'redo'
+      });
+
+      return true;
+
+    } catch (error) {
+      console.error('Error during redo:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Check if redo is available
+   */
+  canRedo: () => {
+    const state = get();
+    return state.currentSnapshotIndex < state.snapshots.length - 1;
   },
 
   // === EXPORT AND UTILITIES ===

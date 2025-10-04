@@ -1,6 +1,11 @@
 // next.config.js - Configure API proxy
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Optimize for faster navigation
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@phosphor-icons/react', 'framer-motion'],
+  },
+
   async rewrites() {
     // Only proxy API routes in development
     if (process.env.NODE_ENV === 'development') {
@@ -13,7 +18,7 @@ const nextConfig = {
     }
     return [];
   },
-  
+
   // Configure headers for file uploads
   async headers() {
     return [

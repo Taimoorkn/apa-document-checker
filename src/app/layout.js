@@ -24,8 +24,10 @@ export const metadata = {
     default: 'Lilo - Free APA 7th Edition Format Validator & Citation Checker',
     template: '%s | Lilo'
   },
-  description: 'Free online APA format checker for academic papers. Instantly validate your DOCX documents against APA 7th edition guidelines. Check citations, references, formatting, headings, and more with AI-powered analysis.',
+  description: 'Lilo is a free online APA format checker for academic papers. Instantly validate your DOCX documents against APA 7th edition guidelines. Check citations, references, formatting, headings, and more with AI-powered analysis.',
   keywords: [
+    'Lilo',
+    'Lilo APA checker',
     'APA format checker',
     'APA 7th edition',
     'citation checker',
@@ -40,7 +42,8 @@ export const metadata = {
     'APA guidelines',
     'free APA checker',
     'online APA tool',
-    'academic document validator'
+    'academic document validator',
+    'APA document checker'
   ],
   authors: [{ name: 'Lilo Team' }],
   creator: 'Lilo',

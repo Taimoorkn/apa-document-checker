@@ -81,8 +81,8 @@ export default function LandingPage() {
               </h1>
 
               <p className="text-lg md:text-xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-                Upload your DOCX file and let our AI-powered engine identify and
-                help you fix every APA 7th edition formatting error.
+                Upload your DOCX file and let our custom engine identify and
+                help you fix APA 7th edition formatting rules.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -172,7 +172,7 @@ export default function LandingPage() {
                 The Ultimate APA Toolkit
               </h2>
               <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-                Go beyond basic spell-checking. Our AI understands the nuances
+                Go beyond basic spell-checking. Lilo understands the nuances
                 of academic writing and APA guidelines.
               </p>
             </div>
@@ -183,8 +183,8 @@ export default function LandingPage() {
                 title="Comprehensive Analysis"
                 delay={0.1}
               >
-                From title page to references, we check every detail:
-                citations, formatting, structure, and bias-free language.
+                From title page to references, we check every detail: citations,
+                formatting, structure, and bias-free language.
               </FeatureCard>
               <FeatureCard
                 icon={<Sparkles className="h-6 w-6" />}
@@ -221,11 +221,7 @@ export default function LandingPage() {
             <div className="grid md:grid-cols-3 gap-12 relative">
               {/* Dashed Line Connector */}
               <div className="hidden md:block absolute top-1/2 left-0 w-full h-px -translate-y-20">
-                <svg
-                  width="100%"
-                  height="100%"
-                  className="text-slate-300"
-                >
+                <svg width="100%" height="100%" className="text-slate-300">
                   <line
                     x1="0"
                     y1="50%"
@@ -242,12 +238,12 @@ export default function LandingPage() {
                 always private and protected.
               </Step>
               <Step number="2" title="Instant Analysis" delay={0.3}>
-                Our AI scans your document in seconds, cross-referencing every
+                Lilo scans your document in seconds, cross-referencing every
                 line with APA 7th edition rules.
               </Step>
               <Step number="3" title="Review & Correct" delay={0.5}>
-                Explore the interactive report, understand the issues, and
-                apply one-click fixes.
+                Explore the interactive report, understand the issues, and apply
+                one-click fixes.
               </Step>
             </div>
           </div>

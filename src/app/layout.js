@@ -19,12 +19,12 @@ const outfit = Outfit({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://apa-document-checker.vercel.app'),
+  metadataBase: new URL('https://apa-document-checker.vercel.app'),
   title: {
     default: 'Lilo - Free APA 7th Edition Format Validator & Citation Checker',
     template: '%s | Lilo'
   },
-  description: 'Lilo is a free online APA format checker for academic papers. Instantly validate your DOCX documents against APA 7th edition guidelines. Check citations, references, formatting, headings, and more with AI-powered analysis.',
+  description: 'Lilo is a free online APA format checker for academic papers. Instantly validate your DOCX documents against APA 7th edition guidelines. Check citations, references, formatting, headings, and more with custom analysis.',
   keywords: [
     'Lilo',
     'Lilo APA checker',
@@ -48,6 +48,14 @@ export const metadata = {
   authors: [{ name: 'Lilo Team' }],
   creator: 'Lilo',
   publisher: 'Lilo',
+  applicationName: 'Lilo',
+  icons: {
+    icon: [
+      { url: '/LiloLogo.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   robots: {
     index: true,
     follow: true,
@@ -78,7 +86,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Lilo - Free APA Format Validator',
-    description: 'Instantly validate your academic documents against APA 7th edition guidelines. Free online tool with AI-powered analysis.',
+    description: 'Instantly validate your academic documents against APA 7th edition guidelines. Free online tool with custom analysis.',
     images: ['/twitter-image.png'],
     creator: '@lilo',
   },
@@ -123,7 +131,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <head>
-        <link rel="icon" href="/LiloLogo.svg" type="image/svg+xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

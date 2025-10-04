@@ -188,7 +188,7 @@ export default function LandingPage() {
                 title="Instant Violation Detection"
                 delay={0.2}
               >
-                Get immediate feedback on what's wrong and where. See exact locations of formatting violations with precise highlighting.
+                Get immediate feedback on what&apos;s wrong and where. See exact locations of formatting violations with precise highlighting.
               </FeatureCard>
               <FeatureCard
                 icon={<BookOpen className="h-6 w-6" />}
